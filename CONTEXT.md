@@ -21,7 +21,9 @@
                                         ▼
                     ┌────────────────────────────────────────┐
                     │     FastAPI Core Backend Engine (8000) │
-                    │     JWT Auth / Status Page Manager     │
+                    │  - REST API & JWT Auth (routes)        │
+                    │  - Dashboard Service (services)        │
+                    │  - Realtime WebSockets (websockets)    │
                     └───────────────────┬────────────────────┘
                                         │
            ┌────────────────────────────┴────────────────────────────┐
