@@ -4,9 +4,8 @@ import logging
 import asyncio
 import time
 import secrets
-import redis.asyncio as async_redis
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
@@ -21,6 +20,7 @@ from app.auth.security import get_password_hash
 from app.scheduler import start_scheduler, stop_scheduler
 from app.routes import auth, targets, dashboard
 from app.routes import status_pages
+from app import websockets
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -75,7 +75,7 @@ async def lifespan(app: FastAPI):
     app.state.scheduler = start_scheduler()
     
     # 4. Start Redis pub/sub background listener
-    listener_task = asyncio.create_task(redis_listener())
+    listener_task = asyncio.create_task(websockets.redis_listener())
     
     yield
     
@@ -109,6 +109,7 @@ app.include_router(auth.router)
 app.include_router(targets.router)
 app.include_router(dashboard.router)
 app.include_router(status_pages.router)
+app.include_router(websockets.router)
 
 def get_app_version() -> str:
     try:
