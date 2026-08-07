@@ -112,14 +112,18 @@ app.include_router(status_pages.router)
 app.include_router(websockets.router)
 
 def get_app_version() -> str:
-    try:
-        vf = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "VERSION")
+    locations = [
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "VERSION"),
+        "/VERSION"
+    ]
+    for vf in locations:
         if os.path.exists(vf):
-            with open(vf, "r") as f:
-                return f.read().strip()
-    except Exception:
-        pass
-    return "0.2.1"
+            try:
+                with open(vf, "r") as f:
+                    return f.read().strip()
+            except Exception:
+                pass
+    return "0.3.0"
 
 @app.get("/")
 def read_root():
