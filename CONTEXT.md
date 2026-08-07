@@ -1,6 +1,6 @@
 # Snoomp — Enterprise Infrastructure Health & Status Platform
 
-> **Version:** `v0.2.0`  
+> **Version:** `v0.3.0`  
 > **Repository Root:** `d:/Project/snoomp`
 
 ---
@@ -91,3 +91,12 @@
    - **Tabular Figures:** Apply `font-variant-numeric: tabular-nums` to numerical metric counters to prevent layout shifts during WebSocket updates.
    - **Zero Emoji In Source Code:** Clean Lucide SVG icons and professional text tags in UI and CLI scripts.
    - **Universal Accessibility:** AAA contrast in both Light Mode (`#F4F6F8`) and Dark Mode (`#0c0d12`).
+
+---
+
+## 📝 6. Changelog & Versioning Rules (For Agents)
+
+- **Always update the Changelog and Version:** When completing tasks that modify behavior, features, or architecture, agents MUST update `CHANGELOG.md` and the `VERSION` file.
+- **Versioning Schema:** 
+  - If making a **major** update (new features, major refactors), increment the Y digit: `x.Y.x` (e.g., `0.2.1` -> `0.3.0`).
+  - If making a **minor** update (bug fixes, small tweaks), increment the Z digit: `x.x.Y` (e.g., `0.3.0` -> `0.3.1`).

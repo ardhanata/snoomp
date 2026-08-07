@@ -5,6 +5,16 @@ All notable changes to Snoomp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-08-07
+
+### Added
+- **E2E Testing Framework:** Integrated `testcontainers` for PostgreSQL and Redis to run fully isolated backend tests. Added 11 comprehensive tests covering Auth, Targets lifecycle, SSH Checkers, and WebSocket connectivity.
+
+### Changed
+- **Backend Architecture Decoupling:** Refactored the God-object `main.py` into dedicated modules. Extracted dashboard data aggregation into `app.services.dashboard` and realtime infrastructure into `app.websockets`. The core `main.py` now purely handles FastAPI orchestration and lifecycle management.
+
+---
+
 ## [0.2.1] - 2026-07-30
 
 ### Fixed & Improved
