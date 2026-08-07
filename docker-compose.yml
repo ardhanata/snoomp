@@ -1,0 +1,103 @@
+version: '3.8'
+
+services:
+  db:
+    image: timescale/timescaledb:latest-pg15
+    container_name: snoomp-db
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-snoomp_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-snoomp_secure_pass_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-snoomp_db}
+    ports:
+      - "54321:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U snoomp_admin -d snoomp_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: snoomp-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: snoomp-backend-api
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    env_file: .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://snoomp_admin:snoomp_secure_pass_2026@db:5432/snoomp_db}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set in .env}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8008}
+    ports:
+      - "8008:8000"
+    volumes:
+      - ./backend:/workspace
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  backend-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: snoomp-backend-worker
+    restart: unless-stopped
+    command: celery -A worker.tasks worker --loglevel=info
+    env_file: .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://snoomp_admin:snoomp_secure_pass_2026@db:5432/snoomp_db}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+    volumes:
+      - ./backend:/workspace
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: snoomp-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/workspace
+      - /workspace/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8008
+      - VITE_WS_URL=ws://localhost:8008
+    depends_on:
+      - backend-api
+
+volumes:
+  db_data:
+  redis_data:
