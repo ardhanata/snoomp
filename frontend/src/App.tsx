@@ -120,6 +120,10 @@ function App() {
   };
 
   useEffect(() => {
+    fetchVersion();
+  }, []);
+
+  useEffect(() => {
     if (!showProfileMenu) return;
     const handleDocumentClick = (e: MouseEvent) => {
       if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
