@@ -5,10 +5,10 @@
 [![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/frontend-React%2018%20%2B%20Vite-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776AB.svg?logo=python&logoColor=white)](https://python.org)
-[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20Server-lightgrey.svg)](https://github.com/ardhanata/snoomp)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Docker-lightgrey.svg)](https://github.com/ardhanata/snoomp)
 
 > **Enterprise Multi-Protocol Infrastructure Observability & Uptime Monitoring**  
-> High-performance, self-hosted monitoring with real-time WebSocket telemetry, Apprise multi-channel alerting (80+ providers), and dual-mode deployment (Docker or Standalone Native Windows).
+> High-performance, self-hosted monitoring with real-time WebSocket telemetry, Apprise multi-channel alerting (80+ providers), and single-command Docker deployment.
 
 ---
 
@@ -45,47 +45,80 @@ Full notification management with instant testing, custom titles, default channe
 
 ## 🚀 Quick Start
 
-Snoomp supports two official deployment architectures:
+Snoomp runs as a Docker Compose stack on Linux. The frontend is compiled into
+the backend image and served same-origin, so the image tag is the entire
+artifact — the UI and API cannot drift apart, and the host needs no Node.
 
-### Option A: Standalone Native Windows (No Docker / No Python Needed)
-Run Snoomp directly on Windows Server or Windows 10/11 using the interactive one-liner installer:
-
-```powershell
-# Run in PowerShell (Administrator recommended for 24/7 background service registration):
-irm https://raw.githubusercontent.com/ardhanata/snoomp/main/scripts/install.ps1 | iex
-```
-
-**Installer Capabilities:**
-1. **Interactive Port Conflict Detection**: Automatically inspects occupying processes and offers custom ports, auto-increment, or conflict termination.
-2. **Package Selection**:
-   - **Preset 1 (Full Production Package)**: Connects to PostgreSQL / TimescaleDB and Redis with pre-flight TCP verification handshakes.
-   - **Preset 2 (Standalone Native)**: Zero-dependency embedded SQLite in WAL mode with in-process task scheduler.
-3. **24/7 Windows Service**: Registers a Windows Scheduled Task (`SnoompServer`) running under `NT AUTHORITY\SYSTEM` with automatic failure restarts.
-4. **Helper Management Scripts**: Installs `status-snoomp.ps1`, `start-snoomp.ps1`, `stop-snoomp.ps1`, `restart-snoomp.ps1`, and `view-logs.ps1`.
-
----
-
-### Option B: Docker Compose (Linux / Production Containers)
+**Requirements:** Linux host with Docker Engine 24+ and the Compose plugin.
 
 ```bash
-# 1. Clone repository
 git clone https://github.com/ardhanata/snoomp.git
 cd snoomp
 
-# 2. Configure environment
 cp .env.example .env
-# Edit .env and set JWT_SECRET and database passwords
+# Set JWT_SECRET and POSTGRES_PASSWORD — the stack refuses to start without them.
+#   openssl rand -base64 48   # JWT_SECRET
+#   openssl rand -base64 32   # POSTGRES_PASSWORD
 
-# 3. Launch the full stack
-docker compose up -d
-
-# 4. Open dashboard
-# Browser: http://localhost:8008
+docker compose up -d --build
 ```
 
-Default administrator credentials on fresh deployment:
-- **Username**: `admin`
-- **Password**: `admin123` *(Please change immediately in Preferences upon login)*
+Open `http://<host>:8008`. On first run the admin password is generated and
+printed once:
+
+```bash
+docker compose logs api | grep -A5 FIRST-RUN
+```
+
+Set `SNOOMP_ADMIN_PASSWORD` in `.env` beforehand to choose it yourself.
+
+### Updating
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+Both containers are replaced together. To roll back, check out the previous
+tag and rebuild — `db_data` and `redis_data` are named volumes and survive.
+
+### Configuration
+
+All settings live in `.env`; see `.env.example` for the annotated list. The
+two required values are `JWT_SECRET` and `POSTGRES_PASSWORD`. Set
+`ALLOWED_ORIGINS` to the URL users actually visit, e.g.
+`http://10.100.244.3:8008`.
+
+### Notes on the container setup
+
+- **`NET_RAW`** is granted to `api` and `worker` for ICMP. Containers still run
+  as a non-root user; this grants one capability rather than the root set.
+- **Postgres is not published** to the host — only the app containers reach it.
+  Uncomment the `ports` block in `docker-compose.yml` to attach a SQL client.
+- **TimescaleDB** provides the `system_metrics` hypertable. The image includes
+  the extension and the privileges to create it.
+- **Outbound monitoring** (ping, SNMP, SSH, TCP, DNS) works over the default
+  bridge network. `network_mode: host` is only needed if targets must reach
+  Snoomp inbound on arbitrary ports.
+
+### Migrating from a previous Windows install
+
+The Windows executable, installer and in-app updater have been removed;
+Compose is the only supported deployment. To carry existing data across:
+
+```bash
+# On the old Windows host, with its PostgreSQL running:
+pg_dump -U snoomp_admin -d snoomp_db -Fc -f snoomp.dump
+
+# On the new Linux host, after `docker compose up -d`:
+docker compose cp snoomp.dump db:/tmp/snoomp.dump
+docker compose exec db pg_restore -U snoomp_admin -d snoomp_db --clean --if-exists /tmp/snoomp.dump
+docker compose restart api worker
+```
+
+SQLite is no longer supported — the app refuses to start on a `sqlite://` URL
+rather than running with a schema that cannot host the metrics hypertable. A
+standalone SQLite deployment must be exported to PostgreSQL first.
 
 ---
 
@@ -95,8 +128,8 @@ Default administrator credentials on fresh deployment:
 | :--- | :--- |
 | **Backend** | Python 3.11+, FastAPI, Uvicorn, SQLAlchemy, Alembic, Celery, Apprise, AsyncSSH, PySNMP, Psycopg2 |
 | **Frontend** | React 18, TypeScript, Vite, Chart.js, Lucide Icons, Vanilla CSS Design System |
-| **Data Layer** | PostgreSQL / TimescaleDB (Production) or SQLite 3 WAL (Standalone Native), Redis |
-| **Packaging** | PyInstaller (Windows x64 Standalone Executable), Docker & Docker Compose |
+| **Data Layer** | PostgreSQL 16 / TimescaleDB, Redis 7 |
+| **Packaging** | Multi-stage Docker image (frontend baked in), Docker Compose |
 
 ---
 
@@ -106,7 +139,7 @@ Default administrator credentials on fresh deployment:
 # Backend unit & integration tests:
 cd backend
 python -m venv venv
-venv\Scripts\activate          # or source venv/bin/activate on Linux
+source venv/bin/activate
 pip install -r requirements.txt -r requirements-test.txt
 pytest
 

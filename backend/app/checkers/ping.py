@@ -1,7 +1,6 @@
 import subprocess
 import time
 import re
-import sys
 from icmplib import ping, SocketPermissionError
 from app.checkers.base import CheckerResult
 
@@ -12,13 +11,12 @@ def _ping_subprocess(host: str, count: int = 3, timeout_sec: int = 2) -> Checker
         return CheckerResult(status="down", response_time_ms=0.0, error=f"Invalid host: {host}")
 
     start = time.monotonic()
-    
-    # Select command options based on OS — use '--' to separate flags from host
-    if sys.platform == "win32":
-        cmd = ["ping", "-n", str(count), "-w", str(timeout_sec * 1000), "--", host]
-    else:
-        cmd = ["ping", "-c", str(count), "-W", str(timeout_sec), "--", host]
-        
+
+    # iputils-ping (see Dockerfile). '--' separates flags from the host so a
+    # host beginning with '-' cannot be read as an option.
+    cmd = ["ping", "-c", str(count), "-W", str(timeout_sec), "--", host]
+
+
     try:
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=timeout_sec * count + 1)
         elapsed = (time.monotonic() - start) * 1000

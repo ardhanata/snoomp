@@ -6,12 +6,21 @@ from sqlalchemy.orm import sessionmaker
 
 logger = logging.getLogger(__name__)
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./snoomp.db")
-
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL is required. Example: "
+        "postgresql://snoomp_admin:<password>@db:5432/snoomp_db"
+    )
 if DATABASE_URL.startswith("sqlite"):
-    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-else:
-    engine = create_engine(DATABASE_URL)
+    raise RuntimeError(
+        "SQLite is no longer supported. Snoomp requires PostgreSQL (TimescaleDB "
+        "recommended) for the system_metrics hypertable."
+    )
+
+# pool_pre_ping recycles connections dropped by the database or an idle-timeout
+# proxy — without it the first request after a DB restart fails.
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=1800)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -49,52 +58,6 @@ def _ensure_indexes():
         db.close()
 
 
-def _repair_sqlite_autoincrement():
-    """
-    Rebuild time-series tables whose primary key was created as BIGINT.
-
-    SQLite only auto-assigns a primary key for a column declared exactly
-    `INTEGER PRIMARY KEY`. These tables were created as BIGINT, so every insert
-    failed with "NOT NULL constraint failed" and nothing was ever written on
-    the SQLite path. `create_all` will not alter an existing table, so the old
-    definition has to go before the corrected one can be created.
-
-    Only ever drops a table that is empty — if a deployment somehow does hold
-    rows, the table is left alone and a warning is logged rather than risking
-    data for a convenience fix.
-    """
-    if engine.dialect.name != "sqlite":
-        return
-
-    db = SessionLocal()
-    try:
-        for table in ("heartbeats", "system_metrics"):
-            try:
-                ddl = db.execute(text(
-                    "SELECT sql FROM sqlite_master WHERE type='table' AND name=:t"
-                ), {"t": table}).scalar()
-                if not ddl or "BIGINT NOT NULL" not in ddl.upper():
-                    continue
-
-                count = db.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar() or 0
-                if count:
-                    logger.warning(
-                        "%s has a BIGINT primary key that cannot autoincrement on SQLite, "
-                        "but holds %d rows — leaving it alone. Inserts will keep failing "
-                        "until it is migrated manually.", table, count,
-                    )
-                    continue
-
-                db.execute(text(f"DROP TABLE {table}"))
-                db.commit()
-                logger.info("Rebuilt empty %s to fix SQLite autoincrement.", table)
-            except Exception as e:  # noqa: BLE001 — never block boot
-                db.rollback()
-                logger.warning("Could not repair %s: %s: %s", table, type(e).__name__, e)
-    finally:
-        db.close()
-
-
 def init_db():
     # Import models to ensure they are registered on Base
     from app.models.user import User
@@ -104,9 +67,6 @@ def init_db():
     from app.models.incident import Incident
     from app.models.setting import Setting
     from app.models.notification import Notification
-
-    # Must run before create_all so the corrected definition can be applied.
-    _repair_sqlite_autoincrement()
 
     Base.metadata.create_all(bind=engine)
     logger.info("Database tables created successfully.")

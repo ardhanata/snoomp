@@ -21,7 +21,6 @@ import ExecutiveDashboard, { SlaTrend } from './components/ExecutiveDashboard';
 import PrintableReport from './components/PrintableReport';
 import DatabaseMetricsChart from './components/DatabaseMetricsChart';
 import UserPreferencesModal, { SlaConfig } from './components/UserPreferencesModal';
-import UpdateModal from './components/UpdateModal';
 import { InstanceSettings, readCache, fetchSettings, applyAppearance } from './lib/settings';
 
 const API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
@@ -205,7 +204,6 @@ function App() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showPreferencesModal, setShowPreferencesModal] = useState(false);
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [appVersion, setAppVersion] = useState('v1.0.0');
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
@@ -1363,14 +1361,6 @@ function App() {
                 >
                   <Sliders size={14} /> User Preferences
                 </button>
-                <button
-                  onClick={() => { setShowProfileMenu(false); setShowUpdateModal(true); }}
-                  style={{ background: 'transparent', border: 'none', padding: '8px 12px', textAlign: 'left', cursor: 'pointer', borderRadius: '4px', fontSize: '13px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <RefreshCw size={14} /> Check for Updates
-                </button>
                 <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />
                 <button
                   onClick={() => { setShowProfileMenu(false); handleLogout(); }}
@@ -1814,9 +1804,7 @@ function App() {
               {/* Version Footer Badge */}
               <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
                 <span>Snoomp Enterprise</span>
-                <button
-                  onClick={() => setShowUpdateModal(true)}
-                  title="Check for updates"
+                <span
                   style={{
                     background: 'var(--bg-elevated)',
                     border: '1px solid var(--border)',
@@ -1824,17 +1812,10 @@ function App() {
                     borderRadius: '11px',
                     fontWeight: 600,
                     color: 'var(--accent)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    transition: 'all 0.15s ease'
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; }}
                 >
-                  <RefreshCw size={11} /> {appVersion}
-                </button>
+                  {appVersion}
+                </span>
               </div>
             </aside>
           )}
@@ -2891,12 +2872,6 @@ curl -X POST -H "Content-Type: application/json" \\
         }}
       />
 
-      {/* ─── UPDATE MODAL ─── */}
-      <UpdateModal
-        isOpen={showUpdateModal}
-        onClose={() => setShowUpdateModal(false)}
-        apiUrl={API_URL}
-      />
 
       {/* ─── BATCH EDIT MODAL ─── */}
       <BatchEditModal

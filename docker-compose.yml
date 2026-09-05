@@ -1,104 +1,102 @@
-version: '3.8'
+# Snoomp — production deployment (Linux host)
+#
+# The frontend is baked into the backend image and served same-origin, so
+# there is no separate frontend service, no Node on the host, and no way for
+# the UI and API to drift out of sync: the image tag is the whole artifact.
+#
+#   cp .env.example .env && $EDITOR .env     # JWT_SECRET and POSTGRES_PASSWORD are required
+#   docker compose up -d --build
+#
+# Update:   docker compose build && docker compose up -d
+# Rollback: docker compose down && git checkout <tag> && docker compose up -d --build
 
 services:
   db:
-    image: timescale/timescaledb:latest-pg15
+    image: timescale/timescaledb:2.17.2-pg16
     container_name: snoomp-db
     restart: unless-stopped
-    env_file: .env
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-snoomp_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-snoomp_secure_pass_2026}
-      POSTGRES_DB: ${POSTGRES_DB:-snoomp_db}
-    ports:
-      - "54321:5432"
+      POSTGRES_USER: "${POSTGRES_USER:-snoomp_admin}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}"
+      POSTGRES_DB: "${POSTGRES_DB:-snoomp_db}"
     volumes:
       - db_data:/var/lib/postgresql/data
+    # Not published to the host — only the app containers need it. Uncomment
+    # to attach a SQL client from outside.
+    # ports:
+    #   - "127.0.0.1:54321:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U snoomp_admin -d snoomp_db"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-snoomp_admin} -d ${POSTGRES_DB:-snoomp_db}"]
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
 
   redis:
     image: redis:7-alpine
     container_name: snoomp-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
     volumes:
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
 
-  backend-api:
+  api:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: snoomp-backend-api
+      context: .
+      dockerfile: backend/Dockerfile
+    image: snoomp:${SNOOMP_VERSION:-local}
+    container_name: snoomp-api
     restart: unless-stopped
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    env_file: .env
-    environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://snoomp_admin:snoomp_secure_pass_2026@db:5432/snoomp_db}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
-      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
-      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set in .env}
-      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8008}
+    environment: &app_env
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-snoomp_admin}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@db:5432/${POSTGRES_DB:-snoomp_db}"
+      REDIS_URL: "redis://redis:6379/0"
+      CELERY_BROKER_URL: "redis://redis:6379/0"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/0"
+      JWT_SECRET: "${JWT_SECRET:?JWT_SECRET must be set in .env - generate with openssl rand -base64 48}"
+      ACCESS_TOKEN_EXPIRE_MINUTES: "${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-http://localhost:8008}"
+      SNOOMP_ADMIN_PASSWORD: "${SNOOMP_ADMIN_PASSWORD:-}"
     ports:
-      - "8008:8000"
-    volumes:
-      - ./backend:/workspace
-      - ./VERSION:/VERSION:ro
+      - "${SNOOMP_PORT:-8008}:8000"
+    # ICMP raw sockets. The container still runs as non-root; this grants the
+    # one capability the ping checker needs rather than the whole root set.
+    cap_add:
+      - NET_RAW
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
 
-  backend-worker:
+  worker:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: snoomp-backend-worker
+      context: .
+      dockerfile: backend/Dockerfile
+    image: snoomp:${SNOOMP_VERSION:-local}
+    container_name: snoomp-worker
     restart: unless-stopped
-    command: celery -A worker.tasks worker --loglevel=info
-    env_file: .env
-    environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://snoomp_admin:snoomp_secure_pass_2026@db:5432/snoomp_db}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
-      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
-    volumes:
-      - ./backend:/workspace
-      - ./VERSION:/VERSION:ro
+    command: ["celery", "-A", "worker.tasks", "worker", "--loglevel=info", "--concurrency=${CELERY_CONCURRENCY:-8}"]
+    environment: *app_env
+    # The worker executes every check — ping, SNMP, SSH, TCP, DNS — so it needs
+    # the same network capability as the API.
+    cap_add:
+      - NET_RAW
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: snoomp-frontend
-    restart: unless-stopped
-    ports:
-      - "${FRONTEND_PORT:-3000}:5173"
-    volumes:
-      - ./frontend:/workspace
-      - /workspace/node_modules
-    environment:
-      - VITE_API_URL=http://localhost:8008
-      - VITE_WS_URL=ws://localhost:8008
-    depends_on:
-      - backend-api
+    logging: *logging
 
 volumes:
   db_data:

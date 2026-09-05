@@ -115,117 +115,40 @@ app.include_router(backup.router)
 app.include_router(websockets.router)
 
 def get_app_version() -> str:
-    import sys
-    locations = [
-        os.path.join(getattr(sys, "_MEIPASS", ""), "VERSION"),
-        os.path.join(os.path.dirname(sys.executable), "VERSION"),
-        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "VERSION"),
-        "/VERSION"
-    ]
-    for vf in locations:
-        if os.path.exists(vf):
-            try:
-                with open(vf, "r") as f:
-                    return f.read().strip()
-            except Exception:
-                pass
-    return "1.0.0"
+    """Read the version baked into the image at /VERSION (see Dockerfile)."""
+    for vf in ("/VERSION", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "VERSION")):
+        try:
+            with open(vf, "r") as f:
+                return f.read().strip()
+        except OSError:
+            continue
+    return "unknown"
 
 @app.get("/api/version")
 def get_version():
     return {"version": get_app_version(), "release_date": "2026-09-06", "name": "Snoomp Enterprise Observability"}
 
-@app.get("/api/system/check-updates")
-async def check_system_updates():
-    """Checks GitHub releases API for the latest Snoomp release."""
-    import httpx
-    import re
-    current_ver = get_app_version().lstrip("v")
-    repo = "ardhanata/snoomp"
-    url = f"https://api.github.com/repos/{repo}/releases/latest"
-    try:
-        async with httpx.AsyncClient(timeout=6.0) as client:
-            resp = await client.get(url, headers={"User-Agent": "Snoomp-Update-Checker"})
-            if resp.status_code == 200:
-                data = resp.json()
-                latest_tag = data.get("tag_name", "").lstrip("v")
-                
-                def parse_ver(v: str):
-                    parts = []
-                    for seg in v.split("."):
-                        m = re.match(r"\d+", seg)
-                        parts.append(int(m.group(0)) if m else 0)
-                    return parts
-
-                try:
-                    has_update = parse_ver(latest_tag) > parse_ver(current_ver)
-                except Exception:
-                    has_update = (latest_tag != current_ver and bool(latest_tag))
-
-                download_url = None
-                for asset in data.get("assets", []):
-                    name = asset.get("name", "").lower()
-                    if "windows" in name and name.endswith(".zip"):
-                        download_url = asset.get("browser_download_url")
-                        break
-
-                return {
-                    "current_version": current_ver,
-                    "latest_version": latest_tag,
-                    "has_update": has_update,
-                    "release_name": data.get("name") or f"Snoomp v{latest_tag}",
-                    "release_notes": (data.get("body") or "")[:2000],
-                    "html_url": data.get("html_url"),
-                    "download_url": download_url,
-                    "published_at": data.get("published_at")
-                }
-            elif resp.status_code == 404:
-                return {
-                    "current_version": current_ver,
-                    "latest_version": current_ver,
-                    "has_update": False,
-                    "message": "No releases found on GitHub repository."
-                }
-            else:
-                return {
-                    "current_version": current_ver,
-                    "latest_version": None,
-                    "has_update": False,
-                    "error": f"GitHub API returned HTTP {resp.status_code}"
-                }
-    except Exception as e:
-        return {
-            "current_version": current_ver,
-            "latest_version": None,
-            "has_update": False,
-            "error": str(e)
-        }
-
 def _find_frontend_dist() -> str | None:
-    # ponytail: prioritize external dist next to executable for zero-recompile hotfixes
-    import sys
-    candidates = []
-    if getattr(sys, "frozen", False):
-        exe_dir = os.path.dirname(sys.executable)
-        candidates.extend([
-            os.path.join(exe_dir, "dist"),
-            os.path.join(exe_dir, "frontend", "dist"),
-        ])
-    bundle_dir = getattr(sys, "_MEIPASS", None)
-    if bundle_dir:
-        candidates.extend([
-            os.path.join(bundle_dir, "frontend", "dist"),
-            os.path.join(bundle_dir, "dist"),
-        ])
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    candidates.extend([
-        os.path.join(project_root, "frontend", "dist"),
-        os.path.join(os.getcwd(), "frontend", "dist"),
-        os.path.join(os.getcwd(), "dist"),
-    ])
-    for p in candidates:
-        if p and os.path.isdir(p) and os.path.isfile(os.path.join(p, "index.html")):
-            return os.path.abspath(p)
+    """
+    Locate the built frontend.
+
+    Exactly one location, no fallback chain: the image bakes the build at
+    /app/frontend_dist (see Dockerfile). FRONTEND_DIST can override it for
+    local development.
+
+    A previous version searched six candidate paths and silently fell back
+    when one lacked index.html — which meant a half-copied directory served
+    a stale bundle with nothing indicating why. If the frontend is missing
+    now, the app says so loudly instead of guessing.
+    """
+    path = os.getenv("FRONTEND_DIST", "/app/frontend_dist")
+    if os.path.isfile(os.path.join(path, "index.html")):
+        return os.path.abspath(path)
+
+    logger.warning(
+        "No frontend build at %s (index.html missing). Serving API only. "
+        "Set FRONTEND_DIST or rebuild the image.", path
+    )
     return None
 
 _frontend_dist = _find_frontend_dist()

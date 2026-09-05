@@ -1,6 +1,4 @@
-import os
 import logging
-import concurrent.futures
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
@@ -9,25 +7,22 @@ from app.models.target import Target
 
 logger = logging.getLogger(__name__)
 
-# In-process executor for standalone Windows execution without Celery/Redis
-_in_process_executor = concurrent.futures.ThreadPoolExecutor(max_workers=10, thread_name_prefix="snoomp-check")
 
 def _make_job(target_id: str) -> None:
-    """Job function that pushes check request to Celery queue, falling back to in-process execution if Redis is absent."""
-    use_celery = os.getenv("USE_CELERY", "auto").lower()
-    if use_celery != "false":
-        try:
-            from worker.tasks import run_check_task
-            run_check_task.delay(target_id)
-            return
-        except Exception as e:
-            logger.debug(f"Celery dispatch failed ({e}), falling back to in-process execution")
+    """
+    Queue a check on the Celery worker.
 
+    The in-process ThreadPoolExecutor fallback that used to live here existed
+    for the standalone Windows build, where Redis might be absent. Under
+    Compose the broker is a declared dependency, so a dispatch failure is a
+    real fault and is logged as one rather than being silently absorbed by a
+    second execution path.
+    """
     try:
         from worker.tasks import run_check_task
-        _in_process_executor.submit(run_check_task, target_id)
-    except Exception as ex:
-        logger.error(f"In-process check execution failed for target {target_id}: {ex}")
+        run_check_task.delay(target_id)
+    except Exception:
+        logger.exception("Could not queue check for target %s — is the Celery broker reachable?", target_id)
 
 def _flush_discord_alerts() -> None:
     """
