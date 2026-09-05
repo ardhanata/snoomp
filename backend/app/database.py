@@ -118,7 +118,6 @@ def init_db():
 
     # ponytail: TimescaleDB extension/hypertable queries are Postgres-only
     if engine.dialect.name == "postgresql":
-        from sqlalchemy.exc import OperationalError, ProgrammingError
         db = SessionLocal()
         try:
             db.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;"))
@@ -130,7 +129,7 @@ def init_db():
             """))
             db.commit()
             logger.info("TimescaleDB hypertable for system_metrics verified/created.")
-        except (OperationalError, ProgrammingError) as e:
+        except Exception as e:
             logger.warning(f"TimescaleDB hypertable init skipped (standard Postgres?): {type(e).__name__}: {e}")
             db.rollback()
         finally:
