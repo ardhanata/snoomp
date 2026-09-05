@@ -62,11 +62,14 @@ def calculate_proc_stat_cpu_percent(
             prev_sample = _memory_cpustat_cache.get(target_key)
     else:
         try:
-            redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
-            r = redis.Redis.from_url(redis_url, socket_timeout=2)
-            raw = r.get(f"ssh_cpustat:{target_key}")
-            if raw:
-                prev_sample = json.loads(raw if isinstance(raw, str) else raw.decode('utf-8'))
+            redis_url = os.getenv("REDIS_URL")
+            if redis_url and redis_url.lower() not in ("none", "false", ""):
+                r = redis.Redis.from_url(redis_url, socket_timeout=2)
+                raw = r.get(f"ssh_cpustat:{target_key}")
+                if raw:
+                    prev_sample = json.loads(raw if isinstance(raw, str) else raw.decode('utf-8'))
+            else:
+                prev_sample = _memory_cpustat_cache.get(target_key)
         except Exception:
             prev_sample = _memory_cpustat_cache.get(target_key)
 
@@ -80,9 +83,12 @@ def calculate_proc_stat_cpu_percent(
             _memory_cpustat_cache[target_key] = curr_sample
     else:
         try:
-            redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
-            r = redis.Redis.from_url(redis_url, socket_timeout=2)
-            r.setex(f"ssh_cpustat:{target_key}", ttl, json.dumps(curr_sample))
+            redis_url = os.getenv("REDIS_URL")
+            if redis_url and redis_url.lower() not in ("none", "false", ""):
+                r = redis.Redis.from_url(redis_url, socket_timeout=2)
+                r.setex(f"ssh_cpustat:{target_key}", ttl, json.dumps(curr_sample))
+            else:
+                _memory_cpustat_cache[target_key] = curr_sample
         except Exception:
             _memory_cpustat_cache[target_key] = curr_sample
 

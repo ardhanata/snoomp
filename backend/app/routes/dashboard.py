@@ -17,10 +17,6 @@ from app.checkers.base import evaluate_resource_status
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
-# Redis client for WebSockets / manual push updates
-REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
-redis_client = redis.Redis.from_url(REDIS_URL)
-
 @router.get("/stats", dependencies=[Depends(require_viewer)])
 def get_stats(db: Session = Depends(get_db)):
     """Returns aggregated stats for all monitor targets."""

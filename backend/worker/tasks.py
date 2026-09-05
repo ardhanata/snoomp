@@ -10,12 +10,20 @@ from sqlalchemy.orm import Session
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL") or os.getenv("REDIS_URL")
+if not CELERY_BROKER_URL or CELERY_BROKER_URL.lower() in ("none", "false", ""):
+    CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
 celery_app = Celery("snoomp_worker", broker=CELERY_BROKER_URL, backend=CELERY_BROKER_URL)
 
-# Redis client for publishing live updates
-REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
-redis_client = redis.Redis.from_url(REDIS_URL)
+# Redis client for publishing live updates (with safe in-process fallback)
+REDIS_URL = os.getenv("REDIS_URL")
+if REDIS_URL and REDIS_URL.lower() not in ("none", "false", ""):
+    try:
+        redis_client = redis.Redis.from_url(REDIS_URL)
+    except Exception:
+        redis_client = None
+else:
+    redis_client = None
 
 # Add backend directory to path if needed for imports
 import sys
@@ -447,7 +455,10 @@ def run_check_task(target_id: str):
             "checked_at": datetime.datetime.utcnow().isoformat()
         }
         try:
-            redis_client.publish("snoomp_updates", json.dumps(update_payload))
+            if redis_client:
+                redis_client.publish("snoomp_updates", json.dumps(update_payload))
+            else:
+                raise RuntimeError("Redis not configured")
         except Exception:
             try:
                 from app.websockets import manager

@@ -635,6 +635,9 @@ function Install-RedisDependency {
             if ($p.ExitCode -eq 0) {
                 Write-Host "  [OK] winget installed Redis package successfully." -ForegroundColor Green
                 $installed = $true
+                if (Get-Service -Name "Redis" -ErrorAction SilentlyContinue) {
+                    Start-Service -Name "Redis" -ErrorAction SilentlyContinue
+                }
             }
         } catch {
             Write-Host "  [INFO] winget install attempt skipped: $_" -ForegroundColor Gray
@@ -671,13 +674,18 @@ function Install-RedisDependency {
             if (-not (Test-Path $confPath)) {
                 $confPath = "$TargetDir\redis.windows.conf"
             }
-            if (Test-Path $confPath) {
-                & "$redisServerExe" --service-install "$confPath" --service-name SnoompRedis --port $Port 2>&1 | Out-Null
+            $existingService = Get-Service -Name "SnoompRedis" -ErrorAction SilentlyContinue
+            if ($existingService) {
+                Restart-Service -Name "SnoompRedis" -ErrorAction SilentlyContinue
             } else {
-                & "$redisServerExe" --service-install --service-name SnoompRedis --port $Port 2>&1 | Out-Null
+                if (Test-Path $confPath) {
+                    & "$redisServerExe" --service-install "$confPath" --service-name SnoompRedis --port $Port 2>&1 | Out-Null
+                } else {
+                    & "$redisServerExe" --service-install --service-name SnoompRedis --port $Port 2>&1 | Out-Null
+                }
+                & "$redisServerExe" --service-start --service-name SnoompRedis 2>&1 | Out-Null
+                Start-Service -Name "SnoompRedis" -ErrorAction SilentlyContinue
             }
-            & "$redisServerExe" --service-start --service-name SnoompRedis 2>&1 | Out-Null
-            Start-Service -Name "SnoompRedis" -ErrorAction SilentlyContinue
         }
     } catch {
         Write-Host "  [ERROR] Failed to extract or start Redis service: $_" -ForegroundColor Red
@@ -844,40 +852,83 @@ if ($DbChoice -eq "1" -and -not $Unattended) {
     }
 
     Write-Host "`n--- [2/3] Redis Message Broker Configuration ---" -ForegroundColor Cyan
-    if ($ScanResults -and $ScanResults[6379] -and $ScanResults[6379].Status -eq "ACTIVE") {
-        Write-Host "  [DETECTED] Local Redis service active on port 6379." -ForegroundColor Green
+    $redisDetected = ($ScanResults -and $ScanResults[6379] -and $ScanResults[6379].Status -eq "ACTIVE")
+    if ($redisDetected) {
+        $rOccDesc = if ($ScanResults[6379].Occupant) { " ($($ScanResults[6379].Occupant.ProcessName))" } else { "" }
+        Write-Host "  [DETECTED] Local Redis service active on port 6379$rOccDesc." -ForegroundColor Green
     }
-    $RHost = Read-Host "  Redis Host [Default: 127.0.0.1, or press Enter to skip]"
-    if (-not [string]::IsNullOrWhiteSpace($RHost)) {
-        $RPort = Read-Host "  Redis Port [Default: 6379]"
-        if ([string]::IsNullOrWhiteSpace($RPort)) { $RPort = "6379" }
+    Write-Host "  [1] Connect to Redis (Recommended for Celery workers & distributed queue)" -ForegroundColor Cyan
+    Write-Host "  [2] Skip Redis (Use In-Process High-Throughput Scheduler, zero external setup)" -ForegroundColor White
+    $defaultRChoice = if ($redisDetected) { "1" } else { "2" }
+    $rChoice = Read-Host "  Selection [Default: $defaultRChoice]"
+    if ([string]::IsNullOrWhiteSpace($rChoice)) { $rChoice = $defaultRChoice }
 
-        Write-Host "  Verifying TCP connection to ${RHost}:${RPort}..." -ForegroundColor Yellow
-        if (Test-TcpEndpoint -hostName $RHost -portNum ([int]$RPort)) {
-            Write-Host "  [OK] Successfully reached Redis service at ${RHost}:${RPort}" -ForegroundColor Green
-            $RedisUrl = "redis://${RHost}:${RPort}/0"
-        } else {
-            Write-Host "  [WARN] Redis not reachable at ${RHost}:${RPort}." -ForegroundColor Yellow
-            $isLocalR = ($RHost -eq "127.0.0.1" -or $RHost -eq "localhost")
-            if ($isLocalR) {
-                Write-Host "  [1] Automatically install Redis Windows service on this machine (Recommended)" -ForegroundColor Cyan
-                Write-Host "  [2] Skip Redis (Use in-process scheduler engine)" -ForegroundColor White
-                $rChoice = Read-Host "  Selection [Default: 1]"
-                if ([string]::IsNullOrWhiteSpace($rChoice) -or $rChoice -eq "1") {
-                    $rInstalled = Install-RedisDependency -Port ([int]$RPort)
-                    if ($rInstalled) {
-                        $RedisUrl = "redis://${RHost}:${RPort}/0"
-                    } else {
-                        Write-Host "  Redis installation failed; falling back to in-process scheduler engine." -ForegroundColor Yellow
+    if ($rChoice -eq "1") {
+        $RedisVerified = $false
+        while (-not $RedisVerified) {
+            $RHost = Read-Host "  Redis Host     [Default: 127.0.0.1]"
+            if ([string]::IsNullOrWhiteSpace($RHost)) { $RHost = "127.0.0.1" }
+            if ($RHost -eq "localhost") { $RHost = "127.0.0.1" }
+
+            $RPort = Read-Host "  Redis Port     [Default: 6379]"
+            if ([string]::IsNullOrWhiteSpace($RPort)) { $RPort = "6379" }
+
+            $RPass = Read-Host "  Redis Password (leave blank if none) " -AsSecureString
+            $PlainRPass = ""
+            if ($RPass -and $RPass.Length -gt 0) {
+                $BstrR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($RPass)
+                try {
+                    $PlainRPass = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BstrR)
+                } finally {
+                    [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BstrR)
+                }
+            }
+
+            Write-Host "  Verifying TCP connection to ${RHost}:${RPort}..." -ForegroundColor Yellow
+            if (Test-TcpEndpoint -hostName $RHost -portNum ([int]$RPort)) {
+                Write-Host "  [OK] Successfully reached Redis service at ${RHost}:${RPort}" -ForegroundColor Green
+                if (-not [string]::IsNullOrWhiteSpace($PlainRPass)) {
+                    $encRPass = [System.Uri]::EscapeDataString($PlainRPass)
+                    $RedisUrl = "redis://:${encRPass}@${RHost}:${RPort}/0"
+                } else {
+                    $RedisUrl = "redis://${RHost}:${RPort}/0"
+                }
+                $RedisVerified = $true
+            } else {
+                Write-Host "  [WARN] Redis not reachable at ${RHost}:${RPort}." -ForegroundColor Red
+                $isLocalR = ($RHost -eq "127.0.0.1" -or $RHost -eq "localhost")
+                if ($isLocalR) {
+                    Write-Host "  [1] Automatically install Redis Windows service on this machine (Recommended)" -ForegroundColor Cyan
+                    Write-Host "  [2] Re-enter Redis connection details" -ForegroundColor White
+                    Write-Host "  [3] Skip Redis (Use In-Process Scheduler engine)" -ForegroundColor White
+                    $failRChoice = Read-Host "  Selection [Default: 1]"
+                    if ([string]::IsNullOrWhiteSpace($failRChoice) -or $failRChoice -eq "1") {
+                        $rInstalled = Install-RedisDependency -Port ([int]$RPort)
+                        if ($rInstalled) {
+                            $RedisUrl = "redis://${RHost}:${RPort}/0"
+                            $RedisVerified = $true
+                        } else {
+                            Write-Host "  Automated Redis installation failed. You may re-enter details or fallback." -ForegroundColor Yellow
+                        }
+                    } elseif ($failRChoice -eq "3") {
+                        $RedisUrl = ""
+                        $RedisVerified = $true
+                        Write-Host "  Skipping Redis. In-process high-performance thread pool scheduler will be used." -ForegroundColor Gray
                     }
                 } else {
-                    Write-Host "  Skipping Redis. In-process high-performance thread pool scheduler will be used." -ForegroundColor Gray
+                    Write-Host "  [1] Re-enter Redis connection details" -ForegroundColor White
+                    Write-Host "  [2] Skip Redis (Use In-Process Scheduler engine)" -ForegroundColor White
+                    $failRChoice = Read-Host "  Selection [Default: 1]"
+                    if ($failRChoice -eq "2") {
+                        $RedisUrl = ""
+                        $RedisVerified = $true
+                        Write-Host "  Skipping Redis. In-process high-performance thread pool scheduler will be used." -ForegroundColor Gray
+                    }
                 }
-            } else {
-                Write-Host "  Falling back to in-process scheduler engine." -ForegroundColor Yellow
             }
         }
     } else {
+        $RedisUrl = ""
         Write-Host "  Skipping Redis. In-process high-performance thread pool scheduler will be used." -ForegroundColor Gray
     }
 
@@ -1071,6 +1122,13 @@ $EnvLines = @(
 if ($RedisUrl) {
     $EnvLines += "REDIS_URL=$RedisUrl"
     $EnvLines += "CELERY_BROKER_URL=$RedisUrl"
+    $EnvLines += "CELERY_RESULT_BACKEND=$RedisUrl"
+    $EnvLines += "USE_CELERY=true"
+} else {
+    $EnvLines += "USE_CELERY=false"
+    $EnvLines += "REDIS_URL="
+    $EnvLines += "CELERY_BROKER_URL="
+    $EnvLines += "CELERY_RESULT_BACKEND="
 }
 
 Set-Content -Path "$InstallDir\snoomp.env" -Value ($EnvLines -join "`r`n") -Encoding utf8
@@ -1114,6 +1172,43 @@ if ($testDbExit -eq 0) {
             $ErrorActionPreference = $oldEap
             if ($testDbExit -eq 0) {
                 Write-Host "[OK] Embedded SQLite schema initialized successfully!" -ForegroundColor Green
+            }
+        }
+    }
+}
+
+# --- 8b. Redis Connectivity Verification ---
+if ($RedisUrl) {
+    Write-Host "`n[VERIFY] Verifying Redis connectivity via snoomp.exe --test-redis..." -ForegroundColor Yellow
+    $oldEap = $ErrorActionPreference
+    $ErrorActionPreference = "SilentlyContinue"
+    $testRedisOutput = & "$InstallDir\snoomp.exe" --test-redis 2>&1
+    $testRedisExit = $LASTEXITCODE
+    $ErrorActionPreference = $oldEap
+
+    if ($testRedisExit -eq 0) {
+        Write-Host $testRedisOutput -ForegroundColor Gray
+        Write-Host "[OK] Redis connectivity verified successfully." -ForegroundColor Green
+    } else {
+        Write-Host $testRedisOutput -ForegroundColor Red
+        Write-Host "[WARN] Redis verification failed (Exit code: $testRedisExit)." -ForegroundColor Yellow
+        if (-not $Unattended) {
+            Write-Host "`nHow would you like to handle Redis connection failure?" -ForegroundColor Cyan
+            Write-Host "  [1] Fallback to In-Process Scheduler (Recommended, zero external dependency)" -ForegroundColor White
+            Write-Host "  [2] Keep Redis configuration (I will configure/start Redis manually later)" -ForegroundColor White
+            $rVerifyChoice = Read-Host "  Selection [Default: 1]"
+            if ([string]::IsNullOrWhiteSpace($rVerifyChoice) -or $rVerifyChoice -eq "1") {
+                $RedisUrl = ""
+                $envContent = Get-Content "$InstallDir\snoomp.env"
+                $newEnvContent = $envContent | ForEach-Object {
+                    if ($_ -match "^REDIS_URL=") { "REDIS_URL=" }
+                    elseif ($_ -match "^CELERY_BROKER_URL=") { "CELERY_BROKER_URL=" }
+                    elseif ($_ -match "^CELERY_RESULT_BACKEND=") { "CELERY_RESULT_BACKEND=" }
+                    elseif ($_ -match "^USE_CELERY=") { "USE_CELERY=false" }
+                    else { $_ }
+                }
+                Set-Content -Path "$InstallDir\snoomp.env" -Value ($newEnvContent -join "`r`n") -Encoding utf8
+                Write-Host "  Switched configuration to In-Process Scheduler engine." -ForegroundColor Yellow
             }
         }
     }
@@ -1306,9 +1401,9 @@ Write-Host "  Configuration File:    $InstallDir\snoomp.env" -ForegroundColor Wh
 Write-Host "  Log File:              $InstallDir\logs\snoomp.log" -ForegroundColor White
 Write-Host "  Database Engine:       $($DatabaseUrl.Split('@')[-1])" -ForegroundColor White
 if ($RedisUrl) {
-    Write-Host "  Message Queue:         $RedisUrl" -ForegroundColor White
+    Write-Host "  Message Queue:         $RedisUrl (Celery Distributed)" -ForegroundColor White
 } else {
-    Write-Host "  Message Queue:         In-Process High-Throughput Engine" -ForegroundColor White
+    Write-Host "  Message Queue:         In-Process High-Throughput Engine (No Redis)" -ForegroundColor White
 }
 Write-Host "  Initial Admin User:    admin" -ForegroundColor White
 Write-Host "  Initial Admin Password:$AdminInitialPassword" -ForegroundColor Yellow

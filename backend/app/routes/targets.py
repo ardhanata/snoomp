@@ -13,9 +13,6 @@ from app.auth.security import require_editor, require_viewer
 from app.scheduler.runner import add_target_job, remove_target_job
 from worker.tasks import execute_checker
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
-redis_client = redis.Redis.from_url(REDIS_URL)
-
 router = APIRouter(prefix="/api/targets", tags=["Targets"])
 
 class TargetCreateUpdate(BaseModel):

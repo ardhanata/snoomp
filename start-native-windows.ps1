@@ -42,6 +42,10 @@ if (-not $env:JWT_SECRET) {
 }
 $env:ACCESS_TOKEN_EXPIRE_MINUTES = "1440"
 $env:ALLOWED_ORIGINS = "http://localhost:5173,http://localhost:8000"
+if (-not $env:REDIS_URL) {
+    $env:USE_CELERY = "false"
+    $env:REDIS_URL = ""
+}
 
 Write-Host "[DATABASE] SQLite ($PSScriptRoot\backend\snoomp.db)" -ForegroundColor Green
 

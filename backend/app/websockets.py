@@ -10,7 +10,7 @@ from app.services.dashboard import compile_initial_data
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
+REDIS_URL = os.getenv("REDIS_URL")
 
 class ConnectionManager:
     def __init__(self):
@@ -36,6 +36,10 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 async def redis_listener():
+    if not REDIS_URL or REDIS_URL.lower() in ("none", "false", ""):
+        logger.info("REDIS_URL not configured. Running WebSockets in standalone in-memory broadcast mode.")
+        return
+
     logger.info("Initializing Redis pub/sub listener...")
     try:
         r = async_redis.from_url(REDIS_URL, socket_connect_timeout=2)

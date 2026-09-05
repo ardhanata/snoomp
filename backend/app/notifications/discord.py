@@ -340,8 +340,10 @@ def _post(url: str, payload: dict[str, Any], client: httpx.Client | None = None)
 def _redis():
     """Return a Redis client, or None if unreachable (native Windows mode)."""
     try:
+        url = os.getenv("REDIS_URL")
+        if not url or url.lower() in ("none", "false", ""):
+            return None
         import redis
-        url = os.getenv("REDIS_URL", "redis://redis:6379/0")
         conn = redis.Redis.from_url(url, socket_connect_timeout=2, socket_timeout=2)
         conn.ping()
         return conn
