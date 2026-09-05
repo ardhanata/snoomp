@@ -167,6 +167,57 @@ function Test-TcpEndpoint([string]$hostName, [int]$portNum, [int]$timeoutMs = 20
     }
 }
 
+function Invoke-DownloadWithProgress {
+    param(
+        [Parameter(Mandatory=$true)][string]$Url,
+        [Parameter(Mandatory=$true)][string]$DestinationPath
+    )
+
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $req = [System.Net.HttpWebRequest]::Create($Url)
+    $req.UserAgent = "SnoompInstaller/1.0.0"
+    $req.AllowAutoRedirect = $true
+    $resp = $req.GetResponse()
+    $totalBytes = $resp.ContentLength
+    $stream = $resp.GetResponseStream()
+    $targetFile = [System.IO.File]::Create($DestinationPath)
+
+    $buffer = New-Object byte[] 65536
+    $bytesRead = 0
+    $totalRead = 0
+    $lastReportPercent = -1
+
+    try {
+        while (($bytesRead = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+            $targetFile.Write($buffer, 0, $bytesRead)
+            $totalRead += $bytesRead
+
+            if ($totalBytes -gt 0) {
+                $percent = [math]::Floor(($totalRead / $totalBytes) * 100)
+                if ($percent -ne $lastReportPercent -and ($percent % 10 -eq 0 -or $percent -eq 100)) {
+                    $mbRead = [math]::Round($totalRead / 1MB, 1)
+                    $mbTotal = [math]::Round($totalBytes / 1MB, 1)
+                    $barLength = 20
+                    $filled = [math]::Floor(($percent / 100) * $barLength)
+                    $empty = $barLength - $filled
+                    $bar = ("=" * $filled) + (" " * $empty)
+                    Write-Host "  [$bar] $percent% ($mbRead MB / $mbTotal MB)" -ForegroundColor Cyan
+                    $lastReportPercent = $percent
+                }
+            } else {
+                $mbRead = [math]::Round($totalRead / 1MB, 1)
+                Write-Host "  Downloaded: $mbRead MB..." -ForegroundColor Cyan
+            }
+        }
+        $targetFile.Flush()
+        Write-Host "  [OK] Download completed ($([math]::Round($totalRead / 1MB, 1)) MB)." -ForegroundColor Green
+    } finally {
+        $targetFile.Close()
+        $stream.Close()
+        $resp.Close()
+    }
+}
+
 function Show-PreflightPortScan {
     Write-Host "=================================================================" -ForegroundColor Cyan
     Write-Host " STEP 1: PRE-FLIGHT NETWORK & PORT SCAN" -ForegroundColor Cyan
@@ -362,8 +413,7 @@ function Install-PostgreSqlDependency {
         Write-Host "  Downloading PostgreSQL 15 installer directly from EnterpriseDB..." -ForegroundColor Yellow
         Write-Host "  URL: $installerUrl" -ForegroundColor Gray
         try {
-            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-            Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath -UseBasicParsing
+            Invoke-DownloadWithProgress -Url $installerUrl -DestinationPath $installerPath
             Write-Host "  Running silent installer (this may take 1-2 minutes)..." -ForegroundColor Yellow
             $instArgs = "--mode unattended --unattendedmodeui none --superpassword `"$SuperUserPassword`" --serverport $Port"
             $p = Start-Process -FilePath $installerPath -ArgumentList $instArgs -Wait -PassThru -NoNewWindow
@@ -480,8 +530,7 @@ function Install-RedisDependency {
         }
 
         Write-Host "  Downloading Redis binary archive from GitHub ($redisZipUrl)..." -ForegroundColor Gray
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        Invoke-WebRequest -Uri $redisZipUrl -OutFile $tempZip -UseBasicParsing
+        Invoke-DownloadWithProgress -Url $redisZipUrl -DestinationPath $tempZip
 
         Write-Host "  Extracting Redis binaries to $TargetDir..." -ForegroundColor Gray
         Expand-Archive -Path $tempZip -DestinationPath $TargetDir -Force
@@ -787,8 +836,7 @@ if ($LocalDir) {
     $TempZip = "$env:TEMP\snoomp-windows-x64.zip"
     $downloadSuccess = $false
     try {
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        Invoke-WebRequest -Uri $DownloadUrl -OutFile $TempZip -UseBasicParsing
+        Invoke-DownloadWithProgress -Url $DownloadUrl -DestinationPath $TempZip
         $downloadSuccess = $true
     } catch {
         Write-Host "  [WARN] Failed to download package from $DownloadUrl : $_" -ForegroundColor Yellow
