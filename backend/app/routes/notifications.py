@@ -8,11 +8,18 @@ from app.database import get_db
 from app.auth.security import require_admin, require_viewer
 from app.models.notification import Notification
 from app.models.target import Target
-from app.services.notification_service import test_notification_channel
+from app.services.notification_service import (
+    test_notification_channel,
+    validate_apprise_uris,
+    get_apprise_service_catalog,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/notifications", tags=["Notifications"])
+
+class AppriseValidateRequest(BaseModel):
+    uris: Any
 
 class NotificationCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
@@ -34,6 +41,18 @@ class NotificationTestRequest(BaseModel):
     name: str = "Test Channel"
     type: str
     config: Dict[str, Any] = Field(default_factory=dict)
+
+
+@router.get("/apprise/services", response_model=List[Dict[str, Any]])
+def list_apprise_services(_user=Depends(require_viewer)):
+    """Return catalog of all 140+ native notification services supported by Apprise."""
+    return get_apprise_service_catalog()
+
+
+@router.post("/apprise/validate", response_model=Dict[str, Any])
+def validate_apprise(payload: AppriseValidateRequest, _user=Depends(require_admin)):
+    """Validate syntax and parseability of one or more Apprise destination URIs."""
+    return validate_apprise_uris(payload.uris)
 
 
 @router.get("", response_model=List[Dict[str, Any]])

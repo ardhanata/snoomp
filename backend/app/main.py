@@ -19,7 +19,7 @@ from app.models.status_page import StatusPage
 from app.auth.security import get_password_hash
 from app.scheduler import start_scheduler, stop_scheduler
 from app.routes import auth, targets, dashboard
-from app.routes import status_pages, settings, notifications
+from app.routes import status_pages, settings, notifications, backup
 from app import websockets
 
 # Setup logging
@@ -111,6 +111,7 @@ app.include_router(dashboard.router)
 app.include_router(status_pages.router)
 app.include_router(settings.router)
 app.include_router(notifications.router)
+app.include_router(backup.router)
 app.include_router(websockets.router)
 
 def get_app_version() -> str:

@@ -181,18 +181,19 @@ def trigger_alerts(
                 tag = "RECOVERED" if new_status.lower() == "up" else new_status.upper()
                 emoji = "✅" if new_status.lower() == "up" else ("⚠️" if new_status.lower() in ("warning", "degraded") else "🔴")
                 title = f"{emoji} [{tag}] {target.name}"
+                now_str = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
                 body = (
-                    f"Target: {target.name} ({target.host})\n"
-                    f"Type: {target.type.upper()}\n"
-                    f"Status: {prev_status.upper()} ➔ {new_status.upper()}\n"
-                    f"Time: {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC"
+                    f"**Target**: {target.name} (`{target.host}`)\n"
+                    f"**Type**: `{target.type.upper()}`\n"
+                    f"**Status**: `{prev_status.upper()}` ➔ `{new_status.upper()}`\n"
+                    f"**Time**: {now_str} UTC"
                 )
                 if response_time_ms is not None:
-                    body += f"\nResponse Time: {response_time_ms:.1f}ms"
+                    body += f"\n**Response Time**: {response_time_ms:.1f}ms"
                 if error:
-                    body += f"\nError: {error}"
+                    body += f"\n**Error**: `{error}`"
                 if duration_s is not None:
-                    body += f"\nDowntime: {int(duration_s)}s"
+                    body += f"\n**Downtime**: {int(duration_s)}s"
 
                 monitor_info = {
                     "id": target.id,
@@ -237,25 +238,30 @@ def trigger_alerts(
     except Exception as e:
         logger.error(f"Discord notification failed for {target.name}: {e}")
 
-    # --- 3. Apprise (Legacy per-target URIs) --------------------------------
+    # --- 3. Apprise (Legacy / One-Off per-target URIs) --------------------
     try:
+        from app.services.notification_service import send_apprise_notification
         cfg = target.config_json or {}
         notifications = cfg.get("notifications", [])
         uris = [item.get("apprise_uri") for item in notifications if item.get("apprise_uri")]
         if uris:
             tag = "RECOVERED" if new_status.lower() == "up" else new_status.upper()
-            title = f"Snoomp {tag}: {target.name}"
+            emoji = "✅" if new_status.lower() == "up" else ("⚠️" if new_status.lower() in ("warning", "degraded") else "🔴")
+            title = f"{emoji} [{tag}] {target.name}"
+            now_str = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
             body = (
-                f"Target: {target.name} ({target.host})\n"
-                f"Type: {target.type.upper()}\n"
-                f"Event: Status transitioned from {prev_status.upper()} to {new_status.upper()}\n"
-                f"Time: {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC"
+                f"**Target**: {target.name} (`{target.host}`)\n"
+                f"**Type**: `{target.type.upper()}`\n"
+                f"**Event**: Status transitioned from `{prev_status.upper()}` to `{new_status.upper()}`\n"
+                f"**Time**: {now_str} UTC"
             )
+            if response_time_ms is not None:
+                body += f"\n**Response Time**: {response_time_ms:.1f}ms"
             if error:
-                body += f"\nError: {error}"
+                body += f"\n**Error**: `{error}`"
             if duration_s is not None:
-                body += f"\nDowntime: {int(duration_s)}s"
-            send_notification(uris, title, body)
+                body += f"\n**Downtime**: {int(duration_s)}s"
+            send_apprise_notification(uris, title, body, status=new_status)
     except Exception as e:
         logger.error(f"Legacy Apprise notification failed: {e}")
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Send, Save, Trash2, Loader2, CheckCircle2, AlertTriangle, Bell } from 'lucide-react';
+import { X, Send, Save, Trash2, Loader2, CheckCircle2, AlertTriangle, Bell, ExternalLink } from 'lucide-react';
 import Dialog from './Dialog';
 
 export interface NotificationItem {
@@ -26,7 +26,7 @@ const NOTIFICATION_TYPES = [
     group: 'Universal',
     options: [
       { value: 'webhook', label: 'Webhook' },
-      { value: 'apprise', label: 'Apprise (Universal Engine)' },
+      { value: 'apprise', label: 'Apprise (Universal Engine, 140+ Services)' },
     ],
   },
   {
@@ -76,10 +76,74 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({
 
   const isEditing = Boolean(notification && notification.id);
 
+  const [validatingApprise, setValidatingApprise] = useState(false);
+  const [appriseValidation, setAppriseValidation] = useState<{ valid: boolean; message: string; schemas?: string[] } | null>(null);
+
+  const APPRISE_PRESETS = [
+    { label: 'PagerDuty', template: 'pagerduty://apikey@routingkey' },
+    { label: 'Opsgenie', template: 'opsgenie://apikey' },
+    { label: 'Discord', template: 'discord://WebhookID/WebhookToken' },
+    { label: 'Telegram', template: 'tgram://BotToken/ChatID' },
+    { label: 'Slack', template: 'slack://TokenA/TokenB/TokenC' },
+    { label: 'Matrix', template: 'matrixs://user:password@matrix.org/#room' },
+    { label: 'Mattermost', template: 'mmosts://mattermost.example.com/token?channel=alerts' },
+    { label: 'Twilio SMS', template: 'twilio://AccountSid:AuthToken@FromPhone/ToPhone' },
+    { label: 'Pushover', template: 'pover://UserKey@AppToken' },
+    { label: 'Gotify', template: 'gotifys://gotify.example.com/AppToken' },
+    { label: 'Ntfy', template: 'ntfys://ntfy.sh/topic_name' },
+  ];
+
+  const applyApprisePreset = (template: string) => {
+    const curr = (config.appriseURL || '').trim();
+    if (!curr) {
+      updateConfig('appriseURL', template);
+    } else {
+      updateConfig('appriseURL', `${curr}\n${template}`);
+    }
+  };
+
+  const handleValidateApprise = async () => {
+    const uriVal = (config.appriseURL || '').trim();
+    if (!uriVal) {
+      setAppriseValidation({ valid: false, message: 'Please enter an Apprise URI first.' });
+      return;
+    }
+    setValidatingApprise(true);
+    setAppriseValidation(null);
+    try {
+      const res = await fetch(`${apiUrl}/api/notifications/apprise/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ uris: uriVal }),
+      });
+      const data = await res.json();
+      if (res.ok && data.valid) {
+        setAppriseValidation({
+          valid: true,
+          message: data.message || `Valid syntax (${data.count} target(s) parsed)`,
+          schemas: data.schemas || [],
+        });
+      } else {
+        setAppriseValidation({
+          valid: false,
+          message: data.error || data.detail || 'Validation failed. Please verify syntax.',
+        });
+      }
+    } catch (err: any) {
+      setAppriseValidation({ valid: false, message: err.message || 'Validation request failed' });
+    } finally {
+      setValidatingApprise(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       setError('');
       setTestResult(null);
+      setAppriseValidation(null);
       if (notification) {
         setName(notification.name || '');
         setType(notification.type || 'discord');
@@ -697,20 +761,102 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({
           {type === 'apprise' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label style={labelStyle}>Apprise URL *</label>
-                <input
-                  type="text"
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ ...labelStyle, marginBottom: 0 }}>Apprise Destination URI(s) *</label>
+                  <button
+                    type="button"
+                    onClick={handleValidateApprise}
+                    disabled={validatingApprise || !config.appriseURL}
+                    style={{
+                      background: 'none',
+                      border: '1px solid var(--border)',
+                      borderRadius: '4px',
+                      padding: '2px 8px',
+                      fontSize: '11px',
+                      color: 'var(--accent)',
+                      cursor: config.appriseURL ? 'pointer' : 'default',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      opacity: config.appriseURL ? 1 : 0.6
+                    }}
+                  >
+                    {validatingApprise && <Loader2 size={12} className="spin" />}
+                    <span>Validate Syntax</span>
+                  </button>
+                </div>
+
+                {/* Quick-Select Provider Presets */}
+                <div style={{ marginBottom: '8px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '5px', fontWeight: 500 }}>
+                    Quick Presets (click to append template):
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                    {APPRISE_PRESETS.map(p => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => applyApprisePreset(p.template)}
+                        style={{
+                          fontSize: '11px',
+                          padding: '3px 7px',
+                          borderRadius: '4px',
+                          border: '1px solid var(--border)',
+                          background: 'var(--bg-secondary)',
+                          color: 'var(--text-primary)',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        + {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <textarea
                   required
-                  placeholder="e.g. twilio://AccountSid:AuthToken@FromPhoneNo or tgram://bottoken/chatid"
+                  rows={3}
+                  placeholder={`e.g. twilio://AccountSid:AuthToken@FromPhone/ToPhone\nor pagerduty://apikey@routingkey\n(one per line or comma-separated)`}
                   value={config.appriseURL || ''}
                   onChange={e => updateConfig('appriseURL', e.target.value)}
-                  style={{ ...fieldStyle, fontFamily: 'monospace' }}
+                  style={{ ...fieldStyle, fontFamily: 'monospace', fontSize: '12px', resize: 'vertical' }}
                 />
-                <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '5px', lineHeight: '1.4' }}>
-                  <span>Example: <code>twilio://AccountSid:AuthToken@FromPhoneNo</code> or multiple URLs separated by commas.</span>
-                  <div style={{ marginTop: '3px' }}>
-                    Read more: <a href="https://github.com/caronc/apprise/wiki#notification-services" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>
-                      Apprise Notification Services Wiki (80+ Providers)
+
+                {/* Validation Feedback Banner */}
+                {appriseValidation && (
+                  <div style={{
+                    marginTop: '6px',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: appriseValidation.valid ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                    border: `1px solid ${appriseValidation.valid ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                    color: appriseValidation.valid ? '#10b981' : '#ef4444'
+                  }}>
+                    {appriseValidation.valid ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+                    <span>{appriseValidation.message}</span>
+                    {appriseValidation.schemas && appriseValidation.schemas.length > 0 && (
+                      <span style={{ marginLeft: 'auto', fontSize: '11px', opacity: 0.85 }}>
+                        Schemas: {appriseValidation.schemas.join(', ')}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: '1.4' }}>
+                  <span>Apprise supports 140+ services. You can combine multiple URLs separated by newlines or commas.</span>
+                  <div style={{ marginTop: '4px' }}>
+                    <a
+                      href="https://github.com/caronc/apprise/wiki#notification-services"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: 'var(--accent)', textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                    >
+                      Apprise Notification Services Wiki (140+ Providers) <ExternalLink size={11} />
                     </a>
                   </div>
                 </div>
@@ -740,7 +886,7 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({
                 fontWeight: 500
               }}>
                 <CheckCircle2 size={15} />
-                <span>Status: Apprise is installed (Native Python in-process engine, no external daemon required)</span>
+                <span>Apprise Universal Engine active (in-process Python engine, 140+ providers supported)</span>
               </div>
             </div>
           )}

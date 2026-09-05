@@ -1,34 +1,34 @@
 # Graph Report - snoomp  (2026-09-05)
 
 ## Corpus Check
-- 113 files · ~135,692 words
+- 104 files · ~101,929 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1471 nodes · 1968 edges · 109 communities (106 shown, 3 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 21 edges (avg confidence: 0.56)
+- 1607 nodes · 2279 edges · 119 communities (116 shown, 3 thin omitted)
+- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 38 edges (avg confidence: 0.56)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `903c5d60`
+- Built from commit: `8f6b07df`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- database.py
+- tasks.py
 - App.tsx
 - User
 - CheckerResult
 - package.json
 - targets.py
-- Session
+- status_pages.py
 - compilerOptions
 - test_discord_notifications.py
-- receive_push_heartbeat
+- routes/dashboard.py
 - ConnectionManager
 - conftest.py
 - settings_store.py
-- main.py
+- test_backup.py
 - Snoomp Discord Server Blueprint
 - brandkit/SKILL.md
 - Live verification — 2026-08-03, running instance (v0.3.0)
@@ -44,7 +44,7 @@
 - Design Audit
 - Analysis & Synthesis Instructions
 - Agent Skill: Principal UI/UX Architect & Motion Choreographer (Awwwards-Tier)
-- Target
+- main.py
 - CORE DIRECTIVE: AWWWARDS-LEVEL IMAGE ART DIRECTION
 - SKILL: Industrial Brutalism & Tactical Telemetry UI
 - Changelog
@@ -92,7 +92,7 @@
 - ExecutiveDashboard.tsx
 - 29. ANTI-AI-SLOP RULES
 - 5. IMAGE COUNT & PAGE SLICING
-- init_db
+- notifications.py
 - Global Constraints
 - Global Constraints
 - Part 4 — Design system: type and colour
@@ -105,7 +105,7 @@
 - Part 5 — Menu and navigation reachability
 - Part 6 — Aesthetic assessment
 - Workspace Rules & Conventions
-- 7. DIAL DEFINITIONS (Technical Reference)
+- Setting
 - 33. DEFAULT SECTION PACKS
 - 14. HERO MINIMALISM RULES
 - 37. EXAMPLE INTERPRETATIONS
@@ -117,47 +117,56 @@
 - rules/graphify.md
 - workflows/graphify.md
 - task-1-brief.md
+- Target
+- test_apprise_engine.py
+- Snoomp 🛰️
+- MonitorModal.tsx
+- install.ps1
+- compile_initial_data
+- test_notifications.py
+- _cutoff_for
+- 1. THE THREE DIALS (Core Configuration)
 
 ## God Nodes (most connected - your core abstractions)
 1. `CORE DIRECTIVE: IMAGE-FIRST WEBSITE DESIGN TO CODE` - 39 edges
 2. `CORE DIRECTIVE: PREMIUM MOBILE APP IMAGE DIRECTION` - 39 edges
-3. `Target` - 25 edges
-4. `User` - 23 edges
-5. `CORE DIRECTIVE: AWWWARDS-LEVEL IMAGE ART DIRECTION` - 22 edges
-6. `CheckerResult` - 21 edges
-7. `make_alert()` - 18 edges
-8. `execute_checker()` - 16 edges
-9. `compilerOptions` - 16 edges
-10. `tasteskill: Anti-Slop Frontend Skill` - 16 edges
+3. `Target` - 38 edges
+4. `User` - 29 edges
+5. `Notification` - 22 edges
+6. `CORE DIRECTIVE: AWWWARDS-LEVEL IMAGE ART DIRECTION` - 22 edges
+7. `CheckerResult` - 21 edges
+8. `make_alert()` - 18 edges
+9. `get_db()` - 17 edges
+10. `_post()` - 16 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `StatusPageCreate` --uses--> `Target`  [INFERRED]
-  backend/app/routes/status_pages.py → backend/app/models/target.py
-- `StatusPageUpdate` --uses--> `Target`  [INFERRED]
-  backend/app/routes/status_pages.py → backend/app/models/target.py
-- `TargetCreateUpdate` --uses--> `Target`  [INFERRED]
-  backend/app/routes/targets.py → backend/app/models/target.py
-- `Config` --uses--> `User`  [INFERRED]
-  backend/app/routes/auth.py → backend/app/models/user.py
-- `discord_config()` --calls--> `_env_flag()`  [INFERRED]
-  backend/app/services/settings_store.py → backend/app/notifications/discord.py
+- `setup_db()` --indirect_call--> `get_db()`  [INFERRED]
+  backend/tests/test_apprise_engine.py → backend/app/database.py
+- `setup_db()` --indirect_call--> `get_db()`  [INFERRED]
+  backend/tests/test_backup.py → backend/app/database.py
+- `setup_db()` --indirect_call--> `get_db()`  [INFERRED]
+  backend/tests/test_notifications.py → backend/app/database.py
+- `StatusPageCreate` --uses--> `Heartbeat`  [INFERRED]
+  backend/app/routes/status_pages.py → backend/app/models/heartbeat.py
+- `StatusPageUpdate` --uses--> `Heartbeat`  [INFERRED]
+  backend/app/routes/status_pages.py → backend/app/models/heartbeat.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (109 total, 3 thin omitted)
+## Communities (119 total, 3 thin omitted)
 
-### Community 0 - "database.py"
+### Community 0 - "tasks.py"
 Cohesion: 0.17
-Nodes (13): Incident, Base, Base, SystemMetrics, Sends notification to one or more Apprise URIs., send_notification(), Time-series retention. Heartbeats accumulate at one row per monitor per check…, # NOTE: on TimescaleDB, system_metrics is a hypertable and (+5 more)
+Nodes (11): Heartbeat, Base, Incident, Base, Base, SystemMetrics, Time-series retention. Heartbeats accumulate at one row per monitor per check…, # NOTE: on TimescaleDB, system_metrics is a hypertable and (+3 more)
 
 ### Community 1 - "App.tsx"
 Cohesion: 0.15
 Nodes (18): App(), applyAccent(), copyToClipboard(), DEFAULT_SP_FORM, monitorShareUrl(), numberFmt, parseStatusFilter(), PSEUDO_FS_PREFIXES (+10 more)
 
 ### Community 2 - "User"
-Cohesion: 0.12
-Nodes (27): create_access_token(), get_current_user(), get_password_hash(), Session, RoleChecker, verify_password(), Base, User (+19 more)
+Cohesion: 0.13
+Nodes (25): get_current_user(), get_password_hash(), Session, RoleChecker, verify_password(), Base, User, _check_rate_limit() (+17 more)
 
 ### Community 3 - "CheckerResult"
 Cohesion: 0.06
@@ -168,12 +177,12 @@ Cohesion: 0.06
 Nodes (30): framer-motion, dependencies, framer-motion, lucide-react, react-dom, recharts, devDependencies, @types/react (+22 more)
 
 ### Community 5 - "targets.py"
-Cohesion: 0.18
-Nodes (20): create_target(), delete_target(), get_target(), list_targets(), BaseModel, delete, get, put (+12 more)
+Cohesion: 0.19
+Nodes (18): create_target(), delete_target(), get_target(), list_targets(), BaseModel, delete, get, put (+10 more)
 
-### Community 6 - "Session"
-Cohesion: 0.18
-Nodes (12): delete_status_page(), get_public_status_page(), list_status_pages(), delete, get, put, Session, Public status page data — no authentication required. Returns page info plus… (+4 more)
+### Community 6 - "status_pages.py"
+Cohesion: 0.16
+Nodes (17): create_status_page(), delete_status_page(), get_public_status_page(), list_status_pages(), BaseModel, delete, get, put (+9 more)
 
 ### Community 7 - "compilerOptions"
 Cohesion: 0.09
@@ -183,12 +192,12 @@ Nodes (21): compilerOptions, allowImportingTsExtensions, isolatedModules, jsx, l
 Cohesion: 0.05
 Nodes (35): DummyClient, enabled(), fake_redis(), FakePipeline, FakeRedis, make_alert(), no_network(), fixture (+27 more)
 
-### Community 9 - "receive_push_heartbeat"
-Cohesion: 0.10
+### Community 9 - "routes/dashboard.py"
+Cohesion: 0.12
 Nodes (28): api_route, _fleet_mttr(), get_db_engine_status(), get_recent_incidents(), get_sla_trend(), get_stats(), get_target_heartbeats(), get_target_metrics() (+20 more)
 
 ### Community 10 - "ConnectionManager"
-Cohesion: 0.43
+Cohesion: 0.53
 Nodes (3): ConnectionManager, websocket_endpoint(), WebSocket
 
 ### Community 11 - "conftest.py"
@@ -196,12 +205,12 @@ Cohesion: 0.43
 Nodes (7): db_engine(), db_session(), postgres_container(), fixture, redis_client(), redis_container(), test_client()
 
 ### Community 12 - "settings_store.py"
-Cohesion: 0.07
-Nodes (38): Base, Instance-wide configuration, one row per key. Deliberately key/value rather…, Setting, AppearanceSettings, DefaultsSettings, DiscordSettings, BaseModel, get (+30 more)
+Cohesion: 0.08
+Nodes (35): AppearanceSettings, DefaultsSettings, DiscordSettings, BaseModel, get, put, Session, Partial update — send only the sections you are changing. (+27 more)
 
-### Community 13 - "main.py"
-Cohesion: 0.15
-Nodes (15): get_db(), get_app_version(), get_version(), get, read_root(), Heartbeat, Base, Base (+7 more)
+### Community 13 - "test_backup.py"
+Cohesion: 0.26
+Nodes (8): create_access_token(), admin_headers(), client(), override_get_db(), fixture, setup_db(), viewer_headers(), timedelta
 
 ### Community 15 - "Snoomp Discord Server Blueprint"
 Cohesion: 0.04
@@ -236,12 +245,12 @@ Cohesion: 0.06
 Nodes (30): 10. FINAL PRE-FLIGHT CHECK, 1. ACTIVE BASELINE CONFIGURATION, 2. DEFAULT ARCHITECTURE & CONVENTIONS, 3. DESIGN ENGINEERING DIRECTIVES (Bias Correction), 4. CREATIVE PROACTIVITY (Anti-Slop Implementation), 5. PERFORMANCE GUARDRAILS, 6. TECHNICAL REFERENCE (Dial Definitions), 7. AI TELLS (Forbidden Patterns) (+22 more)
 
 ### Community 27 - "UserPreferencesModal.tsx"
-Cohesion: 0.11
-Nodes (26): PreferencesTagsTab(), PreferencesTagsTabProps, pct, SlaConfig, SlaDraft, TabId, TABS, ThresholdDraft (+18 more)
+Cohesion: 0.13
+Nodes (24): pct, SlaConfig, SlaDraft, TabId, TABS, ThresholdDraft, toDraft(), UserPreferencesModal() (+16 more)
 
 ### Community 28 - "runner.py"
-Cohesion: 0.13
-Nodes (21): lifespan(), add_target_job(), _flush_discord_alerts(), _make_job(), _purge_old_data(), Job function that pushes check request to Celery queue, falling back to direct…, Shuts down the scheduler gracefully., Dynamically schedules a job for a new/updated target. (+13 more)
+Cohesion: 0.17
+Nodes (18): lifespan(), add_target_job(), _flush_discord_alerts(), _make_job(), _purge_old_data(), Shuts down the scheduler gracefully., Dynamically schedules a job for a new/updated target., Removes a target job from scheduler. (+10 more)
 
 ### Community 29 - "Appendix B - Canonical Sources (read these before reinventing)"
 Cohesion: 0.09
@@ -263,9 +272,9 @@ Nodes (18): 1. Define the Atmosphere, 2. Map the Color Palette, 3. Establish Typ
 Cohesion: 0.11
 Nodes (17): 1. Meta Information & Core Directive, 2. THE "ABSOLUTE ZERO" DIRECTIVE (STRICT ANTI-PATTERNS), 3. THE CREATIVE VARIANCE ENGINE, 4. HAPTIC MICRO-AESTHETICS (COMPONENT MASTERY), 5. MOTION CHOREOGRAPHY (FLUID DYNAMICS), 6. PERFORMANCE GUARDRAILS, 7. EXECUTION PROTOCOL, 8. PRE-OUTPUT CHECKLIST (+9 more)
 
-### Community 34 - "Target"
-Cohesion: 0.16
-Nodes (10): asyncio, Base, Return the unredacted config_json — only for checker internals, never for API., Target, compile_initial_data(), Session, redis_listener(), test_target_creation_and_redaction() (+2 more)
+### Community 34 - "main.py"
+Cohesion: 0.10
+Nodes (19): asyncio, _ensure_indexes(), get_db(), init_db(), Create missing indexes on an existing schema. Never fatal., Rebuild time-series tables whose primary key was created as BIGINT. SQLite only…, _repair_sqlite_autoincrement(), get_app_version() (+11 more)
 
 ### Community 35 - "CORE DIRECTIVE: AWWWARDS-LEVEL IMAGE ART DIRECTION"
 Cohesion: 0.12
@@ -276,8 +285,8 @@ Cohesion: 0.12
 Nodes (16): 1. Skill Meta, 2.1 Swiss Industrial Print, 2.2 Tactical Telemetry & CRT Terminal, 2. Visual Archetypes, 3.1 Macro-Typography (Structural Headers), 3.2 Micro-Typography (Data & Telemetry), 3.3 Textural Contrast (Artistic Disruption), 3. Typographic Architecture (+8 more)
 
 ### Community 37 - "Changelog"
-Cohesion: 0.12
-Nodes (16): [0.1.0] - 2026-07-25, [0.1.0-patch1] - 2026-07-26, [0.1.1] - 2026-07-26, [0.2.0] - 2026-07-27, [0.2.1] - 2026-07-30, [0.3.0] - 2026-08-07, Added, Added (+8 more)
+Cohesion: 0.10
+Nodes (19): [0.1.0] - 2026-07-25, [0.1.0-patch1] - 2026-07-26, [0.1.1] - 2026-07-26, [0.2.0] - 2026-07-27, [0.2.1] - 2026-07-30, [0.3.0] - 2026-08-07, [0.3.1] - 2026-09-05, Added (+11 more)
 
 ### Community 38 - "Accessibility & UX audit — snoomp frontend"
 Cohesion: 0.12
@@ -297,7 +306,7 @@ Nodes (14): 2. THE COMBINATORIAL VARIATION ENGINE, Background Character, Backgro
 
 ### Community 42 - "BatchEditModal.tsx"
 Cohesion: 0.21
-Nodes (11): react, BatchEditModal(), BatchEditModalProps, ENV_KEYWORDS, isEnvTag(), normalizeTags(), Dialog(), DialogProps (+3 more)
+Nodes (10): react, BatchEditModal(), BatchEditModalProps, ENV_KEYWORDS, isEnvTag(), normalizeTags(), MonitorModal(), PreferencesTagsTab() (+2 more)
 
 ### Community 43 - "PrintableReport.tsx"
 Cohesion: 0.18
@@ -341,7 +350,7 @@ Nodes (10): 10. REFERENCE VOCABULARY (Pattern Names the Agent Should Know), Anim
 
 ### Community 53 - "tasteskill: Anti-Slop Frontend Skill"
 Cohesion: 0.20
-Nodes (10): 13. OUT OF SCOPE, 14. FINAL PRE-FLIGHT CHECK, 1.A Dial Inference (design read → dial values), 1.B Use-Case Presets, 1.C How the Dials Drive Output, 1. THE THREE DIALS (Core Configuration), 2.A When to reach for a real design system (use official packages), 2.B When the brief is an aesthetic, not a system (+2 more)
+Nodes (10): 13. OUT OF SCOPE, 14. FINAL PRE-FLIGHT CHECK, 2.A When to reach for a real design system (use official packages), 2.B When the brief is an aesthetic, not a system, 2. BRIEF → DESIGN SYSTEM MAP, 7. DIAL DEFINITIONS (Technical Reference), DESIGN_VARIANCE (Level 1-10), MOTION_INTENSITY (Level 1-10) (+2 more)
 
 ### Community 54 - "CORE DIRECTIVE: AWWWARDS-LEVEL DESIGN ENGINEERING"
 Cohesion: 0.20
@@ -455,9 +464,9 @@ Nodes (6): 29. ANTI-AI-SLOP RULES, Content slop, Density slop, Layout slop, Typo
 Cohesion: 0.33
 Nodes (6): 5. IMAGE COUNT & PAGE SLICING, Continuity Rule, Counting rule, Format, Section size variety, THIS IS THE PRIMARY OUTPUT RULE
 
-### Community 82 - "init_db"
-Cohesion: 0.33
-Nodes (6): _ensure_indexes(), init_db(), Create missing indexes on an existing schema. Never fatal., Rebuild time-series tables whose primary key was created as BIGINT. SQLite only…, _repair_sqlite_autoincrement(), _init_db_with_retry()
+### Community 82 - "notifications.py"
+Cohesion: 0.10
+Nodes (30): Notification, Base, Return unredacted config_json for internal alert dispatchers., Notification alert channel powered by the Apprise alert engine. Supports…, AppriseValidateRequest, create_notification(), delete_notification(), get_notification() (+22 more)
 
 ### Community 83 - "Global Constraints"
 Cohesion: 0.33
@@ -507,9 +516,9 @@ Nodes (5): 6.1 Dark mode — competent, generic, and compensating, 6.2 Light mod
 Cohesion: 0.50
 Nodes (3): Metric Accuracy & Checker Performance, Repository Context & Architecture, Workspace Rules & Conventions
 
-### Community 95 - "7. DIAL DEFINITIONS (Technical Reference)"
-Cohesion: 0.50
-Nodes (4): 7. DIAL DEFINITIONS (Technical Reference), DESIGN_VARIANCE (Level 1-10), MOTION_INTENSITY (Level 1-10), VISUAL_DENSITY (Level 1-10)
+### Community 95 - "Setting"
+Cohesion: 0.20
+Nodes (10): Base, Instance-wide configuration, one row per key. Deliberately key/value rather…, Setting, export_backup(), import_backup(), get, Session, Import and restore Snoomp configurations from backup JSON. mode="merge":… (+2 more)
 
 ### Community 96 - "33. DEFAULT SECTION PACKS"
 Cohesion: 0.50
@@ -543,25 +552,61 @@ Nodes (4): 20. EXAMPLE INTERPRETATIONS, Example 1, Example 2, Example 3
 Cohesion: 0.50
 Nodes (3): Answer, Q: Why does Target connect Database Models to Target Routes, Backend Init & Websockets, Status Page Routes?, Source Nodes
 
+### Community 109 - "Target"
+Cohesion: 0.18
+Nodes (11): Base, Return the unredacted config_json — only for checker internals, never for API., Target, test_target_creation_and_redaction(), test_trigger_alerts_per_target_apprise_uri(), patch, test_notification_test_endpoint(), test_trigger_alerts_dispatch() (+3 more)
+
+### Community 110 - "test_apprise_engine.py"
+Cohesion: 0.08
+Nodes (37): build_apprise_uri(), dispatch_notification(), get_apprise_service_catalog(), map_status_to_notify_type(), Any, Apprise multi-channel notification dispatch and provider integration.…, Validate syntax and parseability of one or more Apprise URIs., Dynamically retrieve supported service schemas, protocols, and documentation… (+29 more)
+
+### Community 111 - "Snoomp 🛰️"
+Cohesion: 0.17
+Nodes (11): 🔔 Apprise Alerting & Multi-Channel Notifications, 🧪 Development & Testing, 🌟 Highlights & Capabilities, 📄 License, 📊 Modern Fleet UI & Executive Dashboards, 🌐 Multi-Protocol Target Monitoring, Option A: Standalone Native Windows (No Docker / No Python Needed), Option B: Docker Compose (Linux / Production Containers) (+3 more)
+
+### Community 112 - "MonitorModal.tsx"
+Cohesion: 0.31
+Nodes (7): Dialog(), DialogProps, MonitorModalProps, NOTIFICATION_TYPES, NotificationDialog(), NotificationDialogProps, NotificationItem
+
+### Community 113 - "install.ps1"
+Cohesion: 0.39
+Nodes (4): Find-NextAvailablePort(), Get-PortOccupant(), Resolve-PortSelection(), Test-PortAvailable()
+
+### Community 115 - "compile_initial_data"
+Cohesion: 0.38
+Nodes (5): compile_initial_data(), Session, redis_listener(), test_compile_initial_data_type(), test_compile_initial_data_with_target()
+
+### Community 116 - "test_notifications.py"
+Cohesion: 0.43
+Nodes (5): admin_headers(), client(), override_get_db(), fixture, setup_db()
+
+### Community 117 - "_cutoff_for"
+Cohesion: 0.40
+Nodes (5): _cutoff_for(), _prune_model(), datetime, Cutoff matching the column's awareness. Heartbeat.checked_at is a naive…, Delete rows older than `cutoff` in batches. Returns the row count.
+
+### Community 118 - "1. THE THREE DIALS (Core Configuration)"
+Cohesion: 0.50
+Nodes (4): 1.A Dial Inference (design read → dial values), 1.B Use-Case Presets, 1.C How the Dials Drive Output, 1. THE THREE DIALS (Core Configuration)
+
 ## Knowledge Gaps
-- **745 isolated node(s):** `name`, `private`, `version`, `type`, `dev` (+740 more)
+- **757 isolated node(s):** `name`, `private`, `version`, `type`, `dev` (+752 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **3 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `check_icmp()` connect `CheckerResult` to `database.py`, `targets.py`?**
-  _High betweenness centrality (0.017) - this node is a cross-community bridge._
+- **Why does `check_icmp()` connect `CheckerResult` to `tasks.py`, `targets.py`?**
+  _High betweenness centrality (0.032) - this node is a cross-community bridge._
 - **Why does `FakeRedis` connect `test_discord_notifications.py` to `CheckerResult`?**
-  _High betweenness centrality (0.016) - this node is a cross-community bridge._
-- **Why does `check_ssh()` connect `CheckerResult` to `database.py`, `targets.py`?**
-  _High betweenness centrality (0.009) - this node is a cross-community bridge._
-- **Are the 3 inferred relationships involving `Target` (e.g. with `StatusPageCreate` and `StatusPageUpdate`) actually correct?**
-  _`Target` has 3 INFERRED edges - model-reasoned connections that need verification._
+  _High betweenness centrality (0.032) - this node is a cross-community bridge._
+- **Why does `Target` connect `Target` to `tasks.py`, `main.py`, `targets.py`, `status_pages.py`, `routes/dashboard.py`, `test_backup.py`, `test_apprise_engine.py`, `notifications.py`, `compile_initial_data`, `test_notifications.py`, `runner.py`, `Setting`?**
+  _High betweenness centrality (0.012) - this node is a cross-community bridge._
+- **Are the 7 inferred relationships involving `Target` (e.g. with `AppriseValidateRequest` and `NotificationCreateRequest`) actually correct?**
+  _`Target` has 7 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 5 inferred relationships involving `User` (e.g. with `RoleChecker` and `Config`) actually correct?**
   _`User` has 5 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 5 inferred relationships involving `Notification` (e.g. with `AppriseValidateRequest` and `NotificationCreateRequest`) actually correct?**
+  _`Notification` has 5 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `name`, `private`, `version` to the rest of the system?**
-  _745 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `User` be split into smaller, more focused modules?**
-  _Cohesion score 0.11932773109243698 - nodes in this community are weakly interconnected._
+  _757 weakly-connected nodes found - possible documentation gaps or missing edges._

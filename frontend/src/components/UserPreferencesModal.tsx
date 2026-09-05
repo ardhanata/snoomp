@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   X, Sliders, Shield, Palette, Bell, Settings, Tag,
   CheckCircle2, AlertTriangle, AlertCircle, Save, Info, Send, Loader2,
-  Plus, Edit3
+  Plus, Edit3, Database, Download, Upload
 } from 'lucide-react';
 import Dialog from './Dialog';
 import PreferencesTagsTab from './PreferencesTagsTab';
@@ -37,7 +37,7 @@ interface UserPreferencesModalProps {
   onAddTag?: (newTag: string) => void;
 }
 
-type TabId = 'sla' | 'appearance' | 'notifications' | 'defaults' | 'tags';
+type TabId = 'sla' | 'appearance' | 'notifications' | 'defaults' | 'tags' | 'backup';
 
 const TABS: { id: TabId; label: string; icon: typeof Shield }[] = [
   { id: 'sla', label: 'SLA', icon: Shield },
@@ -45,6 +45,7 @@ const TABS: { id: TabId; label: string; icon: typeof Shield }[] = [
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'defaults', label: 'Defaults', icon: Settings },
   { id: 'tags', label: 'Tags', icon: Tag },
+  { id: 'backup', label: 'Backup & Restore', icon: Database },
 ];
 
 /** Percentages are entered as text so a half-typed "99." isn't clobbered. */
@@ -82,6 +83,13 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
   const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
   const [isNotifDialogOpen, setIsNotifDialogOpen] = useState(false);
 
+  // Backup & Restore state
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [backupMsg, setBackupMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   const loadNotifications = async () => {
     try {
       const res = await fetch(`${apiUrl}/api/notifications`, {
@@ -93,6 +101,76 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
       }
     } catch (e) {
       console.error('Failed fetching notification channels:', e);
+    }
+  };
+
+  const handleExportBackup = async () => {
+    try {
+      setExporting(true);
+      setBackupMsg(null);
+      const res = await fetch(`${apiUrl}/api/backup/export`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || `Export failed with status ${res.status}`);
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const today = new Date().toISOString().slice(0, 10);
+      a.download = `snoomp-backup-${today}.json`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      setBackupMsg({ type: 'success', text: 'Backup exported successfully.' });
+    } catch (e: any) {
+      setBackupMsg({ type: 'error', text: e.message || 'Failed to export backup.' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleImportBackup = async () => {
+    if (!importFile) {
+      setBackupMsg({ type: 'error', text: 'Please select a backup JSON file to import.' });
+      return;
+    }
+    if (importMode === 'replace') {
+      const confirmed = window.confirm(
+        'WARNING: "Replace" mode will permanently delete existing targets, notification channels, and status pages before importing. Are you sure?'
+      );
+      if (!confirmed) return;
+    }
+    try {
+      setImporting(true);
+      setBackupMsg(null);
+      const formData = new FormData();
+      formData.append('file', importFile);
+      const res = await fetch(`${apiUrl}/api/backup/import?mode=${importMode}`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || `Import failed with status ${res.status}`);
+      }
+      setBackupMsg({
+        type: 'success',
+        text: `Backup restored successfully (${data.mode} mode): ${data.stats.targets} targets, ${data.stats.notification_channels} channels, ${data.stats.status_pages} status pages imported. Reloading...`,
+      });
+      loadNotifications();
+      fetchSettings(apiUrl, token).then(s => hydrate(s)).catch(() => {});
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (e: any) {
+      setBackupMsg({ type: 'error', text: e.message || 'Failed to import backup.' });
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -824,6 +902,162 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
               </div>
             )}
 
+            {/* ── Backup & Restore ── */}
+            {activeTab === 'backup' && (
+              <div id="pref-panel-backup" role="tabpanel" aria-labelledby="pref-tab-backup" style={{ marginBottom: 'var(--space-4)' }}>
+                {backupMsg && (
+                  <div style={{
+                    marginBottom: 'var(--space-4)',
+                    padding: '10px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '13px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: backupMsg.type === 'success' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                    color: backupMsg.type === 'success' ? 'var(--color-up, #22c55e)' : 'var(--color-down, #ef4444)',
+                    border: `1px solid ${backupMsg.type === 'success' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
+                  }}>
+                    {backupMsg.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                    <span>{backupMsg.text}</span>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                  {/* Export Section */}
+                  <fieldset style={{
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: 'var(--space-4)',
+                    background: 'var(--surface-sunken)',
+                  }}>
+                    <legend style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', padding: '0 8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Export Instance Data
+                    </legend>
+                    <p style={{ margin: '0 0 var(--space-3)', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                      Export all targets, notification channels, status pages, and system settings into a portable, database-agnostic JSON file.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleExportBackup}
+                      disabled={exporting}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '9px 16px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'var(--surface)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-primary)',
+                        cursor: exporting ? 'wait' : 'pointer',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {exporting ? <Loader2 size={15} className="spin" /> : <Download size={15} />}
+                      {exporting ? 'Generating JSON...' : 'Export Backup JSON'}
+                    </button>
+                  </fieldset>
+
+                  {/* Import Section */}
+                  <fieldset style={{
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: 'var(--space-4)',
+                    background: 'var(--surface-sunken)',
+                  }}>
+                    <legend style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', padding: '0 8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Import / Restore Data
+                    </legend>
+                    <p style={{ margin: '0 0 var(--space-3)', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                      Restore instance configuration from an exported JSON file. Choose between merging with existing data or completely replacing all configurations.
+                    </p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
+                          Backup File (.json)
+                        </label>
+                        <input
+                          type="file"
+                          accept=".json,application/json"
+                          onChange={e => {
+                            if (e.target.files && e.target.files[0]) {
+                              setImportFile(e.target.files[0]);
+                            }
+                          }}
+                          style={{
+                            fontSize: '12px',
+                            color: 'var(--text-secondary)',
+                            background: 'var(--surface)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 'var(--radius-sm)',
+                            padding: '6px 10px',
+                            width: '100%',
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
+                          Restore Mode
+                        </label>
+                        <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
+                            <input
+                              type="radio"
+                              name="restoreMode"
+                              value="merge"
+                              checked={importMode === 'merge'}
+                              onChange={() => setImportMode('merge')}
+                            />
+                            <span><strong>Merge</strong> (Upsert without deleting other items)</span>
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
+                            <input
+                              type="radio"
+                              name="restoreMode"
+                              value="replace"
+                              checked={importMode === 'replace'}
+                              onChange={() => setImportMode('replace')}
+                            />
+                            <span style={{ color: 'var(--color-down, #ef4444)' }}><strong>Replace</strong> (Wipe and replace cleanly)</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: 'var(--space-2)' }}>
+                        <button
+                          type="button"
+                          onClick={handleImportBackup}
+                          disabled={importing || !importFile}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '9px 16px',
+                            borderRadius: 'var(--radius-sm)',
+                            background: importMode === 'replace' ? 'var(--color-down, #ef4444)' : 'var(--accent)',
+                            border: 'none',
+                            color: '#fff',
+                            cursor: (importing || !importFile) ? 'not-allowed' : 'pointer',
+                            opacity: (importing || !importFile) ? 0.6 : 1,
+                            fontSize: '13px',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {importing ? <Loader2 size={15} className="spin" /> : <Upload size={15} />}
+                          {importing ? 'Importing & Restoring...' : `Restore from Backup (${importMode === 'replace' ? 'Wipe & Replace' : 'Merge'})`}
+                        </button>
+                      </div>
+                    </div>
+                  </fieldset>
+                </div>
+              </div>
+            )}
+
             {/* Footer */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)', alignItems: 'center' }}>
               {loading && <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginRight: 'auto' }}>Loading…</span>}
@@ -831,7 +1065,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                 style={{ padding: '11px 18px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
                 {canEdit ? 'Cancel' : 'Close'}
               </button>
-              {canEdit && activeTab !== 'tags' && (
+              {canEdit && activeTab !== 'tags' && activeTab !== 'backup' && (
                 <button
                   type="submit"
                   /* Stays enabled while invalid so the message is reachable —

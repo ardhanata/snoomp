@@ -12,7 +12,9 @@ datas = [
     (os.path.join(project_root, 'VERSION'), '.'),
 ]
 
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_submodules, collect_data_files
+
+datas += collect_data_files('apprise')
 
 hidden_imports = [
     'uvicorn',
@@ -53,6 +55,7 @@ hidden_imports = [
     'app.routes.status_pages',
     'app.routes.settings',
     'app.routes.notifications',
+    'app.routes.backup',
     'app.models.notification',
     'app.services.dashboard',
     'app.services.settings_store',
@@ -60,7 +63,7 @@ hidden_imports = [
     'app.services.retention',
     'app.services.notification_service',
     'worker.tasks',
-] + collect_submodules('celery') + collect_submodules('kombu')
+] + collect_submodules('celery') + collect_submodules('kombu') + collect_submodules('apprise')
 
 a = Analysis(
     ['snoomp_server.py'],
