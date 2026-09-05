@@ -724,26 +724,108 @@ if (-not (Test-Path $InstallDir)) {
 
 # --- 6. Deploy & Extract Package ---
 Write-Host "`n[PACKAGE] Deploying Snoomp binaries..." -ForegroundColor Green
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path -ErrorAction SilentlyContinue
-$LocalZip = "$ScriptDir\..\dist\snoomp-windows-x64.zip"
-$LocalDir = "$ScriptDir\..\dist\snoomp-windows-x64"
 
-if (Test-Path $LocalDir) {
+$ScriptDir = $null
+if ($MyInvocation.MyCommand -and $MyInvocation.MyCommand.Path) {
+    try {
+        $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path -ErrorAction SilentlyContinue
+    } catch {}
+} elseif ($PSScriptRoot) {
+    $ScriptDir = $PSScriptRoot
+}
+
+# Search candidate local directories and archives
+$LocalDir = $null
+$LocalZip = $null
+
+$CandidateDirs = @()
+if ($ScriptDir) {
+    $CandidateDirs += "$ScriptDir\..\dist\snoomp-windows-x64"
+    $CandidateDirs += "$ScriptDir\dist\snoomp-windows-x64"
+}
+$CandidateDirs += "$PWD\dist\snoomp-windows-x64"
+$CandidateDirs += "$PWD\snoomp-windows-x64"
+$CandidateDirs += "D:\Project\snoomp\dist\snoomp-windows-x64"
+
+foreach ($cDir in $CandidateDirs) {
+    if ($cDir -and (Test-Path $cDir) -and (Test-Path "$cDir\snoomp.exe")) {
+        $LocalDir = (Resolve-Path $cDir).Path
+        break
+    }
+}
+
+if (-not $LocalDir) {
+    $CandidateZips = @()
+    if ($ScriptDir) {
+        $CandidateZips += "$ScriptDir\..\dist\snoomp-windows-x64.zip"
+        $CandidateZips += "$ScriptDir\dist\snoomp-windows-x64.zip"
+    }
+    $CandidateZips += "$PWD\dist\snoomp-windows-x64.zip"
+    $CandidateZips += "$PWD\snoomp-windows-x64.zip"
+    $CandidateZips += "D:\Project\snoomp\dist\snoomp-windows-x64.zip"
+
+    foreach ($cZip in $CandidateZips) {
+        if ($cZip -and (Test-Path $cZip)) {
+            $LocalZip = (Resolve-Path $cZip).Path
+            break
+        }
+    }
+}
+
+if ($LocalDir) {
     Write-Host "Installing from local build folder: $LocalDir..." -ForegroundColor Yellow
     Copy-Item -Recurse -Force "$LocalDir\*" -Destination $InstallDir
-} elseif (Test-Path $LocalZip) {
+} elseif ($LocalZip) {
     Write-Host "Unpacking local archive: $LocalZip..." -ForegroundColor Yellow
     Expand-Archive -Path $LocalZip -DestinationPath $InstallDir -Force
 } else {
     if (-not $DownloadUrl) {
-        $DownloadUrl = "https://github.com/ganangdharu/snoomp/releases/latest/download/snoomp-windows-x64.zip"
+        $DownloadUrl = "https://github.com/ardhanata/snoomp/releases/latest/download/snoomp-windows-x64.zip"
     }
     Write-Host "Downloading Snoomp package from: $DownloadUrl..." -ForegroundColor Yellow
     $TempZip = "$env:TEMP\snoomp-windows-x64.zip"
-    Invoke-RestMethod -Uri $DownloadUrl -OutFile $TempZip
-    Write-Host "Extracting to $InstallDir..." -ForegroundColor Yellow
-    Expand-Archive -Path $TempZip -DestinationPath $InstallDir -Force
-    Remove-Item -Force $TempZip
+    $downloadSuccess = $false
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri $DownloadUrl -OutFile $TempZip -UseBasicParsing
+        $downloadSuccess = $true
+    } catch {
+        Write-Host "  [WARN] Failed to download package from $DownloadUrl : $_" -ForegroundColor Yellow
+    }
+
+    if ($downloadSuccess -and (Test-Path $TempZip)) {
+        Write-Host "Extracting to $InstallDir..." -ForegroundColor Yellow
+        Expand-Archive -Path $TempZip -DestinationPath $InstallDir -Force
+        Remove-Item -Force $TempZip -ErrorAction SilentlyContinue
+    } else {
+        $CandidateBuildScripts = @()
+        if ($ScriptDir) { $CandidateBuildScripts += "$ScriptDir\build-windows.ps1" }
+        $CandidateBuildScripts += "$PWD\scripts\build-windows.ps1"
+        $CandidateBuildScripts += "D:\Project\snoomp\scripts\build-windows.ps1"
+        
+        $buildRan = $false
+        foreach ($bScript in $CandidateBuildScripts) {
+            if ($bScript -and (Test-Path $bScript)) {
+                Write-Host "Compiling standalone Windows binary from local repository: $bScript..." -ForegroundColor Cyan
+                & powershell -NoProfile -ExecutionPolicy Bypass -File $bScript
+                $buildRan = $true
+                break
+            }
+        }
+        
+        foreach ($cDir in $CandidateDirs) {
+            if ($cDir -and (Test-Path $cDir) -and (Test-Path "$cDir\snoomp.exe")) {
+                $LocalDir = (Resolve-Path $cDir).Path
+                break
+            }
+        }
+        if ($LocalDir) {
+            Write-Host "Installing from newly compiled local build folder: $LocalDir..." -ForegroundColor Yellow
+            Copy-Item -Recurse -Force "$LocalDir\*" -Destination $InstallDir
+        } else {
+            throw "Unable to deploy Snoomp binaries: No local build found and remote package download failed."
+        }
+    }
 }
 
 if (-not (Test-Path "$InstallDir\snoomp.exe")) {
