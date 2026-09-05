@@ -91,12 +91,16 @@ ALLOWED_ORIGINS=*
 "@
 Set-Content -Path "$FinalPackageDir\snoomp.env.example" -Value $TemplateEnv -Encoding utf8
 
-# Copy install.ps1 into the package
+# Copy install.ps1 and update-snoomp.ps1 into the package
 Copy-Item -Path "$PSScriptRoot\install.ps1" -Destination "$FinalPackageDir\install.ps1"
+if (Test-Path "$PSScriptRoot\update-snoomp.ps1") {
+    Copy-Item -Path "$PSScriptRoot\update-snoomp.ps1" -Destination "$FinalPackageDir\update-snoomp.ps1"
+}
 
-# Create start and stop helper scripts
+# Create start, stop, and update helper scripts
 Set-Content -Path "$FinalPackageDir\start-snoomp.bat" -Value "@echo off`r`nstart snoomp.exe" -Encoding ascii
 Set-Content -Path "$FinalPackageDir\stop-snoomp.bat" -Value "@echo off`r`ntaskkill /F /IM snoomp.exe" -Encoding ascii
+Set-Content -Path "$FinalPackageDir\update-snoomp.bat" -Value "@powershell -ExecutionPolicy Bypass -File `"%~dp0update-snoomp.ps1`"" -Encoding ascii
 
 # Create Zip Archive
 $ZipPath = "$DistRoot\snoomp-windows-x64.zip"

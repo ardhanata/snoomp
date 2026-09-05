@@ -21,6 +21,7 @@ import ExecutiveDashboard, { SlaTrend } from './components/ExecutiveDashboard';
 import PrintableReport from './components/PrintableReport';
 import DatabaseMetricsChart from './components/DatabaseMetricsChart';
 import UserPreferencesModal, { SlaConfig } from './components/UserPreferencesModal';
+import UpdateModal from './components/UpdateModal';
 import { InstanceSettings, readCache, fetchSettings, applyAppearance } from './lib/settings';
 
 const API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
@@ -204,7 +205,8 @@ function App() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showPreferencesModal, setShowPreferencesModal] = useState(false);
-  const [appVersion, setAppVersion] = useState('v0.2.1');
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [appVersion, setAppVersion] = useState('v1.0.0');
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const fetchVersion = async () => {
@@ -666,9 +668,8 @@ function App() {
           const msg = JSON.parse(event.data);
           if (msg.type === 'initial_state') {
             const monitorData = msg.data || msg.targets || [];
-            if (Array.isArray(monitorData)) {
-              setMonitors(monitorData);
-            }
+            // ponytail: guarantee array shape
+            setMonitors(Array.isArray(monitorData) ? monitorData : []);
           } else if (msg.type === 'target_update' || msg.type === 'target_updated') {
             const u = msg.data || msg.target;
             if (!u) return;
@@ -760,10 +761,12 @@ function App() {
       return;
     }
     try {
-      const res = await fetch(`${API_URL}/api/targets/`, { headers: authHeaders() });
+      const res = await fetch(`${API_URL}/api/targets`, { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
-        setMonitors(data);
+        // ponytail: guarantee array shape to avoid G.flatMap runtime error
+        const list = Array.isArray(data) ? data : (Array.isArray(data?.targets) ? data.targets : (Array.isArray(data?.data) ? data.data : []));
+        setMonitors(list);
 
         // Resolve a shared ?monitor=<id> link once the list is available.
         // Runs only on the first load so it can't fight the user's navigation.
@@ -984,22 +987,29 @@ function App() {
   };
 
   // ── Tag Normalization Helper ──
+  // ponytail: robust flatMap-free tag normalizer, zero dependencies, zero crashes
   const normalizeTags = (tags: any): string[] => {
     if (!tags) return [];
-    if (Array.isArray(tags)) {
-      return tags.flatMap(t => typeof t === 'string' ? t.split(',') : []).map(t => t.trim()).filter(Boolean);
+    const list = Array.isArray(tags) ? tags : [tags];
+    const out: string[] = [];
+    for (const item of list) {
+      if (typeof item === 'string') {
+        for (const part of item.split(',')) {
+          const trimmed = part.trim();
+          if (trimmed) out.push(trimmed);
+        }
+      }
     }
-    if (typeof tags === 'string') {
-      return tags.split(',').map(t => t.trim()).filter(Boolean);
-    }
-    return [];
+    return out;
   };
 
   // ── Derived state ──
   const ENV_KEYWORDS = ['prod', 'production', 'staging', 'stag', 'dev', 'development', 'test', 'uat'];
   const isEnvTagHelper = (tag: string) => ENV_KEYWORDS.includes(tag.toLowerCase());
 
-  const allTags = Array.from(new Set(monitors.flatMap(m => normalizeTags(m.tags)))) as string[];
+  // ponytail: safe list to ensure no non-array can crash the dashboard
+  const safeMonitors = Array.isArray(monitors) ? monitors : [];
+  const allTags = Array.from(new Set(safeMonitors.map(m => normalizeTags(m?.tags)).flat().filter(Boolean))) as string[];
   const groupTags = Array.from(new Set(allTags.filter(t => !isEnvTagHelper(t)))) as string[];
   const presentEnvTags = allTags.filter(t => isEnvTagHelper(t));
   const envTags = Array.from(new Set(['prod', 'staging', 'dev', ...presentEnvTags])) as string[];
@@ -1012,7 +1022,7 @@ function App() {
    * clicking "Down" would zero out Up and Warn and you could never click your
    * way back out.
    */
-  const tagFilteredMonitors = monitors.filter(m => {
+  const tagFilteredMonitors = safeMonitors.filter(m => {
     const matchSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) || m.host.toLowerCase().includes(searchTerm.toLowerCase());
 
     const targetTags = normalizeTags(m.tags);
@@ -1352,6 +1362,14 @@ function App() {
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
                   <Sliders size={14} /> User Preferences
+                </button>
+                <button
+                  onClick={() => { setShowProfileMenu(false); setShowUpdateModal(true); }}
+                  style={{ background: 'transparent', border: 'none', padding: '8px 12px', textAlign: 'left', cursor: 'pointer', borderRadius: '4px', fontSize: '13px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <RefreshCw size={14} /> Check for Updates
                 </button>
                 <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />
                 <button
@@ -1796,9 +1814,27 @@ function App() {
               {/* Version Footer Badge */}
               <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
                 <span>Snoomp Enterprise</span>
-                <span style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: '11px', fontWeight: 600, color: 'var(--accent)' }}>
-                  {appVersion}
-                </span>
+                <button
+                  onClick={() => setShowUpdateModal(true)}
+                  title="Check for updates"
+                  style={{
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    padding: '2px 8px',
+                    borderRadius: '11px',
+                    fontWeight: 600,
+                    color: 'var(--accent)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+                >
+                  <RefreshCw size={11} /> {appVersion}
+                </button>
               </div>
             </aside>
           )}
@@ -2853,6 +2889,13 @@ curl -X POST -H "Content-Type: application/json" \\
           setInstanceSettings(saved);
           applyAppearance(saved.appearance);
         }}
+      />
+
+      {/* ─── UPDATE MODAL ─── */}
+      <UpdateModal
+        isOpen={showUpdateModal}
+        onClose={() => setShowUpdateModal(false)}
+        apiUrl={API_URL}
       />
 
       {/* ─── BATCH EDIT MODAL ─── */}

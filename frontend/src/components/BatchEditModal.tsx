@@ -16,15 +16,20 @@ interface BatchEditModalProps {
   }) => void | Promise<void>;
 }
 
+// ponytail: safe flatMap-free tag normalizer
 const normalizeTags = (tags: any): string[] => {
   if (!tags) return [];
-  if (Array.isArray(tags)) {
-    return tags.flatMap(t => typeof t === 'string' ? t.split(',') : []).map(t => t.trim()).filter(Boolean);
+  const list = Array.isArray(tags) ? tags : [tags];
+  const out: string[] = [];
+  for (const item of list) {
+    if (typeof item === 'string') {
+      for (const part of item.split(',')) {
+        const trimmed = part.trim();
+        if (trimmed) out.push(trimmed);
+      }
+    }
   }
-  if (typeof tags === 'string') {
-    return tags.split(',').map(t => t.trim()).filter(Boolean);
-  }
-  return [];
+  return out;
 };
 
 const ENV_KEYWORDS = ['prod', 'production', 'staging', 'stag', 'dev', 'development', 'test', 'uat'];

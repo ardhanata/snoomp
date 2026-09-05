@@ -1307,9 +1307,20 @@ if (Test-Path `$logFile) {
 "@
 Set-Content -Path "$InstallDir\view-logs.ps1" -Value $ViewLogsScript -Encoding utf8
 
+# update-snoomp.ps1
+$updateScriptSource = "$PSScriptRoot\update-snoomp.ps1"
+if (Test-Path $updateScriptSource) {
+    Copy-Item -Path $updateScriptSource -Destination "$InstallDir\update-snoomp.ps1" -Force
+} else {
+    try {
+        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ardhanata/snoomp/main/scripts/update-snoomp.ps1" -OutFile "$InstallDir\update-snoomp.ps1" -UseBasicParsing -TimeoutSec 5 -ErrorAction SilentlyContinue
+    } catch {}
+}
+
 # Legacy batch files for CMD users
 Set-Content -Path "$InstallDir\start-snoomp.bat" -Value "@powershell -ExecutionPolicy Bypass -File `"%~dp0start-snoomp.ps1`"" -Encoding ascii
 Set-Content -Path "$InstallDir\stop-snoomp.bat" -Value "@powershell -ExecutionPolicy Bypass -File `"%~dp0stop-snoomp.ps1`"" -Encoding ascii
+Set-Content -Path "$InstallDir\update-snoomp.bat" -Value "@powershell -ExecutionPolicy Bypass -File `"%~dp0update-snoomp.ps1`"" -Encoding ascii
 
 # --- 11. Register 24/7 Background Service ---
 Write-Host "`n[SERVICE] Registering 24/7 background service (SnoompServer)..." -ForegroundColor Green
@@ -1410,6 +1421,7 @@ Write-Host "  Initial Admin Password:$AdminInitialPassword" -ForegroundColor Yel
 Write-Host "=================================================================" -ForegroundColor Green
 Write-Host "  Management Commands (Run in PowerShell from any directory):" -ForegroundColor Cyan
 Write-Host "    Check Status:        powershell `"$InstallDir\status-snoomp.ps1`"" -ForegroundColor Gray
+Write-Host "    Check for Updates:   powershell `"$InstallDir\update-snoomp.ps1`"" -ForegroundColor Gray
 Write-Host "    View Live Logs:      powershell `"$InstallDir\view-logs.ps1`"" -ForegroundColor Gray
 Write-Host "    Restart Service:     powershell `"$InstallDir\restart-snoomp.ps1`"" -ForegroundColor Gray
 Write-Host "    Stop Service:        powershell `"$InstallDir\stop-snoomp.ps1`"" -ForegroundColor Gray

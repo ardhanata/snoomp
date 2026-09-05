@@ -34,21 +34,27 @@ export default function PreferencesTagsTab({
           const ENV_KEYWORDS = ['prod', 'production', 'staging', 'stag', 'dev', 'development', 'test', 'uat'];
           const isEnvTagHelper = (t: string) => ENV_KEYWORDS.includes(t.toLowerCase());
           
+          // ponytail: safe flatMap-free tag normalizer
           const normalizeTags = (tags: any): string[] => {
             if (!tags) return [];
-            if (Array.isArray(tags)) {
-              return tags.flatMap(t => typeof t === 'string' ? t.split(',') : []).map(t => t.trim()).filter(Boolean);
+            const list = Array.isArray(tags) ? tags : [tags];
+            const out: string[] = [];
+            for (const item of list) {
+              if (typeof item === 'string') {
+                for (const part of item.split(',')) {
+                  const trimmed = part.trim();
+                  if (trimmed) out.push(trimmed);
+                }
+              }
             }
-            if (typeof tags === 'string') {
-              return tags.split(',').map(t => t.trim()).filter(Boolean);
-            }
-            return [];
+            return out;
           };
 
+          const safeMonitors = Array.isArray(monitors) ? monitors : [];
           const allTagNames = Array.from(
             new Set([
               ...(allTags || []),
-              ...monitors.flatMap(m => normalizeTags(m.tags)),
+              ...safeMonitors.map(m => normalizeTags(m?.tags)).flat(),
               ...customTags
             ])
           ) as string[];

@@ -29,6 +29,7 @@ class TargetCreateUpdate(BaseModel):
 
 
 @router.get("", dependencies=[Depends(require_viewer)])
+@router.get("/", dependencies=[Depends(require_viewer)])
 def list_targets(db: Session = Depends(get_db)):
     from app.main import compile_initial_data
     return compile_initial_data(db)
