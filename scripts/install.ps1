@@ -315,6 +315,217 @@ if ($PreflightOnly) {
 # Resolve Web Dashboard & API Port
 $Port = Resolve-PortSelection -InitialPort $Port -ScanResults $ScanResults -Interactive (-not $Unattended)
 
+# --- 2.5 Automated Dependency Provisioning (PostgreSQL & Redis) ---
+
+function Install-PostgreSqlDependency {
+    param(
+        [int]$Port = 5432,
+        [string]$SuperUserPassword = "snoomp_postgres_pass",
+        [string]$SnoompUser = "snoomp_admin",
+        [string]$SnoompPassword = "snoomp_secure_password",
+        [string]$DatabaseName = "snoomp_db"
+    )
+
+    Write-Host "`n[DEPENDENCY] Initiating automated PostgreSQL 15 installation..." -ForegroundColor Cyan
+    $wingetCmd = Get-Command winget -ErrorAction SilentlyContinue
+
+    $installed = $false
+    if ($wingetCmd) {
+        Write-Host "  Using Windows Package Manager (winget) to install PostgreSQL 15..." -ForegroundColor Yellow
+        Write-Host "  Executing unattended silent setup..." -ForegroundColor Gray
+        try {
+            $wingetArgs = @(
+                "install",
+                "--id", "PostgreSQL.PostgreSQL.15",
+                "--exact",
+                "--silent",
+                "--accept-source-agreements",
+                "--accept-package-agreements",
+                "--override", "`"--mode unattended --unattendedmodeui none --superpassword `"$SuperUserPassword`" --serverport $Port`""
+            )
+            $p = Start-Process -FilePath "winget" -ArgumentList $wingetArgs -Wait -PassThru -NoNewWindow
+            if ($p.ExitCode -eq 0) {
+                Write-Host "  [OK] winget installation command finished successfully." -ForegroundColor Green
+                $installed = $true
+            } else {
+                Write-Host "  [WARN] winget exited with code $($p.ExitCode). Falling back to direct installer download..." -ForegroundColor Yellow
+            }
+        } catch {
+            Write-Host "  [WARN] winget execution failed: $_. Falling back to direct installer download..." -ForegroundColor Yellow
+        }
+    }
+
+    if (-not $installed) {
+        $installerUrl = "https://get.enterprisedb.com/postgresql/postgresql-15.19-3-windows-x64.exe"
+        $installerPath = "$env:TEMP\postgresql-15-installer.exe"
+        Write-Host "  Downloading PostgreSQL 15 installer directly from EnterpriseDB..." -ForegroundColor Yellow
+        Write-Host "  URL: $installerUrl" -ForegroundColor Gray
+        try {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath -UseBasicParsing
+            Write-Host "  Running silent installer (this may take 1-2 minutes)..." -ForegroundColor Yellow
+            $instArgs = "--mode unattended --unattendedmodeui none --superpassword `"$SuperUserPassword`" --serverport $Port"
+            $p = Start-Process -FilePath $installerPath -ArgumentList $instArgs -Wait -PassThru -NoNewWindow
+            if ($p.ExitCode -eq 0) {
+                $installed = $true
+            } else {
+                Write-Host "  [WARN] Installer exited with code $($p.ExitCode)." -ForegroundColor Yellow
+            }
+            Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
+        } catch {
+            Write-Host "  [ERROR] Direct download/install failed: $_" -ForegroundColor Red
+            return $false
+        }
+    }
+
+    # Wait for PostgreSQL service to start listening on $Port
+    Write-Host "  Waiting for PostgreSQL service to start listening on port $Port..." -ForegroundColor Yellow
+    $waited = 0
+    while ($waited -lt 60) {
+        if (Test-TcpEndpoint "127.0.0.1" $Port 1000) {
+            Write-Host "  [OK] PostgreSQL is actively listening on port $Port!" -ForegroundColor Green
+            break
+        }
+        Start-Sleep -Seconds 2
+        $waited += 2
+    }
+
+    if (-not (Test-TcpEndpoint "127.0.0.1" $Port 1000)) {
+        Write-Host "  [ERROR] PostgreSQL service did not start within 60 seconds." -ForegroundColor Red
+        return $false
+    }
+
+    # Locate psql.exe to provision user and database
+    $psqlPaths = @(
+        "C:\Program Files\PostgreSQL\15\bin\psql.exe",
+        "C:\Program Files\PostgreSQL\*\bin\psql.exe"
+    )
+    $psqlExe = $null
+    foreach ($pathPattern in $psqlPaths) {
+        $found = Resolve-Path $pathPattern -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($found -and (Test-Path $found.Path)) {
+            $psqlExe = $found.Path
+            break
+        }
+    }
+    if (-not $psqlExe) {
+        $cmdPsql = Get-Command psql.exe -ErrorAction SilentlyContinue
+        if ($cmdPsql) { $psqlExe = $cmdPsql.Source }
+    }
+
+    if ($psqlExe) {
+        Write-Host "  Provisioning Snoomp database ($DatabaseName) and role ($SnoompUser)..." -ForegroundColor Yellow
+        $env:PGPASSWORD = $SuperUserPassword
+        try {
+            # Create user if not exists
+            & "$psqlExe" -h 127.0.0.1 -p $Port -U postgres -d postgres -c "DO `$do`$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$SnoompUser') THEN CREATE ROLE $SnoompUser WITH LOGIN PASSWORD '$SnoompPassword' SUPERUSER; END IF; END `$do`$;" 2>&1 | Out-Null
+
+            # Create database if not exists
+            $dbExists = & "$psqlExe" -h 127.0.0.1 -p $Port -U postgres -d postgres -t -c "SELECT 1 FROM pg_database WHERE datname = '$DatabaseName';" 2>&1
+            if ($dbExists -notmatch "1") {
+                & "$psqlExe" -h 127.0.0.1 -p $Port -U postgres -d postgres -c "CREATE DATABASE $DatabaseName OWNER $SnoompUser;" 2>&1 | Out-Null
+            }
+            Write-Host "  [OK] Database '$DatabaseName' and user '$SnoompUser' configured." -ForegroundColor Green
+        } catch {
+            Write-Host "  [WARN] Database provisioning command encountered an issue: $_" -ForegroundColor Yellow
+        } finally {
+            Remove-Item env:PGPASSWORD -ErrorAction SilentlyContinue
+        }
+    } else {
+        Write-Host "  [INFO] psql.exe not found in standard path; service is running, credentials can be applied directly." -ForegroundColor Gray
+    }
+
+    return $true
+}
+
+function Install-RedisDependency {
+    param(
+        [int]$Port = 6379,
+        [string]$TargetDir = "C:\Program Files\Redis"
+    )
+
+    Write-Host "`n[DEPENDENCY] Initiating automated Redis service installation..." -ForegroundColor Cyan
+
+    $wingetCmd = Get-Command winget -ErrorAction SilentlyContinue
+    $installed = $false
+
+    if ($wingetCmd) {
+        Write-Host "  Attempting package installation via winget..." -ForegroundColor Yellow
+        try {
+            $p = Start-Process -FilePath "winget" -ArgumentList "install --id taizod1024.redis-windows-fork --exact --silent --accept-source-agreements --accept-package-agreements" -Wait -PassThru -NoNewWindow
+            if ($p.ExitCode -eq 0) {
+                Write-Host "  [OK] winget installed Redis package successfully." -ForegroundColor Green
+                $installed = $true
+            }
+        } catch {
+            Write-Host "  [INFO] winget install attempt skipped: $_" -ForegroundColor Gray
+        }
+    }
+
+    # Verify if service is already running on $Port after winget
+    if (Test-TcpEndpoint "127.0.0.1" $Port 1500) {
+        Write-Host "  [OK] Redis is actively listening on port $Port!" -ForegroundColor Green
+        return $true
+    }
+
+    # Fallback to direct standalone Redis Windows zip binary distribution
+    Write-Host "  Deploying standalone native Redis Windows Service..." -ForegroundColor Yellow
+    $redisZipUrl = "https://github.com/tporadowski/redis/releases/download/v5.0.14.1/Redis-x64-5.0.14.1.zip"
+    $tempZip = "$env:TEMP\Redis-x64-5.0.14.1.zip"
+
+    try {
+        if (-not (Test-Path $TargetDir)) {
+            New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
+        }
+
+        Write-Host "  Downloading Redis binary archive from GitHub ($redisZipUrl)..." -ForegroundColor Gray
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri $redisZipUrl -OutFile $tempZip -UseBasicParsing
+
+        Write-Host "  Extracting Redis binaries to $TargetDir..." -ForegroundColor Gray
+        Expand-Archive -Path $tempZip -DestinationPath $TargetDir -Force
+        Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
+
+        $redisServerExe = "$TargetDir\redis-server.exe"
+        if (Test-Path $redisServerExe) {
+            Write-Host "  Registering and starting SnoompRedis Windows Service on port $Port..." -ForegroundColor Yellow
+            $confPath = "$TargetDir\redis.windows-service.conf"
+            if (-not (Test-Path $confPath)) {
+                $confPath = "$TargetDir\redis.windows.conf"
+            }
+            if (Test-Path $confPath) {
+                & "$redisServerExe" --service-install "$confPath" --service-name SnoompRedis --port $Port 2>&1 | Out-Null
+            } else {
+                & "$redisServerExe" --service-install --service-name SnoompRedis --port $Port 2>&1 | Out-Null
+            }
+            & "$redisServerExe" --service-start --service-name SnoompRedis 2>&1 | Out-Null
+            Start-Service -Name "SnoompRedis" -ErrorAction SilentlyContinue
+        }
+    } catch {
+        Write-Host "  [ERROR] Failed to extract or start Redis service: $_" -ForegroundColor Red
+        return $false
+    }
+
+    # Poll port to verify
+    Write-Host "  Verifying Redis listener on port $Port..." -ForegroundColor Yellow
+    $waited = 0
+    while ($waited -lt 15) {
+        if (Test-TcpEndpoint "127.0.0.1" $Port 1000) {
+            Write-Host "  [OK] Redis service is active and listening on port $Port!" -ForegroundColor Green
+            return $true
+        }
+        Start-Sleep -Seconds 1
+        $waited += 1
+    }
+
+    if (Test-TcpEndpoint "127.0.0.1" $Port 1000) {
+        return $true
+    } else {
+        Write-Host "  [WARN] Redis service installation completed but port $Port was not reachable." -ForegroundColor Yellow
+        return $false
+    }
+}
+
 # --- 3. Production Architecture & Package Selection ---
 
 $DbChoice = "1"
@@ -379,17 +590,44 @@ if ($DbChoice -eq "1" -and -not $Unattended) {
             $PgVerified = $true
         } else {
             Write-Host "  [WARN] Cannot connect to ${PgHost}:${PgPort}! Is PostgreSQL/TimescaleDB running?" -ForegroundColor Red
-            Write-Host "  [1] Re-enter PostgreSQL connection details" -ForegroundColor White
-            Write-Host "  [2] Proceed anyway (assuming database service will start later)" -ForegroundColor White
-            Write-Host "  [3] Fallback to Embedded SQLite" -ForegroundColor White
-            $warnChoice = Read-Host "  Selection [Default: 1]"
-            if ($warnChoice -eq "2") {
-                $DatabaseUrl = "postgresql://${PgUser}:${PlainPass}@${PgHost}:${PgPort}/${PgDb}"
-                $PgVerified = $true
-            } elseif ($warnChoice -eq "3") {
-                $DatabaseUrl = "sqlite:///snoomp.db"
-                Write-Host "  Using Embedded SQLite as requested." -ForegroundColor Yellow
-                $PgVerified = $true
+            $isLocal = ($PgHost -eq "127.0.0.1" -or $PgHost -eq "localhost")
+            if ($isLocal) {
+                Write-Host "  [1] Automatically install and configure PostgreSQL 15 on this machine (Recommended)" -ForegroundColor Cyan
+                Write-Host "  [2] Re-enter PostgreSQL connection details" -ForegroundColor White
+                Write-Host "  [3] Proceed anyway (assuming database service will start later)" -ForegroundColor White
+                Write-Host "  [4] Fallback to Embedded SQLite" -ForegroundColor White
+                $warnChoice = Read-Host "  Selection [Default: 1]"
+
+                if ([string]::IsNullOrWhiteSpace($warnChoice) -or $warnChoice -eq "1") {
+                    $installPass = if (-not [string]::IsNullOrWhiteSpace($PlainPass)) { $PlainPass } else { "snoomp_secure_password" }
+                    $installed = Install-PostgreSqlDependency -Port ([int]$PgPort) -SuperUserPassword $installPass -SnoompUser $PgUser -SnoompPassword $installPass -DatabaseName $PgDb
+                    if ($installed) {
+                        $DatabaseUrl = "postgresql://${PgUser}:${installPass}@${PgHost}:${PgPort}/${PgDb}"
+                        $PgVerified = $true
+                    } else {
+                        Write-Host "  Automated installation could not complete. You may re-enter details or fallback." -ForegroundColor Yellow
+                    }
+                } elseif ($warnChoice -eq "3") {
+                    $DatabaseUrl = "postgresql://${PgUser}:${PlainPass}@${PgHost}:${PgPort}/${PgDb}"
+                    $PgVerified = $true
+                } elseif ($warnChoice -eq "4") {
+                    $DatabaseUrl = "sqlite:///snoomp.db"
+                    Write-Host "  Using Embedded SQLite as requested." -ForegroundColor Yellow
+                    $PgVerified = $true
+                }
+            } else {
+                Write-Host "  [1] Re-enter PostgreSQL connection details" -ForegroundColor White
+                Write-Host "  [2] Proceed anyway (assuming database service will start later)" -ForegroundColor White
+                Write-Host "  [3] Fallback to Embedded SQLite" -ForegroundColor White
+                $warnChoice = Read-Host "  Selection [Default: 1]"
+                if ($warnChoice -eq "2") {
+                    $DatabaseUrl = "postgresql://${PgUser}:${PlainPass}@${PgHost}:${PgPort}/${PgDb}"
+                    $PgVerified = $true
+                } elseif ($warnChoice -eq "3") {
+                    $DatabaseUrl = "sqlite:///snoomp.db"
+                    Write-Host "  Using Embedded SQLite as requested." -ForegroundColor Yellow
+                    $PgVerified = $true
+                }
             }
         }
     }
@@ -408,7 +646,25 @@ if ($DbChoice -eq "1" -and -not $Unattended) {
             Write-Host "  [OK] Successfully reached Redis service at ${RHost}:${RPort}" -ForegroundColor Green
             $RedisUrl = "redis://${RHost}:${RPort}/0"
         } else {
-            Write-Host "  [WARN] Redis not reachable at ${RHost}:${RPort}. Falling back to in-process scheduler engine." -ForegroundColor Yellow
+            Write-Host "  [WARN] Redis not reachable at ${RHost}:${RPort}." -ForegroundColor Yellow
+            $isLocalR = ($RHost -eq "127.0.0.1" -or $RHost -eq "localhost")
+            if ($isLocalR) {
+                Write-Host "  [1] Automatically install Redis Windows service on this machine (Recommended)" -ForegroundColor Cyan
+                Write-Host "  [2] Skip Redis (Use in-process scheduler engine)" -ForegroundColor White
+                $rChoice = Read-Host "  Selection [Default: 1]"
+                if ([string]::IsNullOrWhiteSpace($rChoice) -or $rChoice -eq "1") {
+                    $rInstalled = Install-RedisDependency -Port ([int]$RPort)
+                    if ($rInstalled) {
+                        $RedisUrl = "redis://${RHost}:${RPort}/0"
+                    } else {
+                        Write-Host "  Redis installation failed; falling back to in-process scheduler engine." -ForegroundColor Yellow
+                    }
+                } else {
+                    Write-Host "  Skipping Redis. In-process high-performance thread pool scheduler will be used." -ForegroundColor Gray
+                }
+            } else {
+                Write-Host "  Falling back to in-process scheduler engine." -ForegroundColor Yellow
+            }
         }
     } else {
         Write-Host "  Skipping Redis. In-process high-performance thread pool scheduler will be used." -ForegroundColor Gray
