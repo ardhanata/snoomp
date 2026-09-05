@@ -51,6 +51,6 @@ redis_data/
 
 # Etc
 
-.agents
-.codegraph
-.superpowers
+.agents/
+.codegraph/
+.superpowers/
