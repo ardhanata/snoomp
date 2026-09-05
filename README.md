@@ -8,7 +8,7 @@
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20Server-lightgrey.svg)](https://github.com/ardhanata/snoomp)
 
 > **Enterprise Multi-Protocol Infrastructure Observability & Uptime Monitoring**  
-> High-performance, self-hosted monitoring with real-time WebSocket telemetry, Uptime Kuma-style multi-channel alerting, and dual-mode deployment (Docker or Standalone Native Windows).
+> High-performance, self-hosted monitoring with real-time WebSocket telemetry, Apprise multi-channel alerting (80+ providers), and dual-mode deployment (Docker or Standalone Native Windows).
 
 ---
 
@@ -24,7 +24,7 @@ Snoomp continuously probes external and internal fleet services across critical 
 - **SNMP v2c / v3**: Device hardware polling (CPU, RAM, bandwidth, interface state) via PySNMP.
 - **Databases**: Real-time connection and verification query polling for **PostgreSQL / TimescaleDB**, **MongoDB**, and **Redis**.
 
-### 🔔 Uptime Kuma-Style Alerting & Notifications
+### 🔔 Apprise Alerting & Multi-Channel Notifications
 Full notification management with instant testing, custom titles, default channel auto-assignment, and per-monitor channel selection:
 - **Direct Native Channels**: Discord (rich color embeds & on-call role pings), Telegram (HTML markdown alerts), Slack (rich attachments), and Webhooks (custom headers & payloads).
 - **Universal Apprise Engine**: Native in-process Python Apprise integration supporting **80+ providers** without external CLI daemons:

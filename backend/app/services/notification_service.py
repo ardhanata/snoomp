@@ -1,7 +1,6 @@
 """
-Notification dispatch and provider integration matching Uptime Kuma.
-Uses native httpx for high-fidelity webhook, Discord, Telegram, and Slack payloads,
-and Apprise as the universal fallback for 80+ alert integrations.
+Apprise multi-channel notification dispatch and provider integration.
+Dispatches alerts via direct webhooks or native in-process Apprise engine (80+ services).
 """
 import logging
 import datetime
@@ -14,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def build_apprise_uri(notif_type: str, cfg: Dict[str, Any]) -> Optional[str]:
     """
-    ponytail: Translate Uptime Kuma provider fields to standard Apprise URIs.
+    Translate provider fields or direct URIs to standard Apprise URIs.
     """
     t = notif_type.lower()
     if t == "apprise":
@@ -79,7 +78,7 @@ def build_apprise_uri(notif_type: str, cfg: Dict[str, Any]) -> Optional[str]:
 
 
 def send_direct_discord(webhook_url: str, title: str, body: str, color: int = 0x3b82f6) -> bool:
-    """Send rich Discord webhook message matching Uptime Kuma format."""
+    """Send rich Discord webhook message with embed styling."""
     payload = {
         "embeds": [
             {
@@ -98,7 +97,7 @@ def send_direct_discord(webhook_url: str, title: str, body: str, color: int = 0x
 
 
 def send_direct_telegram(bot_token: str, chat_id: str, message: str) -> bool:
-    """Send Telegram message matching Uptime Kuma format."""
+    """Send HTML Telegram message."""
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = {
         "chat_id": chat_id,
@@ -113,7 +112,7 @@ def send_direct_telegram(bot_token: str, chat_id: str, message: str) -> bool:
 
 
 def send_direct_slack(webhook_url: str, title: str, body: str, color: str = "#3b82f6") -> bool:
-    """Send Slack webhook message matching Uptime Kuma format."""
+    """Send Slack webhook message with attachment payload."""
     payload = {
         "attachments": [
             {
@@ -132,7 +131,7 @@ def send_direct_slack(webhook_url: str, title: str, body: str, color: str = "#3b
 
 
 def send_direct_webhook(cfg: Dict[str, Any], title: str, body: str, monitor_data: Optional[Dict[str, Any]] = None) -> bool:
-    """Send Webhook matching Uptime Kuma payload format."""
+    """Send Webhook HTTP payload."""
     url = cfg.get("webhookURL", "").strip()
     if not url:
         raise ValueError("Webhook URL is required")
@@ -206,7 +205,7 @@ def dispatch_notification(notif_type: str, cfg: Dict[str, Any], title: str, body
     apprise_uri = build_apprise_uri(notif_type, cfg)
     if apprise_uri:
         ap = apprise.Apprise()
-        # Support single URI or multiple comma/newline separated URIs (matching Apprise CLI & Uptime Kuma)
+        # Support single URI or multiple comma/newline separated URIs (matching Apprise CLI standard)
         uris = [u.strip() for u in apprise_uri.replace("\n", ",").split(",") if u.strip()]
         for u in uris:
             ap.add(u)

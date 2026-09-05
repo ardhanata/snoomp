@@ -35,7 +35,6 @@ from app.checkers.dns import check_dns
 from app.checkers.db_check import check_postgres
 from app.checkers.mongodb import check_mongodb
 from app.checkers.redis_check import check_redis
-from app.notifications.manager import send_notification
 from app.notifications import discord
 
 async def execute_checker(target: Target) -> dict:
@@ -151,9 +150,9 @@ def trigger_alerts(
 ):
     """
     Fan a status transition out to configured notification channels.
-    Matches Uptime Kuma's alert dispatching.
+    Dispatches via Apprise multi-channel alert engine.
     """
-    # --- 1. Notification Model Channels (Uptime Kuma Style) ----------------
+    # --- 1. Notification Model Channels (Apprise Alert Engine) ------------
     try:
         from app.models.notification import Notification
         from app.services.notification_service import dispatch_notification

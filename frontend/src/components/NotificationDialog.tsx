@@ -351,7 +351,7 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({
             />
           </div>
 
-          {/* ── Dynamic Provider Forms Matching Uptime Kuma ── */}
+          {/* ── Dynamic Provider Forms (Apprise Alert Engine) ── */}
 
           {/* Discord */}
           {type === 'discord' && (
@@ -693,7 +693,7 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({
             </div>
           )}
 
-          {/* Apprise (matching Uptime Kuma Apprise.vue) */}
+          {/* Apprise (Universal Engine) */}
           {type === 'apprise' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
@@ -745,7 +745,7 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({
             </div>
           )}
 
-          {/* Toggles (matching Uptime Kuma) */}
+          {/* Channel Assignment Toggles */}
           <div style={{ marginTop: '8px', paddingTop: '16px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', cursor: 'pointer' }}>
               <input

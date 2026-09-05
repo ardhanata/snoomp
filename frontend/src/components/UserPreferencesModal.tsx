@@ -77,7 +77,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
   const [appearance, setAppearance] = useState(DEFAULT_SETTINGS.appearance);
   const [testing, setTesting] = useState(false);
 
-  // Uptime Kuma notification channels state
+  // Apprise notification channels state
   const [notificationsList, setNotificationsList] = useState<NotificationItem[]>([]);
   const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
   const [isNotifDialogOpen, setIsNotifDialogOpen] = useState(false);
@@ -502,7 +502,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
               <div id="pref-panel-notifications" role="tabpanel" aria-labelledby="pref-tab-notifications"
                 style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
 
-                {/* ── Uptime Kuma Style Notification Channels ── */}
+                {/* ── Apprise Notification Channels ── */}
                 <fieldset style={card}>
                   <legend style={{ ...legend, color: 'var(--text-primary)', padding: '0 6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Bell size={14} aria-hidden="true" /> Notification Channels

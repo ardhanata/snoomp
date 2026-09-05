@@ -52,7 +52,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
   
   // Alerts config
   const [appriseUri, setAppriseUri] = useState('');
-  // Uptime Kuma Notification channels
+  // Apprise Notification channels
   const [availableNotifications, setAvailableNotifications] = useState<NotificationItem[]>([]);
   const [selectedNotificationIds, setSelectedNotificationIds] = useState<string[]>([]);
   const [isNotifDialogOpen, setIsNotifDialogOpen] = useState(false);
@@ -227,7 +227,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
             setSelectedNotificationIds(notifs.filter(n => n.is_default && n.id).map(n => n.id!));
           }
         } else {
-          // Brand new monitor: auto-select default channels (matching Uptime Kuma)
+          // Brand new monitor: auto-select default channels
           setSelectedNotificationIds(notifs.filter(n => n.is_default && n.id).map(n => n.id!));
         }
       });
@@ -1010,7 +1010,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
             </div>
           </div>
 
-          {/* Uptime Kuma Style Notification Channels Section */}
+          {/* Apprise Notification Channels Section */}
           <div style={{
             padding: '14px',
             background: 'rgba(59, 130, 246, 0.04)',
@@ -1229,7 +1229,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
           </div>
         </form>
 
-        {/* Uptime Kuma Notification Dialog */}
+        {/* Apprise Notification Dialog */}
         <NotificationDialog
           isOpen={isNotifDialogOpen}
           onClose={() => setIsNotifDialogOpen(false)}

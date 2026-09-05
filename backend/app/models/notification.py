@@ -5,9 +5,9 @@ from app.database import Base
 
 class Notification(Base):
     """
-    Notification alert channel matching Uptime Kuma's notification entity.
+    Notification alert channel powered by the Apprise alert engine.
     Supports Discord, Telegram, Slack, Email (SMTP), Webhook, Teams,
-    Gotify, Ntfy, Pushover, Apprise, etc.
+    Gotify, Ntfy, Pushover, Apprise URIs, and 80+ providers.
     """
     __tablename__ = "notifications"
 

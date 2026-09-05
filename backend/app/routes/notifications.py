@@ -58,7 +58,7 @@ def create_notification(
     db: Session = Depends(get_db),
     _user=Depends(require_admin)
 ):
-    """Create a new notification channel, matching Uptime Kuma workflow."""
+    """Create a new notification channel using Apprise alert engine."""
     notif = Notification(
         name=payload.name.strip(),
         type=payload.type.strip().lower(),
