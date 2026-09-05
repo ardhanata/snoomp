@@ -512,6 +512,13 @@ function Ensure-PostgresDatabaseAndUser {
         # Ensure full grants on the target database
         $null = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-c", "GRANT ALL PRIVILEGES ON DATABASE `"$DatabaseName`" TO `"$SnoompUser`";") -Password $authenticatedSuper
 
+        # PostgreSQL 15+ removes default CREATE permission from public schema; explicitly grant ownership and privileges
+        $schemaGrants = "GRANT ALL ON SCHEMA public TO `"$SnoompUser`"; ALTER SCHEMA public OWNER TO `"$SnoompUser`"; GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO `"$SnoompUser`"; GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO `"$SnoompUser`"; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO `"$SnoompUser`"; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO `"$SnoompUser`";"
+        $grantRes = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", $DatabaseName, "-c", $schemaGrants) -Password $authenticatedSuper
+        if ($grantRes.ExitCode -ne 0) {
+            Write-Host "  [DEBUG] Schema grants returned: $($grantRes.Output)" -ForegroundColor Yellow
+        }
+
         # Final verification
         $verifyConn = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", $SnoompUser, "-d", $DatabaseName, "-c", "SELECT 1;") -Password $SnoompPassword
         if ($verifyConn.ExitCode -eq 0) {
