@@ -917,13 +917,36 @@ Write-Host "[OK] Configuration saved successfully." -ForegroundColor Green
 
 # --- 8. Database Schema & Connection Verification ---
 Write-Host "`n[VERIFY] Initializing database schema via snoomp.exe --test-db..." -ForegroundColor Yellow
-try {
-    $testDbOutput = & "$InstallDir\snoomp.exe" --test-db 2>&1
+$testDbOutput = & "$InstallDir\snoomp.exe" --test-db 2>&1
+if ($LASTEXITCODE -eq 0) {
     Write-Host $testDbOutput -ForegroundColor Gray
     Write-Host "[OK] Database connection verified and schema initialized." -ForegroundColor Green
-} catch {
-    Write-Host "[WARN] Database pre-check encountered an issue: $_" -ForegroundColor Yellow
-    Write-Host "       Check $InstallDir\logs\snoomp.log for full trace." -ForegroundColor Gray
+} else {
+    Write-Host $testDbOutput -ForegroundColor Red
+    Write-Host "[WARN] Database connection failed (Exit code: $LASTEXITCODE)." -ForegroundColor Yellow
+    if ($DatabaseUrl -like "postgresql*") {
+        Write-Host "       The PostgreSQL user, password, or database entered is incorrect or uninitialized." -ForegroundColor Yellow
+        $fallbackChoice = "1"
+        if (-not $Unattended) {
+            Write-Host "`nHow would you like to resolve this database issue?" -ForegroundColor Cyan
+            Write-Host "  [1] Switch to Embedded SQLite (Guaranteed to start immediately with zero dependencies)" -ForegroundColor White
+            Write-Host "  [2] Leave configuration as-is (I will fix PostgreSQL credentials manually in snoomp.env)" -ForegroundColor White
+            $fallbackChoice = Read-Host "  Selection [Default: 1]"
+        }
+        if ([string]::IsNullOrWhiteSpace($fallbackChoice) -or $fallbackChoice -eq "1") {
+            $DatabaseUrl = "sqlite:///snoomp.db"
+            $envContent = Get-Content "$InstallDir\snoomp.env"
+            $newEnvContent = $envContent | ForEach-Object {
+                if ($_ -match "^DATABASE_URL=") { "DATABASE_URL=sqlite:///snoomp.db" } else { $_ }
+            }
+            Set-Content -Path "$InstallDir\snoomp.env" -Value ($newEnvContent -join "`r`n") -Encoding utf8
+            Write-Host "  Switching configuration to Embedded SQLite..." -ForegroundColor Yellow
+            $testDbOutput = & "$InstallDir\snoomp.exe" --test-db 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "[OK] Embedded SQLite schema initialized successfully!" -ForegroundColor Green
+            }
+        }
+    }
 }
 
 # --- 9. Configure Windows Defender Firewall ---
@@ -1084,11 +1107,25 @@ for ($i = 1; $i -le $MaxWaitSec; $i++) {
     } catch {}
 }
 
+if (-not $Healthy) {
+    Write-Host "`n[ALERT] Snoomp server has not responded on http://127.0.0.1:$Port within ${MaxWaitSec}s." -ForegroundColor Red
+    $logFile = "$InstallDir\logs\snoomp.log"
+    if (Test-Path $logFile) {
+        Write-Host "--- Recent Log Output ($logFile) ---" -ForegroundColor Yellow
+        Get-Content -Path $logFile -Tail 20 | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
+        Write-Host "-----------------------------------------------------------------" -ForegroundColor Red
+    }
+}
+
 # --- 14. Installation Summary Presentation ---
 $LocalIp = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notlike "*Loopback*" -and $_.IPAddress -notlike "169.254*" } | Select-Object -First 1).IPAddress
 
 Write-Host "`n=================================================================" -ForegroundColor Green
-Write-Host "   SNOOMP ENTERPRISE INSTALLED & RUNNING SUCCESSFULLY!           " -ForegroundColor Green
+if ($Healthy) {
+    Write-Host "   SNOOMP ENTERPRISE INSTALLED & RUNNING SUCCESSFULLY!           " -ForegroundColor Green
+} else {
+    Write-Host "   SNOOMP ENTERPRISE INSTALLED WITH WARNINGS (SERVICE STOPPED)   " -ForegroundColor Yellow
+}
 Write-Host "=================================================================" -ForegroundColor Green
 Write-Host "  Dashboard (Local):     http://localhost:$Port" -ForegroundColor Yellow
 if ($LocalIp) {
