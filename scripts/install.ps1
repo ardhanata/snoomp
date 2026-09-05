@@ -11,7 +11,8 @@ param(
     [string]$DatabaseUrl = "",
     [string]$RedisUrl = "",
     [string]$AdminPassword = "",
-    [switch]$Unattended = $false
+    [switch]$Unattended = $false,
+    [switch]$PreflightOnly = $false
 )
 
 $ErrorActionPreference = "Stop"
@@ -35,7 +36,7 @@ function Check-Admin {
         $Global:IsAdmin = $false
     }
     
-    if (-not $Global:IsAdmin -and -not $Unattended) {
+    if (-not $Global:IsAdmin -and -not $Unattended -and -not $PreflightOnly) {
         try {
             Write-Host "[ELEVATION] Requesting Administrator privileges for 24/7 service & firewall setup..." -ForegroundColor Yellow
             $scriptPath = $PSCommandPath
@@ -58,8 +59,40 @@ function Check-Admin {
 Check-Admin
 Show-Banner
 
-# --- 2. Port Collision Detection, Process Inspection & Interactive Resolution ---
+# --- 2. Port Collision Detection, Hyper-V Check & Pre-Flight Network Scan ---
+function Get-HyperVExcludedRanges {
+    $ranges = @()
+    try {
+        $output = netsh interface ipv4 show excludedportrange protocol=tcp
+        foreach ($line in ($output -split "`r?`n")) {
+            if ($line -match '^\s*(\d+)\s+(\d+)') {
+                $ranges += [PSCustomObject]@{
+                    Start = [int]$matches[1]
+                    End   = [int]$matches[2]
+                }
+            }
+        }
+    } catch {}
+    return $ranges
+}
+
+function Test-PortHyperVExcluded([int]$p) {
+    $ranges = Get-HyperVExcludedRanges
+    foreach ($r in $ranges) {
+        if ($p -ge $r.Start -and $p -le $r.End) {
+            return $true
+        }
+    }
+    return $false
+}
+
 function Test-PortAvailable([int]$p) {
+    # 1. Hyper-V dynamic exclusion range check
+    if (Test-PortHyperVExcluded $p) {
+        return $false
+    }
+
+    # 2. Existing listener check
     try {
         $conn = Get-NetTCPConnection -LocalPort $p -ErrorAction SilentlyContinue
         if ($null -ne $conn) {
@@ -67,6 +100,7 @@ function Test-PortAvailable([int]$p) {
         }
     } catch {}
 
+    # 3. Active socket bind attempt
     try {
         $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any, $p)
         $listener.Start()
@@ -78,6 +112,7 @@ function Test-PortAvailable([int]$p) {
 }
 
 function Get-PortOccupant([int]$p) {
+    $isExcluded = Test-PortHyperVExcluded $p
     try {
         $conns = Get-NetTCPConnection -LocalPort $p -ErrorAction SilentlyContinue
         $listen = $conns | Where-Object { $_.State -eq 'Listen' } | Select-Object -First 1
@@ -85,13 +120,24 @@ function Get-PortOccupant([int]$p) {
         if ($listen) {
             $proc = Get-Process -Id $listen.OwningProcess -ErrorAction SilentlyContinue
             return [PSCustomObject]@{
-                Port        = $p
-                PID         = $listen.OwningProcess
-                ProcessName = if ($proc) { $proc.ProcessName } else { "Unknown" }
-                Path        = if ($proc) { $proc.Path } else { "N/A" }
+                Port             = $p
+                PID              = $listen.OwningProcess
+                ProcessName      = if ($proc) { $proc.ProcessName } else { "System / Protected" }
+                Path             = if ($proc -and $proc.Path) { $proc.Path } else { "N/A" }
+                IsHyperVExcluded = $isExcluded
             }
         }
     } catch {}
+
+    if ($isExcluded) {
+        return [PSCustomObject]@{
+            Port             = $p
+            PID              = 0
+            ProcessName      = "Windows Hyper-V / Host Network Reserved Range"
+            Path             = "System Kernel"
+            IsHyperVExcluded = $true
+        }
+    }
     return $null
 }
 
@@ -103,84 +149,7 @@ function Find-NextAvailablePort([int]$startPort) {
     return $p
 }
 
-function Resolve-PortSelection {
-    param([int]$InitialPort)
-
-    $SelectedPort = $InitialPort
-    if ($SelectedPort -le 0) {
-        $SelectedPort = 8008
-    }
-
-    if (-not $Unattended) {
-        Write-Host "-----------------------------------------------------------------" -ForegroundColor Gray
-        Write-Host " STEP 1: NETWORK PORT CONFIGURATION" -ForegroundColor Cyan
-        Write-Host "-----------------------------------------------------------------" -ForegroundColor Gray
-        Write-Host "Enter the HTTP port for Snoomp Dashboard & REST API:" -ForegroundColor White
-        $userInput = Read-Host "  HTTP Port [Default: $SelectedPort]"
-        if (-not [string]::IsNullOrWhiteSpace($userInput)) {
-            $SelectedPort = [int]$userInput
-        }
-    }
-
-    while ($true) {
-        if (Test-PortAvailable $SelectedPort) {
-            Write-Host "`n[PORT CONFIRMED] TCP Port $SelectedPort is free and available." -ForegroundColor Green
-            return $SelectedPort
-        }
-
-        # Port is occupied! Identify the occupant application
-        $occupant = Get-PortOccupant $SelectedPort
-        $suggested = Find-NextAvailablePort ($SelectedPort + 1)
-
-        Write-Host "`n[CONFLICT DETECTED] Port $SelectedPort is ALREADY OCCUPIED by an existing application!" -ForegroundColor Red
-        if ($occupant) {
-            Write-Host "  Application Name: " -NoNewline; Write-Host "$($occupant.ProcessName)" -ForegroundColor Yellow
-            Write-Host "  Process ID (PID): " -NoNewline; Write-Host "$($occupant.PID)" -ForegroundColor Yellow
-            Write-Host "  Binary Location:  " -NoNewline; Write-Host "$($occupant.Path)" -ForegroundColor Yellow
-        }
-        Write-Host "  Suggested Free Port: " -NoNewline; Write-Host "$suggested" -ForegroundColor Green
-
-        if ($Unattended) {
-            Write-Host "[UNATTENDED] Automatically adopting suggested free port $suggested" -ForegroundColor Yellow
-            return $suggested
-        }
-
-        Write-Host "`nHow would you like to resolve this conflict?" -ForegroundColor Cyan
-        Write-Host "  [1] Enter a different custom port" -ForegroundColor White
-        Write-Host "  [2] Use suggested free port ($suggested)" -ForegroundColor White
-        Write-Host "  [3] Terminate the conflicting process ($($occupant.ProcessName), PID: $($occupant.PID))" -ForegroundColor White
-        $action = Read-Host "  Selection [Default: 2]"
-
-        if ([string]::IsNullOrWhiteSpace($action) -or $action -eq "2") {
-            $SelectedPort = $suggested
-        } elseif ($action -eq "1") {
-            $newPortInput = Read-Host "  Enter new port number"
-            if (-not [string]::IsNullOrWhiteSpace($newPortInput)) {
-                $SelectedPort = [int]$newPortInput
-            }
-        } elseif ($action -eq "3") {
-            if (-not $occupant -or -not $occupant.PID) {
-                Write-Host "[WARN] Cannot identify PID to terminate. Please choose another port." -ForegroundColor Red
-                continue
-            }
-            $confirm = Read-Host "  Are you sure you want to kill '$($occupant.ProcessName)' (PID: $($occupant.PID))? (y/N)"
-            if ($confirm -eq "y" -or $confirm -eq "Y") {
-                try {
-                    Stop-Process -Id $occupant.PID -Force -ErrorAction Stop
-                    Write-Host "  Process terminated. Waiting for socket release..." -ForegroundColor Yellow
-                    Start-Sleep -Seconds 2
-                } catch {
-                    Write-Host "  [ERROR] Failed to terminate process: $_" -ForegroundColor Red
-                }
-            }
-        }
-    }
-}
-
-$Port = Resolve-PortSelection -InitialPort $Port
-
-# --- 3. Production Architecture & Package Selection ---
-function Test-TcpEndpoint([string]$hostName, [int]$portNum, [int]$timeoutMs = 2500) {
+function Test-TcpEndpoint([string]$hostName, [int]$portNum, [int]$timeoutMs = 2000) {
     try {
         $tcpClient = New-Object System.Net.Sockets.TcpClient
         $iar = $tcpClient.BeginConnect($hostName, $portNum, $null, $null)
@@ -196,6 +165,157 @@ function Test-TcpEndpoint([string]$hostName, [int]$portNum, [int]$timeoutMs = 25
         return $false
     }
 }
+
+function Show-PreflightPortScan {
+    Write-Host "=================================================================" -ForegroundColor Cyan
+    Write-Host " STEP 1: PRE-FLIGHT NETWORK & PORT SCAN" -ForegroundColor Cyan
+    Write-Host "=================================================================" -ForegroundColor Cyan
+    Write-Host " PORT   SERVICE                  STATUS       DETAILS / OCCUPANT" -ForegroundColor White
+    Write-Host " -----------------------------------------------------------------" -ForegroundColor Gray
+
+    $results = @{}
+
+    # 1. Port 8008 (Snoomp Web & API)
+    $web8008Free = Test-PortAvailable 8008
+    if ($web8008Free) {
+        Write-Host " 8008   Snoomp Web & API Engine  " -NoNewline
+        Write-Host "[FREE]" -ForegroundColor Green -NoNewline
+        Write-Host "       Auto-adopting default" -ForegroundColor Gray
+        $results[8008] = @{ Status = "FREE"; Occupant = $null }
+    } else {
+        $occ = Get-PortOccupant 8008
+        Write-Host " 8008   Snoomp Web & API Engine  " -NoNewline
+        Write-Host "[CONFLICT]" -ForegroundColor Red -NoNewline
+        $desc = if ($occ.IsHyperVExcluded) { "Hyper-V Reserved Range" } else { "$($occ.ProcessName) (PID: $($occ.PID))" }
+        Write-Host "   $desc" -ForegroundColor Yellow
+        $results[8008] = @{ Status = "CONFLICT"; Occupant = $occ }
+    }
+
+    # 2. Port 5432 (PostgreSQL)
+    $pgListening = Test-TcpEndpoint "127.0.0.1" 5432 1000
+    if ($pgListening) {
+        $pgOcc = Get-PortOccupant 5432
+        $pgName = if ($pgOcc) { "$($pgOcc.ProcessName) (PID: $($pgOcc.PID))" } else { "Active Daemon" }
+        Write-Host " 5432   PostgreSQL Database      " -NoNewline
+        Write-Host "[ACTIVE]" -ForegroundColor Green -NoNewline
+        Write-Host "     Local service detected ($pgName)" -ForegroundColor Gray
+        $results[5432] = @{ Status = "ACTIVE"; Occupant = $pgOcc }
+    } else {
+        Write-Host " 5432   PostgreSQL Database      " -NoNewline
+        Write-Host "[FREE/OFF]" -ForegroundColor Gray -NoNewline
+        Write-Host "   No local service (remote or SQLite)" -ForegroundColor Gray
+        $results[5432] = @{ Status = "INACTIVE"; Occupant = $null }
+    }
+
+    # 3. Port 6379 (Redis)
+    $redisListening = Test-TcpEndpoint "127.0.0.1" 6379 1000
+    if ($redisListening) {
+        $rOcc = Get-PortOccupant 6379
+        $rName = if ($rOcc) { "$($rOcc.ProcessName) (PID: $($rOcc.PID))" } else { "Active Daemon" }
+        Write-Host " 6379   Redis Message Broker     " -NoNewline
+        Write-Host "[ACTIVE]" -ForegroundColor Green -NoNewline
+        Write-Host "     Local service detected ($rName)" -ForegroundColor Gray
+        $results[6379] = @{ Status = "ACTIVE"; Occupant = $rOcc }
+    } else {
+        Write-Host " 6379   Redis Message Broker     " -NoNewline
+        Write-Host "[FREE/OFF]" -ForegroundColor Gray -NoNewline
+        Write-Host "   No local service (in-process scheduler)" -ForegroundColor Gray
+        $results[6379] = @{ Status = "INACTIVE"; Occupant = $null }
+    }
+
+    Write-Host "=================================================================`n" -ForegroundColor Cyan
+    return $results
+}
+
+function Resolve-PortSelection {
+    param(
+        [int]$InitialPort,
+        [hashtable]$ScanResults,
+        [bool]$Interactive = $true
+    )
+
+    $SelectedPort = $InitialPort
+    if ($SelectedPort -le 0) {
+        $SelectedPort = 8008
+    }
+
+    # Auto-adoption: If default port 8008 is requested (or defaulted) and is FREE, adopt immediately
+    if ($SelectedPort -eq 8008 -and $ScanResults -and $ScanResults[8008] -and $ScanResults[8008].Status -eq "FREE") {
+        Write-Host "[PORT CONFIRMED] Port 8008 is free -- automatically adopted as default.`n" -ForegroundColor Green
+        return 8008
+    }
+
+    # If already available on custom requested port
+    if (Test-PortAvailable $SelectedPort) {
+        Write-Host "[PORT CONFIRMED] Port $SelectedPort is free and available.`n" -ForegroundColor Green
+        return $SelectedPort
+    }
+
+    # Conflict resolution loop
+    while ($true) {
+        $occupant = Get-PortOccupant $SelectedPort
+        $suggested = Find-NextAvailablePort ($SelectedPort + 1)
+
+        Write-Host "[CONFLICT DETECTED] Port $SelectedPort is UNAVAILABLE!" -ForegroundColor Red
+        if ($occupant) {
+            if ($occupant.IsHyperVExcluded) {
+                Write-Host "  Reason: Port is within Windows Hyper-V / Host Network Reserved Range" -ForegroundColor Yellow
+            } else {
+                Write-Host "  Application Name: " -NoNewline; Write-Host "$($occupant.ProcessName)" -ForegroundColor Yellow
+                Write-Host "  Process ID (PID): " -NoNewline; Write-Host "$($occupant.PID)" -ForegroundColor Yellow
+                Write-Host "  Binary Location:  " -NoNewline; Write-Host "$($occupant.Path)" -ForegroundColor Yellow
+            }
+        }
+        Write-Host "  Suggested Free Port: " -NoNewline; Write-Host "$suggested" -ForegroundColor Green
+
+        if (-not $Interactive -or $Unattended) {
+            Write-Host "[AUTO] Adopting suggested free port $suggested" -ForegroundColor Yellow
+            return $suggested
+        }
+
+        Write-Host "`nHow would you like to resolve this conflict?" -ForegroundColor Cyan
+        Write-Host "  [1] Enter a different custom port" -ForegroundColor White
+        Write-Host "  [2] Use suggested free port ($suggested)" -ForegroundColor White
+        if ($occupant -and -not $occupant.IsHyperVExcluded -and $occupant.PID -gt 0) {
+            $procDesc = "$($occupant.ProcessName), PID: $($occupant.PID)"
+            Write-Host "  [3] Terminate conflicting process ($procDesc)" -ForegroundColor White
+        }
+        $action = Read-Host "  Selection [Default: 2]"
+
+        if ([string]::IsNullOrWhiteSpace($action) -or $action -eq "2") {
+            $SelectedPort = $suggested
+            if (Test-PortAvailable $SelectedPort) { return $SelectedPort }
+        } elseif ($action -eq "1") {
+            $newPortInput = Read-Host "  Enter new port number"
+            if (-not [string]::IsNullOrWhiteSpace($newPortInput)) {
+                $SelectedPort = [int]$newPortInput
+                if (Test-PortAvailable $SelectedPort) { return $SelectedPort }
+            }
+        } elseif ($action -eq "3" -and $occupant -and $occupant.PID -gt 0) {
+            try {
+                Stop-Process -Id $occupant.PID -Force -ErrorAction Stop
+                Write-Host "  Process terminated. Waiting 2s for socket release..." -ForegroundColor Yellow
+                Start-Sleep -Seconds 2
+                if (Test-PortAvailable $SelectedPort) { return $SelectedPort }
+            } catch {
+                Write-Host "  [ERROR] Failed to terminate process: $_" -ForegroundColor Red
+            }
+        }
+    }
+}
+
+# Run Pre-flight network port scan
+$ScanResults = Show-PreflightPortScan
+
+if ($PreflightOnly) {
+    Write-Host "[PRE-FLIGHT COMPLETED] Network port scan finished." -ForegroundColor Green
+    return $ScanResults
+}
+
+# Resolve Web Dashboard & API Port
+$Port = Resolve-PortSelection -InitialPort $Port -ScanResults $ScanResults -Interactive (-not $Unattended)
+
+# --- 3. Production Architecture & Package Selection ---
 
 $DbChoice = "1"
 if ([string]::IsNullOrWhiteSpace($DatabaseUrl)) {
@@ -229,6 +349,9 @@ if (-not $Unattended -and $DbChoice -ne "custom") {
 
 if ($DbChoice -eq "1" -and -not $Unattended) {
     Write-Host "`n--- [1/3] TimescaleDB / PostgreSQL Configuration ---" -ForegroundColor Cyan
+    if ($ScanResults -and $ScanResults[5432] -and $ScanResults[5432].Status -eq "ACTIVE") {
+        Write-Host "  [DETECTED] Local PostgreSQL service active on port 5432." -ForegroundColor Green
+    }
     $PgVerified = $false
     while (-not $PgVerified) {
         $PgHost = Read-Host "  PostgreSQL Host [Default: 127.0.0.1]"
@@ -272,6 +395,9 @@ if ($DbChoice -eq "1" -and -not $Unattended) {
     }
 
     Write-Host "`n--- [2/3] Redis Message Broker Configuration ---" -ForegroundColor Cyan
+    if ($ScanResults -and $ScanResults[6379] -and $ScanResults[6379].Status -eq "ACTIVE") {
+        Write-Host "  [DETECTED] Local Redis service active on port 6379." -ForegroundColor Green
+    }
     $RHost = Read-Host "  Redis Host [Default: 127.0.0.1, or press Enter to skip]"
     if (-not [string]::IsNullOrWhiteSpace($RHost)) {
         $RPort = Read-Host "  Redis Port [Default: 6379]"
