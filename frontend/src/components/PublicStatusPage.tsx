@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Shield, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import { SnoompLogo } from './SnoompLogo';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
 interface PublicStatusPageProps {
   slug: string;

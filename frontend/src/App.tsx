@@ -23,9 +23,9 @@ import DatabaseMetricsChart from './components/DatabaseMetricsChart';
 import UserPreferencesModal, { SlaConfig } from './components/UserPreferencesModal';
 import { InstanceSettings, readCache, fetchSettings, applyAppearance } from './lib/settings';
 
-const API_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000`;
-const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const WS_URL = import.meta.env.VITE_WS_URL || `${WS_PROTOCOL}//${window.location.hostname}:8000`;
+const API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+const WS_PROTOCOL = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const WS_URL = import.meta.env.VITE_WS_URL || (typeof window !== 'undefined' ? `${WS_PROTOCOL}//${window.location.host}` : '');
 
 
 
