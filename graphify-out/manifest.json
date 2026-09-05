@@ -530,8 +530,8 @@
     "semantic_hash": ""
   },
   "scripts/install.ps1": {
-    "mtime": 1788614555.614278,
-    "ast_hash": "84b2846c53e3ef9e04d42402e21b7f39",
+    "mtime": 1788627875.7847345,
+    "ast_hash": "900171a62a64ad3c23d59427502fc144",
     "semantic_hash": ""
   },
   "README.md": {
@@ -547,6 +547,16 @@
   "backend/tests/test_backup.py": {
     "mtime": 1788625223.8896227,
     "ast_hash": "525bb30f550ecb7548dd7edc6b8e6b7d",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-09-05-windows-native-port-check.md": {
+    "mtime": 1788627490.6410477,
+    "ast_hash": "e5fe179c5c6ff02c53209ce7174947c7",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md": {
+    "mtime": 1788627439.1721451,
+    "ast_hash": "2cdabfff67ea61fbd70c5c0b641c604d",
     "semantic_hash": ""
   }
 }

@@ -58,7 +58,7 @@
       "_origin": "ast",
       "id": "backend_app_auth_security_create_access_token",
       "community": 13,
-      "community_name": "test_backup.py",
+      "community_name": "test_apprise_engine.py",
       "norm_label": "create_access_token()"
     },
     {
@@ -69,7 +69,7 @@
       "_origin": "ast",
       "id": "timedelta",
       "community": 13,
-      "community_name": "test_backup.py",
+      "community_name": "test_apprise_engine.py",
       "norm_label": "timedelta"
     },
     {
@@ -678,8 +678,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_database",
-      "community": 34,
-      "community_name": "main.py",
+      "community": 0,
+      "community_name": "database.py",
       "norm_label": "database.py"
     },
     {
@@ -690,8 +690,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_app_database_get_db",
-      "community": 34,
-      "community_name": "main.py",
+      "community": 13,
+      "community_name": "test_apprise_engine.py",
       "norm_label": "get_db()"
     },
     {
@@ -783,8 +783,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_app_main_lifespan",
-      "community": 28,
-      "community_name": "runner.py",
+      "community": 34,
+      "community_name": "main.py",
       "norm_label": "lifespan()"
     },
     {
@@ -877,7 +877,7 @@
       "_origin": "ast",
       "id": "backend_app_models_init",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": "models/__init__.py"
     },
     {
@@ -888,7 +888,7 @@
       "_origin": "ast",
       "id": "backend_app_models_heartbeat",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": "heartbeat.py"
     },
     {
@@ -901,7 +901,7 @@
       "_origin": "ast",
       "id": "backend_app_models_heartbeat_heartbeat",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": "heartbeat"
     },
     {
@@ -912,7 +912,7 @@
       "_origin": "ast",
       "id": "backend_app_models_heartbeat_py_base",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": "base"
     },
     {
@@ -924,7 +924,7 @@
       "_origin": "ast",
       "id": "backend_app_models_heartbeat_heartbeat_to_dict",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": ".to_dict()"
     },
     {
@@ -935,7 +935,7 @@
       "_origin": "ast",
       "id": "backend_app_models_incident",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": "incident.py"
     },
     {
@@ -948,7 +948,7 @@
       "_origin": "ast",
       "id": "backend_app_models_incident_incident",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": "incident"
     },
     {
@@ -959,7 +959,7 @@
       "_origin": "ast",
       "id": "backend_app_models_incident_py_base",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": "base"
     },
     {
@@ -971,7 +971,7 @@
       "_origin": "ast",
       "id": "backend_app_models_incident_incident_to_dict",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": ".to_dict()"
     },
     {
@@ -982,7 +982,7 @@
       "_origin": "ast",
       "id": "backend_app_models_metrics",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": "metrics.py"
     },
     {
@@ -995,7 +995,7 @@
       "_origin": "ast",
       "id": "backend_app_models_metrics_systemmetrics",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": "systemmetrics"
     },
     {
@@ -1006,7 +1006,7 @@
       "_origin": "ast",
       "id": "backend_app_models_metrics_py_base",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": "base"
     },
     {
@@ -1018,7 +1018,7 @@
       "_origin": "ast",
       "id": "backend_app_models_metrics_systemmetrics_to_dict",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": ".to_dict()"
     },
     {
@@ -1028,8 +1028,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_notification",
-      "community": 34,
-      "community_name": "main.py",
+      "community": 82,
+      "community_name": "notifications.py",
       "norm_label": "notification.py"
     },
     {
@@ -1109,8 +1109,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_setting",
-      "community": 34,
-      "community_name": "main.py",
+      "community": 95,
+      "community_name": "backup.py",
       "norm_label": "setting.py"
     },
     {
@@ -1123,7 +1123,7 @@
       "_origin": "ast",
       "id": "backend_app_models_setting_setting",
       "community": 95,
-      "community_name": "Setting",
+      "community_name": "backup.py",
       "norm_label": "setting"
     },
     {
@@ -1134,7 +1134,7 @@
       "_origin": "ast",
       "id": "backend_app_models_setting_py_base",
       "community": 95,
-      "community_name": "Setting",
+      "community_name": "backup.py",
       "norm_label": "base"
     },
     {
@@ -1146,7 +1146,7 @@
       "_origin": "ast",
       "id": "backend_app_models_setting_setting_to_dict",
       "community": 95,
-      "community_name": "Setting",
+      "community_name": "backup.py",
       "norm_label": ".to_dict()"
     },
     {
@@ -1157,7 +1157,7 @@
       "_origin": "ast",
       "id": "backend_app_models_setting_rationale_9",
       "community": 95,
-      "community_name": "Setting",
+      "community_name": "backup.py",
       "norm_label": "instance-wide configuration, one row per key. deliberately key/value rather..."
     },
     {
@@ -1167,8 +1167,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_status_page",
-      "community": 34,
-      "community_name": "main.py",
+      "community": 6,
+      "community_name": "status_pages.py",
       "norm_label": "status_page.py"
     },
     {
@@ -1180,8 +1180,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "backend_app_models_status_page_statuspage",
-      "community": 34,
-      "community_name": "main.py",
+      "community": 6,
+      "community_name": "status_pages.py",
       "norm_label": "statuspage"
     },
     {
@@ -1191,8 +1191,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_models_status_page_py_base",
-      "community": 34,
-      "community_name": "main.py",
+      "community": 6,
+      "community_name": "status_pages.py",
       "norm_label": "base"
     },
     {
@@ -1203,8 +1203,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_app_models_status_page_statuspage_to_dict",
-      "community": 34,
-      "community_name": "main.py",
+      "community": 6,
+      "community_name": "status_pages.py",
       "norm_label": ".to_dict()"
     },
     {
@@ -1215,7 +1215,7 @@
       "_origin": "ast",
       "id": "backend_app_models_target",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": "target.py"
     },
     {
@@ -1227,7 +1227,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "backend_app_models_target_target",
-      "community": 109,
+      "community": 5,
       "community_name": "Target",
       "norm_label": "target"
     },
@@ -1238,7 +1238,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_models_target_py_base",
-      "community": 109,
+      "community": 5,
       "community_name": "Target",
       "norm_label": "base"
     },
@@ -1250,7 +1250,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_app_models_target_target_to_dict",
-      "community": 109,
+      "community": 5,
       "community_name": "Target",
       "norm_label": ".to_dict()"
     },
@@ -1262,7 +1262,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_app_models_target_target_config_json_raw",
-      "community": 109,
+      "community": 5,
       "community_name": "Target",
       "norm_label": ".config_json_raw()"
     },
@@ -1273,7 +1273,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "backend_app_models_target_rationale_56",
-      "community": 109,
+      "community": 5,
       "community_name": "Target",
       "norm_label": "return the unredacted config_json \u2014 only for checker internals, never for api."
     },
@@ -1535,8 +1535,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_app_notifications_discord_post",
-      "community": 22,
-      "community_name": "discord.py",
+      "community": 5,
+      "community_name": "Target",
       "norm_label": "_post()"
     },
     {
@@ -1996,8 +1996,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routes_backup",
-      "community": 34,
-      "community_name": "main.py",
+      "community": 95,
+      "community_name": "backup.py",
       "norm_label": "backup.py"
     },
     {
@@ -2008,7 +2008,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_backup_py_get",
       "community": 95,
-      "community_name": "Setting",
+      "community_name": "backup.py",
       "norm_label": "get"
     },
     {
@@ -2020,7 +2020,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_backup_export_backup",
       "community": 95,
-      "community_name": "Setting",
+      "community_name": "backup.py",
       "norm_label": "export_backup()"
     },
     {
@@ -2031,7 +2031,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_backup_py_session",
       "community": 95,
-      "community_name": "Setting",
+      "community_name": "backup.py",
       "norm_label": "session"
     },
     {
@@ -2043,7 +2043,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_backup_import_backup",
       "community": 95,
-      "community_name": "Setting",
+      "community_name": "backup.py",
       "norm_label": "import_backup()"
     },
     {
@@ -2054,7 +2054,7 @@
       "_origin": "ast",
       "id": "uploadfile",
       "community": 95,
-      "community_name": "Setting",
+      "community_name": "backup.py",
       "norm_label": "uploadfile"
     },
     {
@@ -2064,8 +2064,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routes_backup_rationale_1",
-      "community": 34,
-      "community_name": "main.py",
+      "community": 95,
+      "community_name": "backup.py",
       "norm_label": "backup and restore router for snoomp. # ponytail: zero-dependency json..."
     },
     {
@@ -2076,7 +2076,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_backup_rationale_27",
       "community": 95,
-      "community_name": "Setting",
+      "community_name": "backup.py",
       "norm_label": "export all snoomp configurations (targets, notifications, status pages,..."
     },
     {
@@ -2087,7 +2087,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_backup_rationale_111",
       "community": 95,
-      "community_name": "Setting",
+      "community_name": "backup.py",
       "norm_label": "import and restore snoomp configurations from backup json. mode=\"merge\":..."
     },
     {
@@ -2097,8 +2097,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routes_dashboard",
-      "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community": 0,
+      "community_name": "database.py",
       "norm_label": "routes/dashboard.py"
     },
     {
@@ -2109,7 +2109,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_py_get",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "get"
     },
     {
@@ -2121,7 +2121,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_get_stats",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "get_stats()"
     },
     {
@@ -2132,7 +2132,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_py_session",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "session"
     },
     {
@@ -2144,7 +2144,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_get_target_heartbeats",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "get_target_heartbeats()"
     },
     {
@@ -2156,7 +2156,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_get_target_metrics",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "get_target_metrics()"
     },
     {
@@ -2168,7 +2168,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_month_starts",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "_month_starts()"
     },
     {
@@ -2179,7 +2179,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_py_datetime",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "datetime"
     },
     {
@@ -2191,7 +2191,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_get_sla_trend",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "get_sla_trend()"
     },
     {
@@ -2203,7 +2203,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_fleet_mttr",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "_fleet_mttr()"
     },
     {
@@ -2214,7 +2214,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_py_any",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "any"
     },
     {
@@ -2226,7 +2226,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_report_bucket_count",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "_report_bucket_count()"
     },
     {
@@ -2238,7 +2238,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_get_target_report",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "get_target_report()"
     },
     {
@@ -2250,7 +2250,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_get_recent_incidents",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "get_recent_incidents()"
     },
     {
@@ -2261,7 +2261,7 @@
       "_origin": "ast",
       "id": "api_route",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "api_route"
     },
     {
@@ -2273,7 +2273,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_receive_push_heartbeat",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "receive_push_heartbeat()"
     },
     {
@@ -2284,7 +2284,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_py_request",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "request"
     },
     {
@@ -2296,7 +2296,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_get_db_engine_status",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "get_db_engine_status()"
     },
     {
@@ -2307,7 +2307,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_rationale_26",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "returns aggregated stats for all monitor targets."
     },
     {
@@ -2318,7 +2318,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_rationale_88",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "heartbeats for one monitor, newest-first internally and returned oldest-first...."
     },
     {
@@ -2329,7 +2329,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_rationale_112",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "returns system metrics time-series (cpu, ram, disk) for snmp/ssh/db monitors."
     },
     {
@@ -2340,7 +2340,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_rationale_167",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "the first instant of each of the last `count` months, oldest first."
     },
     {
@@ -2351,7 +2351,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_rationale_179",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "fleet-wide availability per calendar month. aggregated in sql rather than..."
     },
     {
@@ -2362,7 +2362,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_rationale_250",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "mean time to recovery across the fleet, from resolved incidents. returns..."
     },
     {
@@ -2373,7 +2373,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_rationale_288",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "readable number of chart buckets for a given window."
     },
     {
@@ -2384,7 +2384,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_rationale_298",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "availability report for one monitor, aggregated server-side. replaces a client-..."
     },
     {
@@ -2395,7 +2395,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_rationale_418",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "returns the most recent incidents and outages."
     },
     {
@@ -2406,7 +2406,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_rationale_446",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "public push monitor endpoint. accepts get or post requests. can accept json..."
     },
     {
@@ -2417,7 +2417,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_dashboard_rationale_563",
       "community": 9,
-      "community_name": "routes/dashboard.py",
+      "community_name": "receive_push_heartbeat",
       "norm_label": "fetches real-time database details and slow logs directly from the target..."
     },
     {
@@ -2501,8 +2501,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routes_notifications_py_get",
-      "community": 82,
-      "community_name": "notifications.py",
+      "community": 115,
+      "community_name": "get",
       "norm_label": "get"
     },
     {
@@ -2513,8 +2513,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_app_routes_notifications_list_apprise_services",
-      "community": 82,
-      "community_name": "notifications.py",
+      "community": 115,
+      "community_name": "get",
       "norm_label": "list_apprise_services()"
     },
     {
@@ -2537,8 +2537,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_app_routes_notifications_list_notifications",
-      "community": 82,
-      "community_name": "notifications.py",
+      "community": 115,
+      "community_name": "get",
       "norm_label": "list_notifications()"
     },
     {
@@ -2548,8 +2548,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routes_notifications_py_session",
-      "community": 82,
-      "community_name": "notifications.py",
+      "community": 115,
+      "community_name": "get",
       "norm_label": "session"
     },
     {
@@ -2560,8 +2560,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_app_routes_notifications_get_notification",
-      "community": 82,
-      "community_name": "notifications.py",
+      "community": 115,
+      "community_name": "get",
       "norm_label": "get_notification()"
     },
     {
@@ -2583,8 +2583,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routes_notifications_py_put",
-      "community": 82,
-      "community_name": "notifications.py",
+      "community": 115,
+      "community_name": "get",
       "norm_label": "put"
     },
     {
@@ -2595,8 +2595,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_app_routes_notifications_update_notification",
-      "community": 82,
-      "community_name": "notifications.py",
+      "community": 115,
+      "community_name": "get",
       "norm_label": "update_notification()"
     },
     {
@@ -2606,8 +2606,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routes_notifications_py_delete",
-      "community": 82,
-      "community_name": "notifications.py",
+      "community": 115,
+      "community_name": "get",
       "norm_label": "delete"
     },
     {
@@ -2618,8 +2618,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_app_routes_notifications_delete_notification",
-      "community": 82,
-      "community_name": "notifications.py",
+      "community": 115,
+      "community_name": "get",
       "norm_label": "delete_notification()"
     },
     {
@@ -2641,8 +2641,8 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "backend_app_routes_notifications_rationale_48",
-      "community": 82,
-      "community_name": "notifications.py",
+      "community": 115,
+      "community_name": "get",
       "norm_label": "return catalog of all 140+ native notification services supported by apprise."
     },
     {
@@ -2663,8 +2663,8 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "backend_app_routes_notifications_rationale_60",
-      "community": 82,
-      "community_name": "notifications.py",
+      "community": 115,
+      "community_name": "get",
       "norm_label": "list all configured notification channels."
     },
     {
@@ -2674,8 +2674,8 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "backend_app_routes_notifications_rationale_67",
-      "community": 82,
-      "community_name": "notifications.py",
+      "community": 115,
+      "community_name": "get",
       "norm_label": "get single notification channel by id."
     },
     {
@@ -2696,8 +2696,8 @@
       "source_location": "L115",
       "_origin": "ast",
       "id": "backend_app_routes_notifications_rationale_115",
-      "community": 82,
-      "community_name": "notifications.py",
+      "community": 115,
+      "community_name": "get",
       "norm_label": "update an existing notification channel."
     },
     {
@@ -2707,8 +2707,8 @@
       "source_location": "L159",
       "_origin": "ast",
       "id": "backend_app_routes_notifications_rationale_159",
-      "community": 82,
-      "community_name": "notifications.py",
+      "community": 115,
+      "community_name": "get",
       "norm_label": "delete a notification channel and dissociate from monitors."
     },
     {
@@ -3221,7 +3221,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_targets",
       "community": 5,
-      "community_name": "targets.py",
+      "community_name": "Target",
       "norm_label": "targets.py"
     },
     {
@@ -3234,7 +3234,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_targets_targetcreateupdate",
       "community": 5,
-      "community_name": "targets.py",
+      "community_name": "Target",
       "norm_label": "targetcreateupdate"
     },
     {
@@ -3245,7 +3245,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_targets_py_basemodel",
       "community": 5,
-      "community_name": "targets.py",
+      "community_name": "Target",
       "norm_label": "basemodel"
     },
     {
@@ -3256,7 +3256,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_targets_py_get",
       "community": 5,
-      "community_name": "targets.py",
+      "community_name": "Target",
       "norm_label": "get"
     },
     {
@@ -3268,7 +3268,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_targets_list_targets",
       "community": 5,
-      "community_name": "targets.py",
+      "community_name": "Target",
       "norm_label": "list_targets()"
     },
     {
@@ -3279,7 +3279,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_targets_py_session",
       "community": 5,
-      "community_name": "targets.py",
+      "community_name": "Target",
       "norm_label": "session"
     },
     {
@@ -3291,7 +3291,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_targets_get_target",
       "community": 5,
-      "community_name": "targets.py",
+      "community_name": "Target",
       "norm_label": "get_target()"
     },
     {
@@ -3303,7 +3303,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_targets_create_target",
       "community": 5,
-      "community_name": "targets.py",
+      "community_name": "Target",
       "norm_label": "create_target()"
     },
     {
@@ -3314,7 +3314,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_targets_py_request",
       "community": 5,
-      "community_name": "targets.py",
+      "community_name": "Target",
       "norm_label": "request"
     },
     {
@@ -3325,7 +3325,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_targets_py_put",
       "community": 5,
-      "community_name": "targets.py",
+      "community_name": "Target",
       "norm_label": "put"
     },
     {
@@ -3337,7 +3337,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_targets_update_target",
       "community": 5,
-      "community_name": "targets.py",
+      "community_name": "Target",
       "norm_label": "update_target()"
     },
     {
@@ -3348,7 +3348,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_targets_py_delete",
       "community": 5,
-      "community_name": "targets.py",
+      "community_name": "Target",
       "norm_label": "delete"
     },
     {
@@ -3360,7 +3360,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_targets_delete_target",
       "community": 5,
-      "community_name": "targets.py",
+      "community_name": "Target",
       "norm_label": "delete_target()"
     },
     {
@@ -3372,7 +3372,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_targets_test_target_connection",
       "community": 5,
-      "community_name": "targets.py",
+      "community_name": "Target",
       "norm_label": "test_target_connection()"
     },
     {
@@ -3384,7 +3384,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_targets_refresh_target",
       "community": 5,
-      "community_name": "targets.py",
+      "community_name": "Target",
       "norm_label": "refresh_target()"
     },
     {
@@ -3395,7 +3395,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_targets_rationale_150",
       "community": 5,
-      "community_name": "targets.py",
+      "community_name": "Target",
       "norm_label": "executes a one-off immediate test connection without saving to the db."
     },
     {
@@ -3406,7 +3406,7 @@
       "_origin": "ast",
       "id": "backend_app_routes_targets_rationale_186",
       "community": 5,
-      "community_name": "targets.py",
+      "community_name": "Target",
       "norm_label": "triggers an immediate background check for the monitor."
     },
     {
@@ -3622,7 +3622,7 @@
       "_origin": "ast",
       "id": "backend_app_services_dashboard",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": "services/dashboard.py"
     },
     {
@@ -3633,8 +3633,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_app_services_dashboard_compile_initial_data",
-      "community": 115,
-      "community_name": "compile_initial_data",
+      "community": 34,
+      "community_name": "main.py",
       "norm_label": "compile_initial_data()"
     },
     {
@@ -3644,8 +3644,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_dashboard_py_session",
-      "community": 115,
-      "community_name": "compile_initial_data",
+      "community": 34,
+      "community_name": "main.py",
       "norm_label": "session"
     },
     {
@@ -3656,7 +3656,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "notification_service.py"
     },
     {
@@ -3668,7 +3668,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_map_status_to_notify_type",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "map_status_to_notify_type()"
     },
     {
@@ -3679,7 +3679,7 @@
       "_origin": "ast",
       "id": "notifytype",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "notifytype"
     },
     {
@@ -3691,7 +3691,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_build_apprise_uri",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "build_apprise_uri()"
     },
     {
@@ -3702,7 +3702,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_py_any",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "any"
     },
     {
@@ -3714,7 +3714,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_validate_apprise_uris",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "validate_apprise_uris()"
     },
     {
@@ -3726,7 +3726,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_get_apprise_service_catalog",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "get_apprise_service_catalog()"
     },
     {
@@ -3738,7 +3738,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_send_apprise_notification",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "send_apprise_notification()"
     },
     {
@@ -3749,7 +3749,7 @@
       "_origin": "ast",
       "id": "notifyformat",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "notifyformat"
     },
     {
@@ -3761,7 +3761,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_send_direct_discord",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "send_direct_discord()"
     },
     {
@@ -3773,7 +3773,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_send_direct_telegram",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "send_direct_telegram()"
     },
     {
@@ -3785,7 +3785,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_send_direct_slack",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "send_direct_slack()"
     },
     {
@@ -3797,7 +3797,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_send_direct_webhook",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "send_direct_webhook()"
     },
     {
@@ -3809,7 +3809,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_dispatch_notification",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "dispatch_notification()"
     },
     {
@@ -3821,7 +3821,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_test_notification_channel",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "test_notification_channel()"
     },
     {
@@ -3832,7 +3832,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_rationale_1",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "apprise multi-channel notification dispatch and provider integration...."
     },
     {
@@ -3843,7 +3843,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_rationale_24",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "map internal monitor health status to apprise notifytype."
     },
     {
@@ -3854,7 +3854,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_rationale_36",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "translate provider fields or direct uris to standard apprise uris. supports..."
     },
     {
@@ -3865,7 +3865,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_rationale_143",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "validate syntax and parseability of one or more apprise uris."
     },
     {
@@ -3876,7 +3876,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_rationale_188",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "dynamically retrieve supported service schemas, protocols, and documentation..."
     },
     {
@@ -3887,7 +3887,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_rationale_233",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "send push alert to one or more apprise destination uris with severity mapping."
     },
     {
@@ -3898,7 +3898,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_rationale_280",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "send rich discord webhook message with embed styling."
     },
     {
@@ -3909,7 +3909,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_rationale_299",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "send html telegram message."
     },
     {
@@ -3920,7 +3920,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_rationale_314",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "send slack webhook message with attachment payload."
     },
     {
@@ -3931,7 +3931,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_rationale_333",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "send webhook http payload."
     },
     {
@@ -3942,7 +3942,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_rationale_379",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "unified alert dispatcher: attempts direct native delivery for supported..."
     },
     {
@@ -3953,7 +3953,7 @@
       "_origin": "ast",
       "id": "backend_app_services_notification_service_rationale_429",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "test a notification configuration and return result."
     },
     {
@@ -3964,7 +3964,7 @@
       "_origin": "ast",
       "id": "backend_app_services_retention",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": "retention.py"
     },
     {
@@ -3975,8 +3975,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_app_services_retention_cutoff_for",
-      "community": 117,
-      "community_name": "_cutoff_for",
+      "community": 28,
+      "community_name": "runner.py",
       "norm_label": "_cutoff_for()"
     },
     {
@@ -3986,8 +3986,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_retention_py_datetime",
-      "community": 117,
-      "community_name": "_cutoff_for",
+      "community": 28,
+      "community_name": "runner.py",
       "norm_label": "datetime"
     },
     {
@@ -3998,8 +3998,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_app_services_retention_prune_model",
-      "community": 117,
-      "community_name": "_cutoff_for",
+      "community": 28,
+      "community_name": "runner.py",
       "norm_label": "_prune_model()"
     },
     {
@@ -4022,7 +4022,7 @@
       "_origin": "ast",
       "id": "backend_app_services_retention_rationale_1",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": "time-series retention. heartbeats accumulate at one row per monitor per check..."
     },
     {
@@ -4032,8 +4032,8 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_services_retention_rationale_35",
-      "community": 117,
-      "community_name": "_cutoff_for",
+      "community": 28,
+      "community_name": "runner.py",
       "norm_label": "cutoff matching the column's awareness. heartbeat.checked_at is a naive..."
     },
     {
@@ -4043,8 +4043,8 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "backend_app_services_retention_rationale_51",
-      "community": 117,
-      "community_name": "_cutoff_for",
+      "community": 28,
+      "community_name": "runner.py",
       "norm_label": "delete rows older than `cutoff` in batches. returns the row count."
     },
     {
@@ -4066,7 +4066,7 @@
       "_origin": "ast",
       "id": "backend_app_services_retention_rationale_107",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": "# note: on timescaledb, system_metrics is a hypertable and"
     },
     {
@@ -4490,8 +4490,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_app_websockets_connectionmanager_broadcast",
-      "community": 115,
-      "community_name": "compile_initial_data",
+      "community": 10,
+      "community_name": "ConnectionManager",
       "norm_label": ".broadcast()"
     },
     {
@@ -4502,8 +4502,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_app_websockets_redis_listener",
-      "community": 115,
-      "community_name": "compile_initial_data",
+      "community": 34,
+      "community_name": "main.py",
       "norm_label": "redis_listener()"
     },
     {
@@ -4653,7 +4653,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_models_test_target",
-      "community": 109,
+      "community": 5,
       "community_name": "Target",
       "norm_label": "test_target.py"
     },
@@ -4665,7 +4665,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_tests_models_test_target_test_target_creation_and_redaction",
-      "community": 109,
+      "community": 5,
       "community_name": "Target",
       "norm_label": "test_target_creation_and_redaction()"
     },
@@ -4745,8 +4745,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_services_test_dashboard",
-      "community": 115,
-      "community_name": "compile_initial_data",
+      "community": 34,
+      "community_name": "main.py",
       "norm_label": "test_dashboard.py"
     },
     {
@@ -4757,8 +4757,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_tests_services_test_dashboard_test_compile_initial_data_type",
-      "community": 115,
-      "community_name": "compile_initial_data",
+      "community": 34,
+      "community_name": "main.py",
       "norm_label": "test_compile_initial_data_type()"
     },
     {
@@ -4769,8 +4769,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_tests_services_test_dashboard_test_compile_initial_data_with_target",
-      "community": 115,
-      "community_name": "compile_initial_data",
+      "community": 34,
+      "community_name": "main.py",
       "norm_label": "test_compile_initial_data_with_target()"
     },
     {
@@ -4780,7 +4780,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_apprise_engine",
-      "community": 110,
+      "community": 13,
       "community_name": "test_apprise_engine.py",
       "norm_label": "test_apprise_engine.py"
     },
@@ -4792,7 +4792,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_tests_test_apprise_engine_override_get_db",
-      "community": 110,
+      "community": 13,
       "community_name": "test_apprise_engine.py",
       "norm_label": "override_get_db()"
     },
@@ -4803,7 +4803,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_tests_test_apprise_engine_py_fixture",
-      "community": 110,
+      "community": 13,
       "community_name": "test_apprise_engine.py",
       "norm_label": "fixture"
     },
@@ -4815,7 +4815,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_tests_test_apprise_engine_setup_db",
-      "community": 110,
+      "community": 13,
       "community_name": "test_apprise_engine.py",
       "norm_label": "setup_db()"
     },
@@ -4827,7 +4827,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_tests_test_apprise_engine_admin_headers",
-      "community": 110,
+      "community": 13,
       "community_name": "test_apprise_engine.py",
       "norm_label": "admin_headers()"
     },
@@ -4839,7 +4839,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_tests_test_apprise_engine_client",
-      "community": 110,
+      "community": 13,
       "community_name": "test_apprise_engine.py",
       "norm_label": "client()"
     },
@@ -4852,7 +4852,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_apprise_engine_test_map_status_to_notify_type",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "test_map_status_to_notify_type()"
     },
     {
@@ -4864,7 +4864,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_apprise_engine_test_build_apprise_uri_all_providers",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "test_build_apprise_uri_all_providers()"
     },
     {
@@ -4876,7 +4876,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_apprise_engine_test_validate_apprise_uris",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "test_validate_apprise_uris()"
     },
     {
@@ -4888,7 +4888,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_apprise_engine_test_get_apprise_service_catalog",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "test_get_apprise_service_catalog()"
     },
     {
@@ -4899,7 +4899,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_apprise_engine_py_patch",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "patch"
     },
     {
@@ -4911,7 +4911,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_apprise_engine_test_send_apprise_notification",
       "community": 110,
-      "community_name": "test_apprise_engine.py",
+      "community_name": "notification_service.py",
       "norm_label": "test_send_apprise_notification()"
     },
     {
@@ -4922,7 +4922,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_tests_test_apprise_engine_test_api_apprise_services_and_validate",
-      "community": 110,
+      "community": 13,
       "community_name": "test_apprise_engine.py",
       "norm_label": "test_api_apprise_services_and_validate()"
     },
@@ -4935,7 +4935,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_apprise_engine_test_trigger_alerts_per_target_apprise_uri",
       "community": 109,
-      "community_name": "Target",
+      "community_name": "test_notifications.py",
       "norm_label": "test_trigger_alerts_per_target_apprise_uri()"
     },
     {
@@ -4946,7 +4946,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_backup",
       "community": 13,
-      "community_name": "test_backup.py",
+      "community_name": "test_apprise_engine.py",
       "norm_label": "test_backup.py"
     },
     {
@@ -4958,7 +4958,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_backup_override_get_db",
       "community": 13,
-      "community_name": "test_backup.py",
+      "community_name": "test_apprise_engine.py",
       "norm_label": "override_get_db()"
     },
     {
@@ -4969,7 +4969,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_backup_py_fixture",
       "community": 13,
-      "community_name": "test_backup.py",
+      "community_name": "test_apprise_engine.py",
       "norm_label": "fixture"
     },
     {
@@ -4981,7 +4981,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_backup_setup_db",
       "community": 13,
-      "community_name": "test_backup.py",
+      "community_name": "test_apprise_engine.py",
       "norm_label": "setup_db()"
     },
     {
@@ -4993,7 +4993,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_backup_admin_headers",
       "community": 13,
-      "community_name": "test_backup.py",
+      "community_name": "test_apprise_engine.py",
       "norm_label": "admin_headers()"
     },
     {
@@ -5005,7 +5005,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_backup_viewer_headers",
       "community": 13,
-      "community_name": "test_backup.py",
+      "community_name": "test_apprise_engine.py",
       "norm_label": "viewer_headers()"
     },
     {
@@ -5017,7 +5017,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_backup_client",
       "community": 13,
-      "community_name": "test_backup.py",
+      "community_name": "test_apprise_engine.py",
       "norm_label": "client()"
     },
     {
@@ -5029,7 +5029,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_backup_test_export_backup_permissions",
       "community": 13,
-      "community_name": "test_backup.py",
+      "community_name": "test_apprise_engine.py",
       "norm_label": "test_export_backup_permissions()"
     },
     {
@@ -5053,7 +5053,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_backup_test_backup_import_replace",
       "community": 13,
-      "community_name": "test_backup.py",
+      "community_name": "test_apprise_engine.py",
       "norm_label": "test_backup_import_replace()"
     },
     {
@@ -5065,7 +5065,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_backup_test_backup_import_invalid_file",
       "community": 13,
-      "community_name": "test_backup.py",
+      "community_name": "test_apprise_engine.py",
       "norm_label": "test_backup_import_invalid_file()"
     },
     {
@@ -5825,7 +5825,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_notifications",
-      "community": 116,
+      "community": 109,
       "community_name": "test_notifications.py",
       "norm_label": "test_notifications.py"
     },
@@ -5837,7 +5837,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_tests_test_notifications_override_get_db",
-      "community": 116,
+      "community": 109,
       "community_name": "test_notifications.py",
       "norm_label": "override_get_db()"
     },
@@ -5848,7 +5848,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_tests_test_notifications_py_fixture",
-      "community": 116,
+      "community": 109,
       "community_name": "test_notifications.py",
       "norm_label": "fixture"
     },
@@ -5860,7 +5860,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_tests_test_notifications_setup_db",
-      "community": 116,
+      "community": 109,
       "community_name": "test_notifications.py",
       "norm_label": "setup_db()"
     },
@@ -5872,7 +5872,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_tests_test_notifications_admin_headers",
-      "community": 116,
+      "community": 109,
       "community_name": "test_notifications.py",
       "norm_label": "admin_headers()"
     },
@@ -5884,7 +5884,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_tests_test_notifications_client",
-      "community": 116,
+      "community": 109,
       "community_name": "test_notifications.py",
       "norm_label": "client()"
     },
@@ -5896,7 +5896,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backend_tests_test_notifications_test_notification_crud_and_apply_existing",
-      "community": 116,
+      "community": 109,
       "community_name": "test_notifications.py",
       "norm_label": "test_notification_crud_and_apply_existing()"
     },
@@ -5908,7 +5908,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_notifications_py_patch",
       "community": 109,
-      "community_name": "Target",
+      "community_name": "test_notifications.py",
       "norm_label": "patch"
     },
     {
@@ -5920,7 +5920,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_notifications_test_notification_test_endpoint",
       "community": 109,
-      "community_name": "Target",
+      "community_name": "test_notifications.py",
       "norm_label": "test_notification_test_endpoint()"
     },
     {
@@ -5932,7 +5932,7 @@
       "_origin": "ast",
       "id": "backend_tests_test_notifications_test_trigger_alerts_dispatch",
       "community": 109,
-      "community_name": "Target",
+      "community_name": "test_notifications.py",
       "norm_label": "test_trigger_alerts_dispatch()"
     },
     {
@@ -6037,7 +6037,7 @@
       "_origin": "ast",
       "id": "backend_worker_tasks",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": "tasks.py"
     },
     {
@@ -6049,7 +6049,7 @@
       "_origin": "ast",
       "id": "backend_worker_tasks_execute_checker",
       "community": 5,
-      "community_name": "targets.py",
+      "community_name": "Target",
       "norm_label": "execute_checker()"
     },
     {
@@ -6061,7 +6061,7 @@
       "_origin": "ast",
       "id": "backend_worker_tasks_trigger_alerts",
       "community": 109,
-      "community_name": "Target",
+      "community_name": "test_notifications.py",
       "norm_label": "trigger_alerts()"
     },
     {
@@ -6072,7 +6072,7 @@
       "_origin": "ast",
       "id": "backend_worker_tasks_py_session",
       "community": 109,
-      "community_name": "Target",
+      "community_name": "test_notifications.py",
       "norm_label": "session"
     },
     {
@@ -6083,7 +6083,7 @@
       "_origin": "ast",
       "id": "task",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": "task"
     },
     {
@@ -6095,7 +6095,7 @@
       "_origin": "ast",
       "id": "backend_worker_tasks_run_check_task",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": "run_check_task()"
     },
     {
@@ -6106,7 +6106,7 @@
       "_origin": "ast",
       "id": "backend_worker_tasks_rationale_41",
       "community": 5,
-      "community_name": "targets.py",
+      "community_name": "Target",
       "norm_label": "executes the correct check based on target type and custom config."
     },
     {
@@ -6117,7 +6117,7 @@
       "_origin": "ast",
       "id": "backend_worker_tasks_rationale_151",
       "community": 109,
-      "community_name": "Target",
+      "community_name": "test_notifications.py",
       "norm_label": "fan a status transition out to configured notification channels. dispatches via..."
     },
     {
@@ -6128,7 +6128,7 @@
       "_origin": "ast",
       "id": "backend_worker_tasks_rationale_270",
       "community": 0,
-      "community_name": "tasks.py",
+      "community_name": "database.py",
       "norm_label": "celery task to run health check and log time-series data."
     },
     {
@@ -8463,7 +8463,7 @@
       "label": "Show-Banner()",
       "file_type": "code",
       "source_file": "scripts/install.ps1",
-      "source_location": "L19",
+      "source_location": "L20",
       "_origin": "ast",
       "id": "scripts_install_show_banner",
       "community": 113,
@@ -8474,7 +8474,7 @@
       "label": "Check-Admin()",
       "file_type": "code",
       "source_file": "scripts/install.ps1",
-      "source_location": "L30",
+      "source_location": "L31",
       "_origin": "ast",
       "id": "scripts_install_check_admin",
       "community": 113,
@@ -8482,10 +8482,32 @@
       "norm_label": "check-admin()"
     },
     {
+      "label": "Get-HyperVExcludedRanges()",
+      "file_type": "code",
+      "source_file": "scripts/install.ps1",
+      "source_location": "L63",
+      "_origin": "ast",
+      "id": "scripts_install_get_hypervexcludedranges",
+      "community": 113,
+      "community_name": "install.ps1",
+      "norm_label": "get-hypervexcludedranges()"
+    },
+    {
+      "label": "Test-PortHyperVExcluded()",
+      "file_type": "code",
+      "source_file": "scripts/install.ps1",
+      "source_location": "L79",
+      "_origin": "ast",
+      "id": "scripts_install_test_porthypervexcluded",
+      "community": 113,
+      "community_name": "install.ps1",
+      "norm_label": "test-porthypervexcluded()"
+    },
+    {
       "label": "Test-PortAvailable()",
       "file_type": "code",
       "source_file": "scripts/install.ps1",
-      "source_location": "L62",
+      "source_location": "L89",
       "_origin": "ast",
       "id": "scripts_install_test_portavailable",
       "community": 113,
@@ -8496,7 +8518,7 @@
       "label": "Get-PortOccupant()",
       "file_type": "code",
       "source_file": "scripts/install.ps1",
-      "source_location": "L80",
+      "source_location": "L114",
       "_origin": "ast",
       "id": "scripts_install_get_portoccupant",
       "community": 113,
@@ -8507,7 +8529,7 @@
       "label": "Find-NextAvailablePort()",
       "file_type": "code",
       "source_file": "scripts/install.ps1",
-      "source_location": "L98",
+      "source_location": "L144",
       "_origin": "ast",
       "id": "scripts_install_find_nextavailableport",
       "community": 113,
@@ -8515,26 +8537,37 @@
       "norm_label": "find-nextavailableport()"
     },
     {
-      "label": "Resolve-PortSelection()",
-      "file_type": "code",
-      "source_file": "scripts/install.ps1",
-      "source_location": "L106",
-      "_origin": "ast",
-      "id": "scripts_install_resolve_portselection",
-      "community": 113,
-      "community_name": "install.ps1",
-      "norm_label": "resolve-portselection()"
-    },
-    {
       "label": "Test-TcpEndpoint()",
       "file_type": "code",
       "source_file": "scripts/install.ps1",
-      "source_location": "L183",
+      "source_location": "L152",
       "_origin": "ast",
       "id": "scripts_install_test_tcpendpoint",
       "community": 113,
       "community_name": "install.ps1",
       "norm_label": "test-tcpendpoint()"
+    },
+    {
+      "label": "Show-PreflightPortScan()",
+      "file_type": "code",
+      "source_file": "scripts/install.ps1",
+      "source_location": "L169",
+      "_origin": "ast",
+      "id": "scripts_install_show_preflightportscan",
+      "community": 113,
+      "community_name": "install.ps1",
+      "norm_label": "show-preflightportscan()"
+    },
+    {
+      "label": "Resolve-PortSelection()",
+      "file_type": "code",
+      "source_file": "scripts/install.ps1",
+      "source_location": "L230",
+      "_origin": "ast",
+      "id": "scripts_install_resolve_portselection",
+      "community": 113,
+      "community_name": "install.ps1",
+      "norm_label": "resolve-portselection()"
     },
     {
       "label": "start-native-windows.ps1",
@@ -11540,6 +11573,83 @@
       "norm_label": "task 5: test api routes (auth & targets)"
     },
     {
+      "label": "2026-09-05-windows-native-port-check.md",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-09-05-windows-native-port-check.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_superpowers_plans_2026_09_05_windows_native_port_check",
+      "community": 117,
+      "community_name": "Global Constraints",
+      "norm_label": "2026-09-05-windows-native-port-check.md"
+    },
+    {
+      "label": "Windows Native Upfront Port Matrix Check Implementation Plan",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-09-05-windows-native-port-check.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_superpowers_plans_2026_09_05_windows_native_port_check_windows_native_upfront_port_matrix_check_implementation_plan",
+      "community": 117,
+      "community_name": "Global Constraints",
+      "norm_label": "windows native upfront port matrix check implementation plan"
+    },
+    {
+      "label": "Global Constraints",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-09-05-windows-native-port-check.md",
+      "source_location": "L11",
+      "_origin": "ast",
+      "id": "docs_superpowers_plans_2026_09_05_windows_native_port_check_global_constraints",
+      "community": 117,
+      "community_name": "Global Constraints",
+      "norm_label": "global constraints"
+    },
+    {
+      "label": "Task 1: Hyper-V Exclusion Detection & Socket Probing Engine",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-09-05-windows-native-port-check.md",
+      "source_location": "L20",
+      "_origin": "ast",
+      "id": "docs_superpowers_plans_2026_09_05_windows_native_port_check_task_1_hyper_v_exclusion_detection_socket_probing_engine",
+      "community": 117,
+      "community_name": "Global Constraints",
+      "norm_label": "task 1: hyper-v exclusion detection & socket probing engine"
+    },
+    {
+      "label": "Task 2: Pre-Flight Port Matrix Display & Auto-Adoption Logic",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-09-05-windows-native-port-check.md",
+      "source_location": "L176",
+      "_origin": "ast",
+      "id": "docs_superpowers_plans_2026_09_05_windows_native_port_check_task_2_pre_flight_port_matrix_display_auto_adoption_logic",
+      "community": 117,
+      "community_name": "Global Constraints",
+      "norm_label": "task 2: pre-flight port matrix display & auto-adoption logic"
+    },
+    {
+      "label": "Task 3: Downstream Service Integration & Execution Flow",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-09-05-windows-native-port-check.md",
+      "source_location": "L363",
+      "_origin": "ast",
+      "id": "docs_superpowers_plans_2026_09_05_windows_native_port_check_task_3_downstream_service_integration_execution_flow",
+      "community": 117,
+      "community_name": "Global Constraints",
+      "norm_label": "task 3: downstream service integration & execution flow"
+    },
+    {
+      "label": "Task 4: Verification & Documentation",
+      "file_type": "document",
+      "source_file": "docs/superpowers/plans/2026-09-05-windows-native-port-check.md",
+      "source_location": "L395",
+      "_origin": "ast",
+      "id": "docs_superpowers_plans_2026_09_05_windows_native_port_check_task_4_verification_documentation",
+      "community": 117,
+      "community_name": "Global Constraints",
+      "norm_label": "task 4: verification & documentation"
+    },
+    {
       "label": "2026-07-23-db-monitoring-design.md",
       "file_type": "document",
       "source_file": "docs/superpowers/specs/2026-07-23-db-monitoring-design.md",
@@ -12176,6 +12286,138 @@
       "community": 51,
       "community_name": "Snoomp E2E Testing Framework Design",
       "norm_label": "open questions / scope limits"
+    },
+    {
+      "label": "2026-09-05-windows-native-port-check-design.md",
+      "file_type": "document",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design",
+      "community": 116,
+      "community_name": "Design Specification: Upfront Pre-Flight Port Matrix for Snoomp Windows Installer",
+      "norm_label": "2026-09-05-windows-native-port-check-design.md"
+    },
+    {
+      "label": "Design Specification: Upfront Pre-Flight Port Matrix for Snoomp Windows Installer",
+      "file_type": "document",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_design_specification_upfront_pre_flight_port_matrix_for_snoomp_windows_installer",
+      "community": 116,
+      "community_name": "Design Specification: Upfront Pre-Flight Port Matrix for Snoomp Windows Installer",
+      "norm_label": "design specification: upfront pre-flight port matrix for snoomp windows installer"
+    },
+    {
+      "label": "1. Objective",
+      "file_type": "document",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L9",
+      "_origin": "ast",
+      "id": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_1_objective",
+      "community": 116,
+      "community_name": "Design Specification: Upfront Pre-Flight Port Matrix for Snoomp Windows Installer",
+      "norm_label": "1. objective"
+    },
+    {
+      "label": "2. Port Architecture & Requirements Matrix",
+      "file_type": "document",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L14",
+      "_origin": "ast",
+      "id": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_2_port_architecture_requirements_matrix",
+      "community": 116,
+      "community_name": "Design Specification: Upfront Pre-Flight Port Matrix for Snoomp Windows Installer",
+      "norm_label": "2. port architecture & requirements matrix"
+    },
+    {
+      "label": "3. Network Detection & Pre-Flight Engine",
+      "file_type": "document",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L24",
+      "_origin": "ast",
+      "id": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_3_network_detection_pre_flight_engine",
+      "community": 116,
+      "community_name": "Design Specification: Upfront Pre-Flight Port Matrix for Snoomp Windows Installer",
+      "norm_label": "3. network detection & pre-flight engine"
+    },
+    {
+      "label": "3.1 Detection Capabilities",
+      "file_type": "document",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L26",
+      "_origin": "ast",
+      "id": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_3_1_detection_capabilities",
+      "community": 116,
+      "community_name": "Design Specification: Upfront Pre-Flight Port Matrix for Snoomp Windows Installer",
+      "norm_label": "3.1 detection capabilities"
+    },
+    {
+      "label": "3.2 Pre-Flight Port Status Table",
+      "file_type": "document",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L36",
+      "_origin": "ast",
+      "id": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_3_2_pre_flight_port_status_table",
+      "community": 116,
+      "community_name": "Design Specification: Upfront Pre-Flight Port Matrix for Snoomp Windows Installer",
+      "norm_label": "3.2 pre-flight port status table"
+    },
+    {
+      "label": "4. Decision & Interactive Logic",
+      "file_type": "document",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L53",
+      "_origin": "ast",
+      "id": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_4_decision_interactive_logic",
+      "community": 116,
+      "community_name": "Design Specification: Upfront Pre-Flight Port Matrix for Snoomp Windows Installer",
+      "norm_label": "4. decision & interactive logic"
+    },
+    {
+      "label": "4.1 Web Dashboard / API Port (`8008`)",
+      "file_type": "document",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L55",
+      "_origin": "ast",
+      "id": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_4_1_web_dashboard_api_port_8008",
+      "community": 116,
+      "community_name": "Design Specification: Upfront Pre-Flight Port Matrix for Snoomp Windows Installer",
+      "norm_label": "4.1 web dashboard / api port (`8008`)"
+    },
+    {
+      "label": "4.2 Database & Redis Pre-Configuration Integration (Step 2)",
+      "file_type": "document",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L71",
+      "_origin": "ast",
+      "id": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_4_2_database_redis_pre_configuration_integration_step_2",
+      "community": 116,
+      "community_name": "Design Specification: Upfront Pre-Flight Port Matrix for Snoomp Windows Installer",
+      "norm_label": "4.2 database & redis pre-configuration integration (step 2)"
+    },
+    {
+      "label": "5. Error Handling & Edge Cases",
+      "file_type": "document",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L81",
+      "_origin": "ast",
+      "id": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_5_error_handling_edge_cases",
+      "community": 116,
+      "community_name": "Design Specification: Upfront Pre-Flight Port Matrix for Snoomp Windows Installer",
+      "norm_label": "5. error handling & edge cases"
+    },
+    {
+      "label": "6. Verification Plan",
+      "file_type": "document",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L88",
+      "_origin": "ast",
+      "id": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_6_verification_plan",
+      "community": 116,
+      "community_name": "Design Specification: Upfront Pre-Flight Port Matrix for Snoomp Windows Installer",
+      "norm_label": "6. verification plan"
     },
     {
       "label": "query_20260806_221447_why_does_target_connect_database_models_to_target.md",
@@ -13382,8 +13624,8 @@
       "source_file": ".agents/skills/design-taste-frontend/SKILL.md",
       "source_location": "L43",
       "_origin": "ast",
-      "community": 118,
-      "community_name": "1. THE THREE DIALS (Core Configuration)",
+      "community": 53,
+      "community_name": "tasteskill: Anti-Slop Frontend Skill",
       "norm_label": "1. the three dials (core configuration)",
       "id": "agents_skills_design_taste_frontend_skill_1_the_three_dials_core_configuration"
     },
@@ -13393,8 +13635,8 @@
       "source_file": ".agents/skills/design-taste-frontend/SKILL.md",
       "source_location": "L53",
       "_origin": "ast",
-      "community": 118,
-      "community_name": "1. THE THREE DIALS (Core Configuration)",
+      "community": 53,
+      "community_name": "tasteskill: Anti-Slop Frontend Skill",
       "norm_label": "1.a dial inference (design read \u2192 dial values)",
       "id": "agents_skills_design_taste_frontend_skill_1_a_dial_inference_design_read_dial_values"
     },
@@ -13404,8 +13646,8 @@
       "source_file": ".agents/skills/design-taste-frontend/SKILL.md",
       "source_location": "L64",
       "_origin": "ast",
-      "community": 118,
-      "community_name": "1. THE THREE DIALS (Core Configuration)",
+      "community": 53,
+      "community_name": "tasteskill: Anti-Slop Frontend Skill",
       "norm_label": "1.b use-case presets",
       "id": "agents_skills_design_taste_frontend_skill_1_b_use_case_presets"
     },
@@ -13415,8 +13657,8 @@
       "source_file": ".agents/skills/design-taste-frontend/SKILL.md",
       "source_location": "L77",
       "_origin": "ast",
-      "community": 118,
-      "community_name": "1. THE THREE DIALS (Core Configuration)",
+      "community": 53,
+      "community_name": "tasteskill: Anti-Slop Frontend Skill",
       "norm_label": "1.c how the dials drive output",
       "id": "agents_skills_design_taste_frontend_skill_1_c_how_the_dials_drive_output"
     },
@@ -13800,8 +14042,8 @@
       "source_file": ".agents/skills/design-taste-frontend/SKILL.md",
       "source_location": "L552",
       "_origin": "ast",
-      "community": 53,
-      "community_name": "tasteskill: Anti-Slop Frontend Skill",
+      "community": 118,
+      "community_name": "7. DIAL DEFINITIONS (Technical Reference)",
       "norm_label": "7. dial definitions (technical reference)",
       "id": "agents_skills_design_taste_frontend_skill_7_dial_definitions_technical_reference"
     },
@@ -13811,8 +14053,8 @@
       "source_file": ".agents/skills/design-taste-frontend/SKILL.md",
       "source_location": "L554",
       "_origin": "ast",
-      "community": 53,
-      "community_name": "tasteskill: Anti-Slop Frontend Skill",
+      "community": 118,
+      "community_name": "7. DIAL DEFINITIONS (Technical Reference)",
       "norm_label": "design_variance (level 1-10)",
       "id": "agents_skills_design_taste_frontend_skill_design_variance_level_1_10"
     },
@@ -13822,8 +14064,8 @@
       "source_file": ".agents/skills/design-taste-frontend/SKILL.md",
       "source_location": "L560",
       "_origin": "ast",
-      "community": 53,
-      "community_name": "tasteskill: Anti-Slop Frontend Skill",
+      "community": 118,
+      "community_name": "7. DIAL DEFINITIONS (Technical Reference)",
       "norm_label": "motion_intensity (level 1-10)",
       "id": "agents_skills_design_taste_frontend_skill_motion_intensity_level_1_10"
     },
@@ -13833,8 +14075,8 @@
       "source_file": ".agents/skills/design-taste-frontend/SKILL.md",
       "source_location": "L565",
       "_origin": "ast",
-      "community": 53,
-      "community_name": "tasteskill: Anti-Slop Frontend Skill",
+      "community": 118,
+      "community_name": "7. DIAL DEFINITIONS (Technical Reference)",
       "norm_label": "visual_density (level 1-10)",
       "id": "agents_skills_design_taste_frontend_skill_visual_density_level_1_10"
     },
@@ -34772,7 +35014,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/install.ps1",
-      "source_location": "L30",
+      "source_location": "L31",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_install",
@@ -34783,7 +35025,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/install.ps1",
-      "source_location": "L98",
+      "source_location": "L144",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_install",
@@ -34794,7 +35036,18 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/install.ps1",
-      "source_location": "L80",
+      "source_location": "L63",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_install",
+      "target": "scripts_install_get_hypervexcludedranges",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/install.ps1",
+      "source_location": "L114",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_install",
@@ -34805,7 +35058,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/install.ps1",
-      "source_location": "L106",
+      "source_location": "L230",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_install",
@@ -34816,7 +35069,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/install.ps1",
-      "source_location": "L19",
+      "source_location": "L20",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_install",
@@ -34827,7 +35080,18 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/install.ps1",
-      "source_location": "L62",
+      "source_location": "L169",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_install",
+      "target": "scripts_install_show_preflightportscan",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/install.ps1",
+      "source_location": "L89",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_install",
@@ -34838,7 +35102,18 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/install.ps1",
-      "source_location": "L183",
+      "source_location": "L79",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_install",
+      "target": "scripts_install_test_porthypervexcluded",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/install.ps1",
+      "source_location": "L152",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_install",
@@ -34849,7 +35124,40 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "scripts/install.ps1",
-      "source_location": "L100",
+      "source_location": "L80",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_install_test_porthypervexcluded",
+      "target": "scripts_install_get_hypervexcludedranges",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/install.ps1",
+      "source_location": "L115",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_install_get_portoccupant",
+      "target": "scripts_install_test_porthypervexcluded",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/install.ps1",
+      "source_location": "L91",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_install_test_portavailable",
+      "target": "scripts_install_test_porthypervexcluded",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/install.ps1",
+      "source_location": "L146",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_install_find_nextavailableport",
@@ -34860,7 +35168,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "scripts/install.ps1",
-      "source_location": "L126",
+      "source_location": "L249",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_install_resolve_portselection",
@@ -34871,7 +35179,18 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "scripts/install.ps1",
-      "source_location": "L132",
+      "source_location": "L179",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_install_show_preflightportscan",
+      "target": "scripts_install_test_portavailable",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/install.ps1",
+      "source_location": "L256",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_install_resolve_portselection",
@@ -34882,11 +35201,33 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "scripts/install.ps1",
-      "source_location": "L133",
+      "source_location": "L186",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_install_show_preflightportscan",
+      "target": "scripts_install_get_portoccupant",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/install.ps1",
+      "source_location": "L257",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_install_resolve_portselection",
       "target": "scripts_install_find_nextavailableport",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/install.ps1",
+      "source_location": "L195",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_install_show_preflightportscan",
+      "target": "scripts_install_test_tcpendpoint",
       "confidence_score": 1.0
     },
     {
@@ -37741,6 +38082,72 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/plans/2026-09-05-windows-native-port-check.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_superpowers_plans_2026_09_05_windows_native_port_check",
+      "target": "docs_superpowers_plans_2026_09_05_windows_native_port_check_windows_native_upfront_port_matrix_check_implementation_plan",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/plans/2026-09-05-windows-native-port-check.md",
+      "source_location": "L11",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_superpowers_plans_2026_09_05_windows_native_port_check_windows_native_upfront_port_matrix_check_implementation_plan",
+      "target": "docs_superpowers_plans_2026_09_05_windows_native_port_check_global_constraints",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/plans/2026-09-05-windows-native-port-check.md",
+      "source_location": "L20",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_superpowers_plans_2026_09_05_windows_native_port_check_global_constraints",
+      "target": "docs_superpowers_plans_2026_09_05_windows_native_port_check_task_1_hyper_v_exclusion_detection_socket_probing_engine",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/plans/2026-09-05-windows-native-port-check.md",
+      "source_location": "L176",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_superpowers_plans_2026_09_05_windows_native_port_check_global_constraints",
+      "target": "docs_superpowers_plans_2026_09_05_windows_native_port_check_task_2_pre_flight_port_matrix_display_auto_adoption_logic",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/plans/2026-09-05-windows-native-port-check.md",
+      "source_location": "L363",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_superpowers_plans_2026_09_05_windows_native_port_check_global_constraints",
+      "target": "docs_superpowers_plans_2026_09_05_windows_native_port_check_task_3_downstream_service_integration_execution_flow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/plans/2026-09-05-windows-native-port-check.md",
+      "source_location": "L395",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_superpowers_plans_2026_09_05_windows_native_port_check_global_constraints",
+      "target": "docs_superpowers_plans_2026_09_05_windows_native_port_check_task_4_verification_documentation",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "docs/superpowers/specs/2026-07-23-db-monitoring-design.md",
       "source_location": "L1",
       "weight": 1.0,
@@ -38319,6 +38726,127 @@
       "_origin": "ast",
       "source": "docs_superpowers_specs_2026_08_07_e2e_testing_design_test_suite_structure",
       "target": "docs_superpowers_specs_2026_08_07_e2e_testing_design_4_tests_checkers",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design",
+      "target": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_design_specification_upfront_pre_flight_port_matrix_for_snoomp_windows_installer",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L9",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_design_specification_upfront_pre_flight_port_matrix_for_snoomp_windows_installer",
+      "target": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_1_objective",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L14",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_design_specification_upfront_pre_flight_port_matrix_for_snoomp_windows_installer",
+      "target": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_2_port_architecture_requirements_matrix",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L24",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_design_specification_upfront_pre_flight_port_matrix_for_snoomp_windows_installer",
+      "target": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_3_network_detection_pre_flight_engine",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L53",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_design_specification_upfront_pre_flight_port_matrix_for_snoomp_windows_installer",
+      "target": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_4_decision_interactive_logic",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L81",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_design_specification_upfront_pre_flight_port_matrix_for_snoomp_windows_installer",
+      "target": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_5_error_handling_edge_cases",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L88",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_design_specification_upfront_pre_flight_port_matrix_for_snoomp_windows_installer",
+      "target": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_6_verification_plan",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L26",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_3_network_detection_pre_flight_engine",
+      "target": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_3_1_detection_capabilities",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L36",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_3_network_detection_pre_flight_engine",
+      "target": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_3_2_pre_flight_port_status_table",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L55",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_4_decision_interactive_logic",
+      "target": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_4_1_web_dashboard_api_port_8008",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/superpowers/specs/2026-09-05-windows-native-port-check-design.md",
+      "source_location": "L71",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_4_decision_interactive_logic",
+      "target": "docs_superpowers_specs_2026_09_05_windows_native_port_check_design_4_2_database_redis_pre_configuration_integration_step_2",
       "confidence_score": 1.0
     },
     {
@@ -44043,5 +44571,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "8f6b07dfe4e7bda5e367a31b89ff5126ecd2a170"
+  "built_at_commit": "95bdec8bc5910500f57c9f03f9571c8462631540"
 }
