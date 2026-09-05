@@ -1,11 +1,11 @@
 # Snoomp 🛰️
 
-[![Version](https://img.shields.io/badge/version-0.3.1-blue.svg)](https://github.com/ardhanata/snoomp-1)
+[![Version](https://img.shields.io/badge/version-0.3.1-blue.svg)](https://github.com/ardhanata/snoomp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/frontend-React%2018%20%2B%20Vite-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776AB.svg?logo=python&logoColor=white)](https://python.org)
-[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20Server-lightgrey.svg)](https://github.com/ardhanata/snoomp-1)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20Server-lightgrey.svg)](https://github.com/ardhanata/snoomp)
 
 > **Enterprise Multi-Protocol Infrastructure Observability & Uptime Monitoring**  
 > High-performance, self-hosted monitoring with real-time WebSocket telemetry, Uptime Kuma-style multi-channel alerting, and dual-mode deployment (Docker or Standalone Native Windows).
@@ -52,7 +52,7 @@ Run Snoomp directly on Windows Server or Windows 10/11 using the interactive one
 
 ```powershell
 # Run in PowerShell (Administrator recommended for 24/7 background service registration):
-irm https://raw.githubusercontent.com/ardhanata/snoomp-1/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/ardhanata/snoomp/main/scripts/install.ps1 | iex
 ```
 
 **Installer Capabilities:**
@@ -69,8 +69,8 @@ irm https://raw.githubusercontent.com/ardhanata/snoomp-1/main/scripts/install.ps
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/ardhanata/snoomp-1.git
-cd snoomp-1
+git clone https://github.com/ardhanata/snoomp.git
+cd snoomp
 
 # 2. Configure environment
 cp .env.example .env
