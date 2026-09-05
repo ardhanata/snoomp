@@ -15,11 +15,9 @@ backend/build/
 backend/dist/
 backend/logs/
 
-# Knowledge graph cache & temporary files
-graphify-out/cache/
-graphify-out/2026-*/
-graphify-out/*.py
-graphify-out/*.sig
+# Knowledge graph & Documentation (local machine only)
+graphify-out/
+docs/
 
 # Node
 node_modules/
