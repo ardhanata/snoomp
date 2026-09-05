@@ -490,21 +490,27 @@ function Ensure-PostgresDatabaseAndUser {
 
     if ($null -ne $authenticatedSuper) {
         Write-Host "  Creating/updating role '$SnoompUser' (least privilege LOGIN role)..." -ForegroundColor Yellow
-        $createRoleSql = "DO `$do`$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = :'u') THEN EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', :'u', :'p'); ELSE EXECUTE format('ALTER ROLE %I PASSWORD %L', :'u', :'p'); END IF; END `$do`$;"
-        $null = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-v", "u=$SnoompUser", "-v", "p=$SnoompPassword", "-c", $createRoleSql) -Password $authenticatedSuper
+        $createRoleSql = "SELECT set_config('snoomp.u', :'u', false), set_config('snoomp.p', :'p', false); DO `$do`$ DECLARE _u text := current_setting('snoomp.u'); _p text := current_setting('snoomp.p'); BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = _u) THEN EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', _u, _p); ELSE EXECUTE format('ALTER ROLE %I WITH LOGIN PASSWORD %L', _u, _p); END IF; END `$do`$;"
+        $roleRes = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-v", "u=$SnoompUser", "-v", "p=$SnoompPassword", "-c", $createRoleSql) -Password $authenticatedSuper
+        if ($roleRes.ExitCode -ne 0) {
+            Write-Host "  [DEBUG] Role creation returned: $($roleRes.Output)" -ForegroundColor Yellow
+        }
 
         Write-Host "  Ensuring database '$DatabaseName' exists with owner '$SnoompUser'..." -ForegroundColor Yellow
-        $checkDbSql = "SELECT 1 FROM pg_database WHERE datname = :'d';"
+        $checkDbSql = "SELECT 1 FROM pg_catalog.pg_database WHERE datname = :'d';"
         $resCheck = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-t", "-v", "d=$DatabaseName", "-c", $checkDbSql) -Password $authenticatedSuper
 
         if ($resCheck.Output -notmatch "1") {
-            $null = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-v", "d=$DatabaseName", "-v", "u=$SnoompUser", "-c", "CREATE DATABASE :`"d`" OWNER :`"u`";") -Password $authenticatedSuper
+            $dbRes = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-c", "CREATE DATABASE `"$DatabaseName`" OWNER `"$SnoompUser`";") -Password $authenticatedSuper
+            if ($dbRes.ExitCode -ne 0) {
+                Write-Host "  [DEBUG] Create database returned: $($dbRes.Output)" -ForegroundColor Yellow
+            }
         } else {
-            $null = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-v", "d=$DatabaseName", "-v", "u=$SnoompUser", "-c", "ALTER DATABASE :`"d`" OWNER TO :`"u`";") -Password $authenticatedSuper
+            $null = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-c", "ALTER DATABASE `"$DatabaseName`" OWNER TO `"$SnoompUser`";") -Password $authenticatedSuper
         }
 
         # Ensure full grants on the target database
-        $null = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-v", "d=$DatabaseName", "-v", "u=$SnoompUser", "-c", "GRANT ALL PRIVILEGES ON DATABASE :`"d`" TO :`"u`";") -Password $authenticatedSuper
+        $null = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-c", "GRANT ALL PRIVILEGES ON DATABASE `"$DatabaseName`" TO `"$SnoompUser`";") -Password $authenticatedSuper
 
         # Final verification
         $verifyConn = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", $SnoompUser, "-d", $DatabaseName, "-c", "SELECT 1;") -Password $SnoompPassword
