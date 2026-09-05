@@ -58,57 +58,21 @@ Deny at server level, then grant per-channel. This is the single most important 
 | Channel | Purpose |
 |---|---|
 | `#start-here` | Server map, role self-assign instructions, who to ping for what |
-| `#announcements` | Releases, breaking changes, process changes. Cross-post from GitHub releases. |
-| `#changelog` | GitHub webhook: tags and releases only. Mirrors `CHANGELOG.md`. |
-| `#decisions` | Architecture decision log. One message per decision, threaded discussion. Prevents re-litigating settled calls like the `/proc/stat` delta CPU approach. |
 
 ### `DEV`
 
 | Channel | Purpose |
 |---|---|
 | `#general-dev` | Cross-cutting discussion, questions, "anyone know why…" |
-| `#backend` | FastAPI, Celery, `app/checkers/*`, database layer |
-| `#frontend` | React, `App.tsx`, `dashboard.css`, double-bezel UI, a11y work |
-| `#infra-deploy` | Docker Compose, TimescaleDB, Redis, native-Windows deploy path |
-| `#checkers` | Protocol checker work — HTTP, ICMP, TCP/DNS, SSH, PostgreSQL, MongoDB, Redis, SNMP. This area has enough surface to deserve its own room. |
-| `#code-review` | PR discussion beyond GitHub comments. Link the PR, discuss, resolve. |
-| `#design-ui` | Mockups, contrast checks, Lucide icon choices, light/dark palette |
 
 ### `OPERATIONS` (webhook-driven, low chat)
 
 | Channel | Purpose |
 |---|---|
-| `#github` | Push, PR opened/merged, issue events. Bot-only, humans read. |
-| `#ci-builds` | Build and test results |
-| `#deployments` | Deploy start/success/failure, version bumps |
 | `#alerts-critical` | Snoomp monitoring its own infra — DOWN status only. Pings `@OnCall`. |
 | `#alerts-warning` | Degraded / SLA-warning / SSL-expiring. **No pings.** |
 
 **Split critical from warning.** A single `#alerts` channel trains people to ignore it. Warning noise is exactly what kills alert channels.
-
-### `WORK`
-
-| Channel | Purpose |
-|---|---|
-| `#standup` | Daily async standup. Thread per day. |
-| `#roadmap` | v0.3.0 planning, milestone tracking |
-| `#bugs-triage` | Triage inbox before issues get filed properly |
-| `#audits` | A11y, security, and UI audit findings — mirrors your `docs/AUDIT-*.md` cadence |
-
-### `VOICE`
-
-| Channel | Purpose |
-|---|---|
-| `Standup` | Daily sync, 15 min cap |
-| `Pairing 1` / `Pairing 2` | Ad-hoc pairing rooms |
-| `War Room` | Incident response. Private to `@Maintainer` + `@Infra` + `@OnCall`. |
-
-### `PRIVATE` (Maintainer + Owner only)
-
-| Channel | Purpose |
-|---|---|
-| `#maintainers` | Access, credentials rotation, hiring, anything not for `@Contributor` |
-| `#secrets-rotation` | Log of what was rotated and when. **Never the values themselves.** |
 
 ---
 

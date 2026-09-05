@@ -42,7 +42,7 @@ const RadialGauge: React.FC<RadialGaugeProps> = ({ value, label, sublabel, max =
     <div className={`metric-card ${cardClass}`}>
       <span className="metric-label">{label}</span>
       <div className="radial-container">
-        <svg className="radial-svg" viewBox="0 0 100 100">
+        <svg className="radial-svg" viewBox="0 0 100 100" aria-hidden="true">
           <circle
             className="radial-bg"
             cx="50"
@@ -60,7 +60,8 @@ const RadialGauge: React.FC<RadialGaugeProps> = ({ value, label, sublabel, max =
             strokeDashoffset={strokeDashoffset}
           />
         </svg>
-        <div className="radial-value">{percentage.toFixed(0)}%</div>
+        <div className="radial-value" aria-hidden="true">{new Intl.NumberFormat(navigator.language, { maximumFractionDigits: 0 }).format(percentage)}%</div>
+        <span className="sr-only">{new Intl.NumberFormat(navigator.language, { maximumFractionDigits: 0 }).format(percentage)} percent, status {statusClass}</span>
       </div>
       {sublabel && <div className="radial-sub">{sublabel}</div>}
     </div>

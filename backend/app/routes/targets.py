@@ -29,55 +29,32 @@ class TargetCreateUpdate(BaseModel):
     tags: List[str] = []
     config_json: Dict[str, Any] = {}
 
-from pydantic import BaseModel, Field, field_validator
 
-_SECRET_KEYS = frozenset({
-    "password", "private_key", "connection_string",
-    "community", "bot_token", "webhook_url", "chat_id",
-})
-
-class TargetResponse(BaseModel):
-    id: str
-    name: str
-    type: str
-    host: str
-    port: Optional[int]
-    path: Optional[str]
-    check_interval: int
-    enabled: bool
-    tags: List[str]
-    config_json: Dict[str, Any]
-    
-    @field_validator("config_json", mode="before")
-    @classmethod
-    def redact_secrets(cls, v: Any) -> Dict[str, Any]:
-        if not isinstance(v, dict):
-            return {}
-        safe_cfg = {}
-        for k, val in v.items():
-            if k in _SECRET_KEYS and val:
-                safe_cfg[k] = "••••••••"
-            else:
-                safe_cfg[k] = val
-        return safe_cfg
-
-    class Config:
-        from_attributes = True
 
 @router.get("", dependencies=[Depends(require_viewer)])
 def list_targets(db: Session = Depends(get_db)):
     from app.main import compile_initial_data
     return compile_initial_data(db)
 
-@router.get("/{target_id}", response_model=TargetResponse, dependencies=[Depends(require_viewer)])
+@router.get("/{target_id}", dependencies=[Depends(require_viewer)])
 def get_target(target_id: str, db: Session = Depends(get_db)):
     target = db.query(Target).filter(Target.id == target_id).first()
     if not target:
         raise HTTPException(status_code=404, detail="Target monitor not found")
     return target.to_dict()
 
-@router.post("", response_model=TargetResponse, dependencies=[Depends(require_editor)])
+@router.post("", dependencies=[Depends(require_editor)])
 def create_target(target_in: TargetCreateUpdate, request: Request, db: Session = Depends(get_db)):
+    cfg = dict(target_in.config_json or {})
+    if "notification_ids" not in cfg:
+        from app.models.notification import Notification
+        default_notifs = db.query(Notification).filter(
+            Notification.is_default.is_(True),
+            Notification.active.is_(True)
+        ).all()
+        if default_notifs:
+            cfg["notification_ids"] = [n.id for n in default_notifs]
+
     target = Target(
         id=str(uuid.uuid4()),
         name=target_in.name,
@@ -88,7 +65,7 @@ def create_target(target_in: TargetCreateUpdate, request: Request, db: Session =
         check_interval=target_in.check_interval,
         enabled=target_in.enabled,
         tags=target_in.tags,
-        config_json=target_in.config_json
+        config_json=cfg
     )
     db.add(target)
     db.commit()
@@ -105,7 +82,7 @@ def create_target(target_in: TargetCreateUpdate, request: Request, db: Session =
 
     return target.to_dict()
 
-@router.put("/{target_id}", response_model=TargetResponse, dependencies=[Depends(require_editor)])
+@router.put("/{target_id}", dependencies=[Depends(require_editor)])
 def update_target(target_id: str, target_in: TargetCreateUpdate, request: Request, db: Session = Depends(get_db)):
     target = db.query(Target).filter(Target.id == target_id).first()
     if not target:

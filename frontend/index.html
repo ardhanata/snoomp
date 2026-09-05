@@ -4,11 +4,12 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 65%22><rect x=%225%22 y=%225%22 width=%2242%22 height=%2255%22 rx=%2214%22 stroke=%22%232563EB%22 stroke-width=%2210%22 fill=%22none%22/><rect x=%2253%22 y=%225%22 width=%2242%22 height=%2255%22 rx=%2214%22 stroke=%22%232563EB%22 stroke-width=%2210%22 fill=%22none%22/><line x1=%225%22 y1=%2232.5%22 x2=%2295%22 y2=%2232.5%22 stroke=%22%232563EB%22 stroke-width=%228%22/></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0c0d12" />
+    <meta id="theme-color-meta" name="theme-color" content="#0c0d12" />
     <title>Snoomp | Enterprise Health & Resource Monitor</title>
     <!-- Fonts: Plus Jakarta Sans (body), DM Sans (headers), Noto Sans Mono (data) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..800;1,9..40,400..800&family=Noto+Sans+Mono:wght@100..900&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..800;1,9..40,400..800&family=Noto+Sans+Mono:wght@100..900&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
     <script>
       (function() {
@@ -18,9 +19,13 @@
           if (t === 'light') {
             document.documentElement.style.backgroundColor = '#F4F6F8';
             document.documentElement.style.color = '#181A1C';
+            var meta = document.getElementById('theme-color-meta');
+            if (meta) meta.content = '#F4F6F8';
           } else {
             document.documentElement.style.backgroundColor = '#0c0d12';
             document.documentElement.style.color = '#f4f5fb';
+            var meta = document.getElementById('theme-color-meta');
+            if (meta) meta.content = '#0c0d12';
           }
         } catch(e) {}
       })();

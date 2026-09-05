@@ -2,6 +2,7 @@ import os
 import time
 import re
 import logging
+import json
 import asyncssh
 from typing import Any
 from app.checkers.base import CheckerResult, evaluate_resource_status
@@ -131,12 +132,27 @@ def parse_metrics_output(output: str, target_id: str | None = None, redis_conn=N
             metrics["uptime"] = uptime_match_fallback.group(1).strip()
 
     # 2. Parse Memory from free -m
-    mem_match = re.search(r'Mem:\s+(\d+)\s+(\d+)\s+(\d+)', output)
+    mem_match = re.search(r'Mem:\s+(\d+)\s+(\d+)\s+(\d+)(?:\s+(\d+)\s+(\d+)\s+(\d+))?', output)
     if mem_match:
         total = float(mem_match.group(1))
         used = float(mem_match.group(2))
+        
         if total > 0:
-            metrics["mem_percent"] = round((used / total) * 100, 2)
+            available = None
+            if mem_match.group(6):
+                available = float(mem_match.group(6))
+                
+            if available is not None:
+                actual_used = total - available
+            else:
+                # Fallback for old free output format
+                buf_match = re.search(r'-\/\+\s+buffers\/cache:\s+(\d+)', output)
+                if buf_match:
+                    actual_used = float(buf_match.group(1))
+                else:
+                    actual_used = used
+                    
+            metrics["mem_percent"] = max(0.0, min(100.0, round((actual_used / total) * 100, 2)))
             metrics["ram_total_gb"] = round(total / 1024, 1)
 
     # 3. Parse Multi-Disk metrics from df -h -P (POSIX 1-line format)
@@ -335,8 +351,8 @@ async def check_ssh(
 
     if use_mock or host in ["127.0.0.1", "localhost"]:
         metrics = _get_mock_metrics()
-        status = evaluate_resource_status(metrics["cpu_percent"], metrics["mem_percent"], metrics["disk_percent"])
-        return CheckerResult(status=status, response_time_ms=0.0, details=metrics)
+        status, err = evaluate_resource_status(metrics["cpu_percent"], metrics["mem_percent"], metrics["disk_percent"])
+        return CheckerResult(status=status, response_time_ms=0.0, error=err, details=metrics)
 
     start = time.monotonic()
     # ponytail: show all partitions natively, no unrequested filtering
@@ -344,62 +360,75 @@ async def check_ssh(
     # 2. Windows PowerShell CIM metric gathering fallback command
     win_command = 'powershell -NoProfile -Command "$cpu=(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average; $os=Get-CimInstance Win32_OperatingSystem; Write-Output CPU_PCT=$cpu; Write-Output MEM_TOTAL=$([math]::Round($os.TotalVisibleMemorySize/1024,1)); Write-Output MEM_FREE=$([math]::Round($os.FreePhysicalMemory/1024,1)); Get-CimInstance Win32_LogicalDisk | ForEach-Object { if ($_.Size -gt 0) { $u=[math]::Round(($_.Size - $_.FreeSpace)/$_.Size * 100,1); $s=[math]::Round($_.Size/1GB,1); Write-Output DISK=$($_.DeviceID)~$($_.VolumeName)~$s~$u } }"'
 
-    try:
-        client_keys = []
-        if private_key:
-            try:
-                key = asyncssh.import_private_key(private_key)
-                client_keys.append(key)
-            except Exception as ke:
-                return CheckerResult(
-                    status="down",
-                    response_time_ms=0.0,
-                    error=f"Invalid SSH private key: {ke}"
-                )
+    client_keys = []
+    if private_key:
+        try:
+            key = asyncssh.import_private_key(private_key)
+            client_keys.append(key)
+        except Exception as ke:
+            return CheckerResult(
+                status="down",
+                response_time_ms=0.0,
+                error=f"Invalid SSH private key: {ke}"
+            )
 
-        async with asyncssh.connect(
-            host,
-            port=port,
-            username=username,
-            password=password,
-            client_keys=client_keys,
-            known_hosts=None,
-            login_timeout=timeout
-        ) as conn:
-            # First try Linux command
-            result = await conn.run(command, timeout=timeout)
-            elapsed = (time.monotonic() - start) * 1000
-            
-            if result.exit_status == 0:
-                metrics = parse_metrics_output(result.stdout, target_id=target_id or host, redis_conn=redis_conn)
-                status = evaluate_resource_status(metrics["cpu_percent"], metrics["mem_percent"], metrics["disk_percent"])
-                return CheckerResult(
-                    status=status,
-                    response_time_ms=round(elapsed, 2),
-                    details=metrics
-                )
-            else:
-                # Fallback to Windows PowerShell query
-                win_result = await conn.run(win_command, timeout=timeout)
-                if win_result.exit_status == 0:
-                    metrics = parse_windows_metrics_output(win_result.stdout)
-                    status = evaluate_resource_status(metrics["cpu_percent"], metrics["mem_percent"], metrics["disk_percent"])
+    # ponytail: retry once on transient login/handshake timeouts to prevent false flapping on 60s polls
+    login_timeout = max(15, timeout)
+    last_err = None
+    for attempt in range(2):
+        try:
+            async with asyncssh.connect(
+                host,
+                port=port,
+                username=username,
+                password=password,
+                client_keys=client_keys,
+                known_hosts=None,
+                config=None,
+                agent_path=None,
+                login_timeout=login_timeout
+            ) as conn:
+                # First try Linux command
+                result = await conn.run(command, timeout=timeout)
+                elapsed = (time.monotonic() - start) * 1000
+                
+                if result.exit_status == 0:
+                    metrics = parse_metrics_output(result.stdout, target_id=target_id or host, redis_conn=redis_conn)
+                    status, err = evaluate_resource_status(metrics["cpu_percent"], metrics["mem_percent"], metrics["disk_percent"])
                     return CheckerResult(
                         status=status,
                         response_time_ms=round(elapsed, 2),
+                        error=err,
                         details=metrics
                     )
-                
-                return CheckerResult(
-                    status="down",
-                    response_time_ms=round(elapsed, 2),
-                    error=f"SSH check failed (Linux exit code {result.exit_status}, Windows exit code {win_result.exit_status})",
-                    details={"exit_status": result.exit_status, "stderr": result.stderr[:200]}
-                )
-                
-    except asyncssh.PermissionDenied as e:
-        elapsed = (time.monotonic() - start) * 1000
-        return CheckerResult(status="down", response_time_ms=round(elapsed, 2), error=f"SSH Auth Failed: {e}")
-    except Exception as e:
-        elapsed = (time.monotonic() - start) * 1000
-        return CheckerResult(status="down", response_time_ms=round(elapsed, 2), error=str(e))
+                else:
+                    # Fallback to Windows PowerShell query
+                    win_result = await conn.run(win_command, timeout=timeout)
+                    if win_result.exit_status == 0:
+                        metrics = parse_windows_metrics_output(win_result.stdout)
+                        status, err = evaluate_resource_status(metrics["cpu_percent"], metrics["mem_percent"], metrics["disk_percent"])
+                        return CheckerResult(
+                            status=status,
+                            response_time_ms=round(elapsed, 2),
+                            error=err,
+                            details=metrics
+                        )
+                    
+                    return CheckerResult(
+                        status="down",
+                        response_time_ms=round(elapsed, 2),
+                        error=f"SSH check failed (Linux exit code {result.exit_status}, Windows exit code {win_result.exit_status})",
+                        details={"exit_status": result.exit_status, "stderr": result.stderr[:200]}
+                    )
+        except asyncssh.PermissionDenied as e:
+            elapsed = (time.monotonic() - start) * 1000
+            return CheckerResult(status="down", response_time_ms=round(elapsed, 2), error=f"SSH Auth Failed: {e}")
+        except Exception as e:
+            last_err = e
+            if attempt == 0 and ("timeout" in str(e).lower() or "connection" in str(e).lower()):
+                continue
+            elapsed = (time.monotonic() - start) * 1000
+            return CheckerResult(status="down", response_time_ms=round(elapsed, 2), error=str(e))
+
+    elapsed = (time.monotonic() - start) * 1000
+    return CheckerResult(status="down", response_time_ms=round(elapsed, 2), error=str(last_err))

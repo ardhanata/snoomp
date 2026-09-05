@@ -3,8 +3,9 @@ from graphify.build import build_from_json
 from graphify.cluster import score_all
 from graphify.analyze import god_nodes, surprising_connections, suggest_questions
 from graphify.report import generate
-from graphify.export import to_json
+from graphify.export import to_json, to_html
 from pathlib import Path
+from networkx.readwrite import json_graph
 
 extraction = json.loads(Path('graphify-out/.graphify_extract.json').read_text(encoding='utf-8'))
 detection  = json.loads(Path('graphify-out/.graphify_detect.json').read_text(encoding='utf-8'))
@@ -15,6 +16,7 @@ communities = {int(k): v for k, v in analysis['communities'].items()}
 cohesion = {int(k): v for k, v in analysis['cohesion'].items()}
 tokens = {'input': extraction.get('input_tokens', 0), 'output': extraction.get('output_tokens', 0)}
 
+# Re-use previous labels
 labels = {
     0: "Database Models",
     1: "Frontend App Components",
@@ -44,3 +46,8 @@ Path('graphify-out/GRAPH_REPORT.md').write_text(report, encoding='utf-8')
 Path('graphify-out/.graphify_labels.json').write_text(json.dumps({str(k): v for k, v in labels.items()}, ensure_ascii=False), encoding='utf-8')
 
 to_json(G, communities, 'graphify-out/graph.json', community_labels=labels)
+
+# Explicitly generate HTML correctly
+html = to_html(G, communities, 'graphify-out/graph.html')
+
+print("Report, JSON, and HTML generated successfully.")

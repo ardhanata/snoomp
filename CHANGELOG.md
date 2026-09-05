@@ -5,6 +5,23 @@ All notable changes to Snoomp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-09-05
+
+### Added
+- **Windows Standalone Native Executable (`dist/snoomp-windows-x64`):** Packaged Snoomp into a standalone Windows binary (`snoomp.exe`) bundling FastAPI, Uvicorn, Celery, Psycopg2, PySNMP, AsyncSSH, and pre-compiled React SPA assets. Runs completely independently of Python or system dependencies.
+- **Interactive PowerShell Installer (`scripts/install.ps1`):** Complete interactive one-liner deployment script (`irm https://<host>/install.ps1 | iex`):
+  - **Port Collision Detection & Process Inspection:** Detects occupied ports, identifies conflicting process name/PID/path, and offers custom port choice, auto-assignment, or process termination.
+  - **Full Production Enterprise Package:** Interactive configuration for TimescaleDB / PostgreSQL + Redis, pre-flight TCP verification handshakes, schema auto-initialization via `snoomp.exe --test-db`, and worker thread tuning.
+  - **Zero-Dependency Fallback:** Embedded SQLite with automatic WAL mode and in-process asynchronous task scheduler.
+  - **24/7 Windows Service:** Automated Windows Scheduled Task (`SnoompServer`) with automatic restart on failure and Windows Defender Firewall inbound rule creation.
+  - **Management Helper Scripts:** Installs `status-snoomp.ps1`, `start-snoomp.ps1`, `stop-snoomp.ps1`, `restart-snoomp.ps1`, and `view-logs.ps1`.
+
+### Fixed
+- **SSH Checker Flapping & Handshake Timeouts (`backend/app/checkers/ssh.py`):** Added explicit `config=None` and `agent_path=None` to avoid Windows OpenSSH agent contention. Implemented immediate single-retry on handshake timeouts and increased default login timeout to 15s.
+- **ICMP Ping Latency Masking (`backend/worker/tasks.py`):** Removed ping latency override on SSH checks that was disguising connection timeouts with 6ms ICMP roundtrips.
+
+---
+
 ## [0.3.0] - 2026-08-07
 
 ### Added

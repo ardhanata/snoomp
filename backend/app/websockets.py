@@ -36,11 +36,15 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 async def redis_listener():
-    logger.info("Starting Redis pub/sub listener...")
-    r = async_redis.from_url(REDIS_URL)
-    pubsub = r.pubsub()
-    await pubsub.subscribe("snoomp_updates")
-    
+    logger.info("Initializing Redis pub/sub listener...")
+    try:
+        r = async_redis.from_url(REDIS_URL, socket_connect_timeout=2)
+        pubsub = r.pubsub()
+        await pubsub.subscribe("snoomp_updates")
+    except Exception as e:
+        logger.info(f"Redis unavailable ({e}). Running WebSockets in standalone in-memory broadcast mode.")
+        return
+
     try:
         async for message in pubsub.listen():
             if message["type"] == "message":
@@ -67,7 +71,10 @@ async def redis_listener():
     except Exception as e:
         logger.error(f"Error in Redis listener: {e}")
     finally:
-        await pubsub.unsubscribe("snoomp_updates")
+        try:
+            await pubsub.unsubscribe("snoomp_updates")
+        except Exception:
+            pass
         await r.close()
 
 @router.websocket("/api/ws")

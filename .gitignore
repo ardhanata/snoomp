@@ -11,6 +11,15 @@ __pycache__/
 dist/
 venv/
 .venv/
+backend/build/
+backend/dist/
+backend/logs/
+
+# Knowledge graph cache & temporary files
+graphify-out/cache/
+graphify-out/2026-*/
+graphify-out/*.py
+graphify-out/*.sig
 
 # Node
 node_modules/

@@ -1,21 +1,29 @@
 import React, { useState, useEffect } from 'react';
+import { Bell, Plus } from 'lucide-react';
+import Dialog from './Dialog';
+import NotificationDialog, { NotificationItem } from './NotificationDialog';
 
 interface MonitorModalProps {
   isOpen: boolean;
+  /** Fleet-wide thresholds, shown as the placeholder for each blank field. */
+  globalThresholds?: Partial<Record<string, number | null>>;
   onClose: () => void;
   onSave: (data: any) => void;
   editingMonitor?: any;
   token: string | null;
   existingTags: string[];
+  onToast?: (msg: string) => void;
 }
 
 const MonitorModal: React.FC<MonitorModalProps> = ({ 
   isOpen, 
+  globalThresholds = {},
   onClose, 
   onSave, 
   editingMonitor,
   token,
-  existingTags
+  existingTags,
+  onToast
 }) => {
   const [name, setName] = useState('');
   const [type, setType] = useState('http');
@@ -38,12 +46,18 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
   const [dnsServer, setDnsServer] = useState('');
   const [dbConnStr, setDbConnStr] = useState('');
   const [dbQuery, setDbQuery] = useState('SELECT 1');
+  /* Per-monitor alarm overrides. Kept as strings so "" reads as "inherit the
+     fleet value" rather than being coerced to 0. */
+  const [thresholds, setThresholds] = useState<Record<string, string>>({});
   
   // Alerts config
-  const [alertType, setAlertType] = useState('none'); // none, discord, telegram, slack
-  const [alertWebhook, setAlertWebhook] = useState('');
-  const [alertBotToken, setAlertBotToken] = useState('');
-  const [alertChatId, setAlertChatId] = useState('');
+  const [appriseUri, setAppriseUri] = useState('');
+  // Uptime Kuma Notification channels
+  const [availableNotifications, setAvailableNotifications] = useState<NotificationItem[]>([]);
+  const [selectedNotificationIds, setSelectedNotificationIds] = useState<string[]>([]);
+  const [isNotifDialogOpen, setIsNotifDialogOpen] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
+  const [showAdvancedApprise, setShowAdvancedApprise] = useState(false);
 
   // Test connection state
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
@@ -110,6 +124,30 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
     link.click();
     document.body.removeChild(link);
   };
+
+  const loadNotifications = async (): Promise<NotificationItem[]> => {
+    try {
+      const apiOrigin = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      const res = await fetch(`${apiOrigin}/api/notifications`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableNotifications(data);
+        return data;
+      }
+    } catch (e) {
+      console.error('Failed to load notifications:', e);
+    }
+    return [];
+  };
+
+  const handleToggleNotification = (id: string) => {
+    setSelectedNotificationIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
   // Load editing monitor properties
   useEffect(() => {
     if (editingMonitor) {
@@ -134,21 +172,19 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
       setDnsServer(cfg.dns_server || '');
       setDbConnStr(cfg.connection_string || '');
       setDbQuery(cfg.query || 'SELECT 1');
+      setThresholds(
+        Object.fromEntries(
+          Object.entries(cfg.thresholds || {}).map(([k, v]) => [k, v === null || v === undefined ? '' : String(v)]),
+        ),
+      );
       
       // Load notifications if exists
       const alerts = cfg.notifications || [];
       if (alerts.length > 0) {
         const primary = alerts[0];
-        setAlertType(primary.type || 'none');
-        const alertCfg = primary.config || {};
-        setAlertWebhook(alertCfg.webhook_url || '');
-        setAlertBotToken(alertCfg.bot_token || '');
-        setAlertChatId(alertCfg.chat_id || '');
+        setAppriseUri(primary.apprise_uri || '');
       } else {
-        setAlertType('none');
-        setAlertWebhook('');
-        setAlertBotToken('');
-        setAlertChatId('');
+        setAppriseUri('');
       }
     } else {
       // Clear inputs
@@ -171,10 +207,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
       setDnsServer('');
       setDbConnStr('');
       setDbQuery('SELECT 1');
-      setAlertType('none');
-      setAlertWebhook('');
-      setAlertBotToken('');
-      setAlertChatId('');
+      setAppriseUri('');
     }
 
     // Reset test connection state & CSV state
@@ -182,6 +215,23 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
     setTestMessage('');
     setCsvMonitors([]);
     setCsvLoadedInfo(null);
+
+    if (isOpen) {
+      loadNotifications().then((notifs) => {
+        if (editingMonitor) {
+          const cfg = editingMonitor.config_json || {};
+          if (Array.isArray(cfg.notification_ids)) {
+            setSelectedNotificationIds(cfg.notification_ids);
+          } else {
+            // Default to channels with is_default == true
+            setSelectedNotificationIds(notifs.filter(n => n.is_default && n.id).map(n => n.id!));
+          }
+        } else {
+          // Brand new monitor: auto-select default channels (matching Uptime Kuma)
+          setSelectedNotificationIds(notifs.filter(n => n.is_default && n.id).map(n => n.id!));
+        }
+      });
+    }
   }, [editingMonitor, isOpen]);
 
   const handleCsvBulkImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -304,15 +354,8 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
     setTestStatus('testing');
     setTestMessage('');
     const notifications: any[] = [];
-    if (alertType !== 'none') {
-      const config: any = {};
-      if (alertType === 'discord' || alertType === 'slack' || alertType === 'webhook') {
-        config.webhook_url = alertWebhook;
-      } else if (alertType === 'telegram') {
-        config.bot_token = alertBotToken;
-        config.chat_id = alertChatId;
-      }
-      notifications.push({ type: alertType, config });
+    if (appriseUri.trim() !== '') {
+      notifications.push({ apprise_uri: appriseUri.trim() });
     }
     const config_json: any = { notifications };
     if (type === 'http') {
@@ -370,17 +413,25 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const notifications: any[] = [];
-    if (alertType !== 'none') {
-      const config: any = {};
-      if (alertType === 'discord' || alertType === 'slack' || alertType === 'webhook') {
-        config.webhook_url = alertWebhook;
-      } else if (alertType === 'telegram') {
-        config.bot_token = alertBotToken;
-        config.chat_id = alertChatId;
-      }
-      notifications.push({ type: alertType, config });
+    if (appriseUri.trim() !== '') {
+      notifications.push({ apprise_uri: appriseUri.trim() });
     }
-    const base_config_json: any = { notifications };
+    const base_config_json: any = { 
+      notifications,
+      notification_ids: selectedNotificationIds
+    };
+
+    // Only send keys the user actually filled in. An empty string here would
+    // be stored as a real override and silently disable the fleet default.
+    const thresholdOverrides = Object.fromEntries(
+      Object.entries(thresholds)
+        .map(([k, v]) => [k, v.trim().replace(',', '.')])
+        .filter(([, v]) => v !== '' && Number.isFinite(Number(v)))
+        .map(([k, v]) => [k, Number(v)]),
+    );
+    if (Object.keys(thresholdOverrides).length > 0) {
+      base_config_json.thresholds = thresholdOverrides;
+    }
     if (type === 'http') {
       base_config_json.scheme = scheme;
       base_config_json.method = method;
@@ -421,10 +472,15 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
       })).then((results) => {
         const successes = results.filter(r => r.ok).length;
         const failures = results.length - successes;
-        alert(`Bulk Import completed:\n${successes} monitor(s) created successfully.\n${failures} failed.`);
+        const msg = `Bulk Import completed:\n${successes} monitor(s) created successfully.\n${failures} failed.`;
+        if (onToast) onToast(msg); else alert(msg);
         handleClearCsv();
         onClose();
-      }).catch(() => alert('An error occurred during bulk import.'));
+        if (successes > 0) onSave(null);
+      }).catch(() => {
+        const msg = 'An error occurred during bulk import.';
+        if (onToast) onToast(msg); else alert(msg);
+      });
     } else {
       const resolvedHost = getEffectiveHost();
       const payload = {
@@ -442,75 +498,22 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
     }
   };
 
-  // Focus Trap Hook
-  const modalRef = React.useRef<HTMLDivElement>(null);
-  const prevIsOpenRef = React.useRef(false);
-
-  React.useEffect(() => {
-    if (!isOpen || !modalRef.current) {
-      prevIsOpenRef.current = false;
-      return;
-    }
-
-    // ponytail: focus initial input only once when modal transitions from closed to open, with preventScroll: true
-    if (!prevIsOpenRef.current) {
-      prevIsOpenRef.current = true;
-      const targetInput = modalRef.current.querySelector<HTMLElement>('input:not([disabled])');
-      if (targetInput) {
-        targetInput.focus({ preventScroll: true });
-      }
-    }
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key !== 'Tab') return;
-      const currentFocusable = modalRef.current?.querySelectorAll<HTMLElement>(
-        'button, [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      );
-      if (!currentFocusable || currentFocusable.length === 0) return;
-      const first = currentFocusable[0];
-      const last = currentFocusable[currentFocusable.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus({ preventScroll: true });
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus({ preventScroll: true });
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen, onClose]);
-
   // ponytail: early return guard must be after all hooks to prevent conditional hook crash
   if (!isOpen) return null;
 
   return (
-    <div 
-      className="modal-overlay"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div 
-        ref={modalRef}
-        className="modal-content"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="monitor-modal-title"
-      >
+    <Dialog isOpen={isOpen} onClose={onClose} aria-labelledby="monitor-modal-title" className="modal-content">
         <div className="modal-header">
           <h3 id="monitor-modal-title">{editingMonitor ? 'Edit Monitor Target' : 'Create Monitor Target'}</h3>
-          <button type="button" aria-label="Close modal" className="secondary" style={{ padding: '4px 10px' }} onClick={onClose}>✕</button>
+          <button type="button" aria-label="Close modal" className="secondary" style={{ padding: '4px 11px' }} onClick={onClose}>✕</button>
         </div>
         
         <form onSubmit={handleSubmit}>
           <div className="form-row">
             <div className="form-group">
-              <label>Target Name *</label>
+              <label htmlFor="monitor-name">Target Name *</label>
               <input 
+                id="monitor-name"
                 type="text" 
                 required={csvMonitors.length === 0} 
                 disabled={csvMonitors.length > 0}
@@ -521,8 +524,8 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
             </div>
             
             <div className="form-group">
-              <label>Monitor Type *</label>
-              <select value={type} onChange={(e) => handleTypeChange(e.target.value)}>
+              <label htmlFor="monitor-type">Monitor Type *</label>
+              <select id="monitor-type" value={type} onChange={(e) => handleTypeChange(e.target.value)}>
                 <option value="http">HTTP / HTTPS</option>
                 <option value="ping">ICMP Ping</option>
                 <option value="tcp">TCP Port</option>
@@ -540,7 +543,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
           {/* CSV Bulk Upload Panel for selected type */}
           {!editingMonitor && (
             <div style={{
-              background: 'rgba(255,255,255,0.02)',
+              background: 'var(--surface-raised)',
               border: '1px dashed var(--border)',
               borderRadius: '8px',
               padding: '12px 14px',
@@ -557,7 +560,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
                   <button
                     type="button"
                     className="secondary"
-                    style={{ fontSize: '11px', padding: '4px 10px', background: 'rgba(59,130,246,0.1)', color: 'var(--accent)', border: '1px solid rgba(59,130,246,0.2)' }}
+                    style={{ fontSize: '12px', padding: '4px 11px', background: 'rgba(59,130,246,0.1)', color: 'var(--accent)', border: '1px solid rgba(59,130,246,0.2)' }}
                     onClick={handleDownloadSampleCsv}
                   >
                     Download Template
@@ -566,7 +569,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
                     <button
                       type="button"
                       className="secondary"
-                      style={{ fontSize: '11px', padding: '4px 10px', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}
+                      style={{ fontSize: '12px', padding: '4px 11px', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}
                       onClick={handleClearCsv}
                     >
                       ✕ Clear CSV
@@ -575,7 +578,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
                     <button
                       type="button"
                       className="secondary"
-                      style={{ fontSize: '11px', padding: '4px 10px' }}
+                      style={{ fontSize: '12px', padding: '4px 11px' }}
                       onClick={() => csvFileRef.current?.click()}
                       disabled={csvImporting}
                     >
@@ -593,9 +596,9 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
               </div>
               {csvLoadedInfo ? (
                 <div style={{
-                  padding: '6px 10px',
+                  padding: '6px 11px',
                   borderRadius: '4px',
-                  fontSize: '11px',
+                  fontSize: '12px',
                   fontWeight: '600',
                   background: 'rgba(16, 185, 129, 0.15)',
                   border: '1px solid rgba(16, 185, 129, 0.3)',
@@ -605,12 +608,12 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
                   alignItems: 'center'
                 }}>
                   <span>ℹ️ {csvLoadedInfo}</span>
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 'normal' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal' }}>
                     Single-target inputs disabled during bulk import
                   </span>
                 </div>
               ) : (
-                <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
                   <span style={{ fontWeight: '600' }}>Expected format (no headers):</span>
                   <code style={{ display: 'block', background: 'rgba(0,0,0,0.2)', padding: '4px 8px', borderRadius: '4px', marginTop: '4px', fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
                     {getCsvFormatText()}
@@ -625,9 +628,12 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
 
           {!(type === 'db' || type === 'mongodb' || type === 'redis') && (
             <div className="form-group">
-              <label>Hostname / IP / URL *</label>
+              <label htmlFor="monitor-host">Hostname / IP / URL *</label>
               <input 
+                id="monitor-host"
                 type="text" 
+                autoComplete="off"
+                spellCheck="false"
                 required={csvMonitors.length === 0} 
                 disabled={csvMonitors.length > 0}
                 placeholder={csvMonitors.length > 0 ? "Bulk CSV loaded" : (type === 'http' ? 'example.com' : '192.168.1.100')} 
@@ -640,9 +646,11 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
           <div className="form-row">
             {!(type === 'db' || type === 'mongodb' || type === 'redis') && (
               <div className="form-group">
-                <label>Port (Optional)</label>
+                <label htmlFor="monitor-port">Port (Optional)</label>
                 <input 
+                  id="monitor-port"
                   type="number" 
+                  inputMode="numeric"
                   disabled={csvMonitors.length > 0}
                   placeholder={csvMonitors.length > 0 ? "Specified in CSV" : (type === 'ssh' ? '22' : type === 'snmp' ? '161' : 'Leave empty')} 
                   value={csvMonitors.length > 0 ? '' : port} 
@@ -652,9 +660,11 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
             )}
             
             <div className="form-group">
-              <label>Check Interval (seconds)</label>
+              <label htmlFor="monitor-interval">Check Interval (seconds)</label>
               <input 
+                id="monitor-interval"
                 type="number" 
+                inputMode="numeric"
                 min="10" 
                 max="86400" 
                 value={checkInterval} 
@@ -665,17 +675,17 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
 
           {/* Conditional Checker Fields */}
           {type === 'http' && (
-            <div className="form-row" style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', marginBottom: '18px', opacity: csvMonitors.length > 0 ? 0.6 : 1 }}>
+            <div className="form-row" style={{ padding: '12px', background: 'var(--surface-raised)', borderRadius: '8px', marginBottom: '18px', opacity: csvMonitors.length > 0 ? 0.6 : 1 }}>
               <div className="form-group">
-                <label>Scheme</label>
-                <select value={scheme} disabled={csvMonitors.length > 0} onChange={(e) => setScheme(e.target.value)}>
+                <label htmlFor="monitor-scheme">Scheme</label>
+                <select id="monitor-scheme" value={scheme} disabled={csvMonitors.length > 0} onChange={(e) => setScheme(e.target.value)}>
                   <option value="http">http://</option>
                   <option value="https">https://</option>
                 </select>
               </div>
               <div className="form-group">
-                <label>HTTP Method</label>
-                <select value={method} disabled={csvMonitors.length > 0} onChange={(e) => setMethod(e.target.value)}>
+                <label htmlFor="monitor-method">HTTP Method</label>
+                <select id="monitor-method" value={method} disabled={csvMonitors.length > 0} onChange={(e) => setMethod(e.target.value)}>
                   <option value="GET">GET</option>
                   <option value="POST">POST</option>
                   <option value="PUT">PUT</option>
@@ -696,10 +706,12 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
           )}
 
           {type === 'snmp' && (
-            <div className="form-group" style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', marginBottom: '18px', opacity: csvMonitors.length > 0 ? 0.6 : 1 }}>
-              <label>SNMP Community String</label>
+            <div className="form-group" style={{ padding: '12px', background: 'var(--surface-raised)', borderRadius: '8px', marginBottom: '18px', opacity: csvMonitors.length > 0 ? 0.6 : 1 }}>
+              <label htmlFor="monitor-snmp">SNMP Community String</label>
               <input 
+                id="monitor-snmp"
                 type="text" 
+                spellCheck="false"
                 disabled={csvMonitors.length > 0}
                 placeholder={csvMonitors.length > 0 ? "Specified in CSV" : "public"}
                 value={csvMonitors.length > 0 ? "" : snmpCommunity} 
@@ -709,12 +721,14 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
           )}
 
           {type === 'ssh' && (
-            <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', marginBottom: '18px', opacity: csvMonitors.length > 0 ? 0.6 : 1 }}>
+            <div style={{ padding: '12px', background: 'var(--surface-raised)', borderRadius: '8px', marginBottom: '18px', opacity: csvMonitors.length > 0 ? 0.6 : 1 }}>
               <div className="form-row">
                 <div className="form-group">
-                  <label>SSH Username</label>
+                  <label htmlFor="monitor-ssh-user">SSH Username</label>
                   <input 
+                    id="monitor-ssh-user"
                     type="text" 
+                    spellCheck="false"
                     disabled={csvMonitors.length > 0}
                     placeholder={csvMonitors.length > 0 ? "Specified in CSV" : "root"}
                     value={csvMonitors.length > 0 ? "" : sshUser} 
@@ -722,9 +736,11 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
                   />
                 </div>
                 <div className="form-group">
-                  <label>SSH Password</label>
+                  <label htmlFor="monitor-ssh-pass">SSH Password</label>
                   <input 
+                    id="monitor-ssh-pass"
                     type="password" 
+                    autoComplete="new-password"
                     disabled={csvMonitors.length > 0}
                     placeholder={csvMonitors.length > 0 ? "Specified in CSV" : "Optional if using SSH Key"} 
                     value={csvMonitors.length > 0 ? "" : sshPassword} 
@@ -733,24 +749,26 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
                 </div>
               </div>
               <div className="form-group">
-                <label>SSH Private Key (PEM format)</label>
+                <label htmlFor="monitor-ssh-key">SSH Private Key (PEM format)</label>
                 <textarea 
+                  id="monitor-ssh-key"
                   rows={3} 
+                  spellCheck="false"
                   disabled={csvMonitors.length > 0}
                   placeholder={csvMonitors.length > 0 ? "Specified in CSV" : "-----BEGIN OPENSSH PRIVATE KEY-----"} 
                   value={csvMonitors.length > 0 ? "" : sshKey} 
                   onChange={(e) => setSshKey(e.target.value)} 
-                  style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}
+                  style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}
                 />
               </div>
             </div>
           )}
 
           {type === 'dns' && (
-            <div className="form-row" style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', marginBottom: '18px', opacity: csvMonitors.length > 0 ? 0.6 : 1 }}>
+            <div className="form-row" style={{ padding: '12px', background: 'var(--surface-raised)', borderRadius: '8px', marginBottom: '18px', opacity: csvMonitors.length > 0 ? 0.6 : 1 }}>
               <div className="form-group">
-                <label>Resolve Type</label>
-                <select value={dnsType} disabled={csvMonitors.length > 0} onChange={(e) => setDnsType(e.target.value)}>
+                <label htmlFor="monitor-dns-type">Resolve Type</label>
+                <select id="monitor-dns-type" value={dnsType} disabled={csvMonitors.length > 0} onChange={(e) => setDnsType(e.target.value)}>
                   <option value="A">A (IPv4)</option>
                   <option value="AAAA">AAAA (IPv6)</option>
                   <option value="CNAME">CNAME</option>
@@ -759,9 +777,11 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
                 </select>
               </div>
               <div className="form-group">
-                <label>DNS Server IP (Optional)</label>
+                <label htmlFor="monitor-dns-server">DNS Server IP (Optional)</label>
                 <input 
+                  id="monitor-dns-server"
                   type="text" 
+                  spellCheck="false"
                   disabled={csvMonitors.length > 0}
                   placeholder={csvMonitors.length > 0 ? "Specified in CSV" : "e.g. 8.8.8.8"}
                   value={csvMonitors.length > 0 ? "" : dnsServer} 
@@ -772,13 +792,15 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
           )}
 
           {(type === 'db' || type === 'mongodb' || type === 'redis') && (
-            <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', marginBottom: '18px', opacity: csvMonitors.length > 0 ? 0.6 : 1 }}>
+            <div style={{ padding: '12px', background: 'var(--surface-raised)', borderRadius: '8px', marginBottom: '18px', opacity: csvMonitors.length > 0 ? 0.6 : 1 }}>
               <div className="form-group">
-                <label>
+                <label htmlFor="monitor-db-uri">
                   {type === 'db' ? 'PostgreSQL Connection URI *' : type === 'mongodb' ? 'MongoDB Connection URI *' : 'Redis Connection URI *'}
                 </label>
                 <input 
+                  id="monitor-db-uri"
                   type="text" 
+                  spellCheck="false"
                   required={csvMonitors.length === 0} 
                   disabled={csvMonitors.length > 0}
                   placeholder={
@@ -793,9 +815,11 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
               </div>
               {type === 'db' && (
                 <div className="form-group">
-                  <label>Verification Query</label>
+                  <label htmlFor="monitor-db-query">Verification Query</label>
                   <input 
+                    id="monitor-db-query"
                     type="text" 
+                    spellCheck="false"
                     disabled={csvMonitors.length > 0}
                     placeholder={csvMonitors.length > 0 ? "Specified in CSV" : "SELECT 1"}
                     value={csvMonitors.length > 0 ? "" : dbQuery} 
@@ -806,14 +830,98 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
             </div>
           )}
 
+          {/* ── Per-monitor alarm thresholds ──
+              Blank means inherit the fleet value shown in the placeholder, so
+              the common case needs no input at all. Resource fields only appear
+              for monitor types that actually report those metrics. */}
+          {(() => {
+            /* Must match RESOURCE_METRIC_TYPES in app/services/thresholds.py.
+               Database checkers reuse cpu/mem/disk_percent for cache hit ratio
+               and op counters, so utilisation ceilings are meaningless there —
+               offering the fields would imply an alarm that never fires. */
+            const reportsResources = ['snmp', 'ssh', 'push'].includes(type);
+            const fields: [string, string, string][] = [
+              ...(reportsResources ? [
+                ['cpu_warn', 'CPU warning', '%'],
+                ['cpu_crit', 'CPU critical', '%'],
+                ['mem_warn', 'Memory warning', '%'],
+                ['mem_crit', 'Memory critical', '%'],
+                ['disk_warn', 'Disk warning', '%'],
+                ['disk_crit', 'Disk critical', '%'],
+              ] as [string, string, string][] : []),
+              ['latency_warn', 'Latency warning', 'ms'],
+              ['latency_crit', 'Latency critical', 'ms'],
+            ];
+            const overrideCount = Object.values(thresholds).filter(v => (v ?? '').trim() !== '').length;
+
+            return (
+              <details
+                open={overrideCount > 0}
+                style={{ marginBottom: '18px', background: 'var(--surface-raised)', borderRadius: '8px', border: '1px solid var(--border)' }}
+              >
+                <summary style={{ padding: '10px 12px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  Alarm Thresholds
+                  <span style={{ fontSize: '11px', fontWeight: 500, color: overrideCount > 0 ? 'var(--accent)' : 'var(--text-muted)' }}>
+                    {overrideCount > 0
+                      ? `${overrideCount} override${overrideCount === 1 ? '' : 's'}`
+                      : 'inheriting fleet defaults'}
+                  </span>
+                </summary>
+
+                <div style={{ padding: '0 12px 12px' }}>
+                  <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', margin: '0 0 12px' }}>
+                    Leave blank to use the fleet value from Preferences. Set a value here to override
+                    it for this monitor only.
+                  </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
+                    {fields.map(([key, label, unit]) => {
+                      const inherited = globalThresholds?.[key];
+                      return (
+                        <div key={key}>
+                          <label
+                            htmlFor={`monitor-th-${key}`}
+                            style={{ fontSize: '11.5px', color: 'var(--text-secondary)', display: 'block', marginBottom: '3px' }}
+                          >
+                            {label} ({unit})
+                          </label>
+                          <input
+                            id={`monitor-th-${key}`}
+                            type="text"
+                            inputMode="decimal"
+                            autoComplete="off"
+                            spellCheck={false}
+                            disabled={csvMonitors.length > 0}
+                            value={thresholds[key] ?? ''}
+                            placeholder={inherited === null || inherited === undefined ? 'off' : String(inherited)}
+                            onChange={e => setThresholds(t => ({ ...t, [key]: e.target.value }))}
+                            style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {!reportsResources && (
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '10px 0 0' }}>
+                      {['db', 'mongodb', 'redis'].includes(type)
+                        ? 'Database monitors report cache hit ratio and operation counts rather than host utilisation, so only latency ceilings apply here.'
+                        : `${type.toUpperCase()} monitors do not report CPU, memory or disk, so only latency ceilings apply.`}
+                    </p>
+                  )}
+                </div>
+              </details>
+            );
+          })()}
+
           <div className="form-row">
             <div className="form-group" style={{ flex: 1 }}>
-              <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label htmlFor="monitor-tags" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'baseline' }}>
                 <span>Tags (System Group &amp; Environment)</span>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal' }}>Comma separated</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 'normal', marginLeft: 'auto' }}>Comma separated</span>
               </label>
               <input 
+                id="monitor-tags"
                 type="text" 
+                autoComplete="off"
                 placeholder="e.g. SOA, prod, Server" 
                 value={tagsStr} 
                 onChange={(e) => setTagsStr(e.target.value)} 
@@ -821,7 +929,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
 
               {/* Environment Tag Quick Add */}
               <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>
                   Environment Tag:
                 </span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -835,8 +943,8 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
                         className={`tag-badge-btn ${isActive ? 'active' : ''}`}
                         onClick={() => handleToggleEnvTag(env)}
                         style={{
-                          fontSize: '11px',
-                          padding: '3px 10px',
+                          fontSize: '12px',
+                          padding: '3px 11px',
                           background: isActive ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.05)',
                           border: isActive ? '1px solid var(--accent)' : '1px solid var(--border)',
                           borderRadius: '12px',
@@ -856,7 +964,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
               {/* System / Application Group Tags */}
               {((existingTags && existingTags.length > 0) ? Array.from(new Set(existingTags.filter(t => !isEnvTag(t)))) : ['SOA', 'MIS', 'DB', 'HTTP', 'Server']).length > 0 && (
                 <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>
                     Suggested System / Application Group Tags:
                   </span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -870,8 +978,8 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
                           className={`tag-badge-btn ${isActive ? 'active' : ''}`}
                           onClick={() => handleToggleGroupTag(tag)}
                           style={{
-                            fontSize: '11px',
-                            padding: '3px 10px',
+                            fontSize: '12px',
+                            padding: '3px 11px',
                             background: isActive ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.04)',
                             border: isActive ? '1px solid var(--accent)' : '1px solid var(--border)',
                             borderRadius: '12px',
@@ -890,8 +998,9 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
             </div>
             
             <div className="form-group">
-              <label>Path / Endpoint Path</label>
+              <label htmlFor="monitor-path">Path / Endpoint Path</label>
               <input 
+                id="monitor-path"
                 type="text" 
                 disabled={csvMonitors.length > 0}
                 placeholder={csvMonitors.length > 0 ? "Specified in CSV" : "e.g. /healthz or /api/ping"} 
@@ -901,55 +1010,167 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
             </div>
           </div>
 
-          {/* Alert Notification Configuration */}
-          <div style={{ padding: '12px', background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.15)', borderRadius: '8px', marginBottom: '20px' }}>
-            <div className="form-group">
-              <label style={{ color: 'var(--accent)', fontWeight: '600' }}>🔔 Alert Notifications (Apprise Integration)</label>
-              <select value={alertType} onChange={(e) => setAlertType(e.target.value)} style={{ border: '1px solid rgba(59,130,246,0.3)' }}>
-                <option value="none">No Alerts Configured</option>
-                <option value="discord">Discord Webhook</option>
-                <option value="telegram">Telegram Bot Alert</option>
-                <option value="slack">Slack Webhook</option>
-              </select>
+          {/* Uptime Kuma Style Notification Channels Section */}
+          <div style={{
+            padding: '14px',
+            background: 'rgba(59, 130, 246, 0.04)',
+            border: '1px solid rgba(59, 130, 246, 0.18)',
+            borderRadius: '8px',
+            marginBottom: '20px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Bell size={16} style={{ color: 'var(--accent)' }} />
+                <span style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Notifications
+                </span>
+              </div>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setSelectedNotification(null);
+                  setIsNotifDialogOpen(true);
+                }}
+                style={{
+                  fontSize: '11.5px',
+                  padding: '3px 9px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                <Plus size={13} /> Setup Notification
+              </button>
             </div>
 
-            {(alertType === 'discord' || alertType === 'slack') && (
-              <div className="form-group">
-                <label>Webhook URL *</label>
-                <input 
-                  type="text" 
-                  required 
-                  placeholder={alertType === 'discord' ? 'https://discord.com/api/webhooks/...' : 'https://hooks.slack.com/services/...'} 
-                  value={alertWebhook} 
-                  onChange={(e) => setAlertWebhook(e.target.value)} 
-                />
+            {availableNotifications.length === 0 ? (
+              <div style={{
+                padding: '10px 12px',
+                fontSize: '12px',
+                color: 'var(--text-muted)',
+                background: 'var(--bg-secondary)',
+                borderRadius: '6px',
+                border: '1px dashed var(--border)'
+              }}>
+                Not available, please setup. Click "Setup Notification" to connect Discord, Telegram, Slack, Webhook, or Email.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {availableNotifications.map(n => {
+                  const isChecked = selectedNotificationIds.includes(n.id!);
+                  return (
+                    <div
+                      key={n.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        background: isChecked ? 'rgba(59, 130, 246, 0.08)' : 'var(--bg-secondary)',
+                        border: isChecked ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid var(--border)',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, cursor: 'pointer', flex: 1, minWidth: 0 }}>
+                        <input
+                          type="checkbox"
+                          style={{ width: 'auto', margin: 0 }}
+                          checked={isChecked}
+                          onChange={() => handleToggleNotification(n.id!)}
+                        />
+                        <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {n.name}
+                        </span>
+                        <span style={{
+                          fontSize: '10.5px',
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          background: 'rgba(255, 255, 255, 0.06)',
+                          color: 'var(--text-secondary)',
+                          textTransform: 'uppercase',
+                          fontWeight: 600
+                        }}>
+                          {n.type}
+                        </span>
+                        {n.is_default && (
+                          <span style={{
+                            fontSize: '10px',
+                            padding: '1px 5px',
+                            borderRadius: '3px',
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            color: '#10b981',
+                            fontWeight: 600
+                          }}>
+                            Default
+                          </span>
+                        )}
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedNotification(n);
+                          setIsNotifDialogOpen(true);
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--accent)',
+                          fontSize: '11.5px',
+                          cursor: 'pointer',
+                          padding: '2px 6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '3px'
+                        }}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
-            {alertType === 'telegram' && (
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Bot Token *</label>
-                  <input 
-                    type="text" 
-                    required 
-                    placeholder="123456789:ABCdefGhI..." 
-                    value={alertBotToken} 
-                    onChange={(e) => setAlertBotToken(e.target.value)} 
+            {/* Optional Advanced Custom Apprise URI toggle */}
+            <div style={{ marginTop: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setShowAdvancedApprise(!showAdvancedApprise)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  padding: 0,
+                  textDecoration: 'underline'
+                }}
+              >
+                {showAdvancedApprise ? 'Hide custom Apprise URI' : '+ Add custom one-off Apprise URI'}
+              </button>
+              {showAdvancedApprise && (
+                <div style={{ marginTop: '8px' }}>
+                  <input
+                    id="monitor-apprise"
+                    type="text"
+                    inputMode="url"
+                    spellCheck={false}
+                    autoComplete="off"
+                    placeholder="e.g. mailto://user:pass@host or slack://token/channel"
+                    value={appriseUri}
+                    onChange={(e) => setAppriseUri(e.target.value)}
+                    style={{ fontSize: '12px', border: '1px solid rgba(59,130,246,0.3)' }}
                   />
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', display: 'block' }}>
+                    Optional raw Apprise destination for this target only.
+                  </span>
                 </div>
-                <div className="form-group">
-                  <label>Chat ID *</label>
-                  <input 
-                    type="text" 
-                    required 
-                    placeholder="e.g. -10012345678" 
-                    value={alertChatId} 
-                    onChange={(e) => setAlertChatId(e.target.value)} 
-                  />
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -965,7 +1186,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
 
           {testStatus !== 'idle' && (
             <div style={{
-              padding: '10px 12px',
+              padding: '11px 12px',
               borderRadius: '6px',
               marginBottom: '15px',
               fontSize: '13px',
@@ -974,7 +1195,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
               border: `1px solid ${testStatus === 'testing' ? '#3b82f6' : testStatus === 'success' ? '#10b981' : '#ef4444'}`,
               color: testStatus === 'testing' ? '#93c5fd' : testStatus === 'success' ? '#34d399' : '#f87171'
             }}>
-              {testStatus === 'testing' && 'Testing connection... Please wait.'}
+              {testStatus === 'testing' && 'Testing connection… Please wait.'}
               {testStatus === 'success' && `Connection Test Successful! ${testMessage}`}
               {testStatus === 'failed' && `Connection Test Failed: ${testMessage}`}
             </div>
@@ -991,24 +1212,47 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
                 background: 'rgba(59, 130, 246, 0.2)',
                 border: '1px solid var(--accent)',
                 color: 'var(--text-primary)',
-                padding: '10px 18px',
+                padding: '11px 18px',
                 borderRadius: '6px',
                 cursor: (testStatus === 'testing' || !getEffectiveHost() || csvMonitors.length > 0) ? 'not-allowed' : 'pointer',
                 opacity: (testStatus === 'testing' || !getEffectiveHost() || csvMonitors.length > 0) ? 0.5 : 1,
-                fontWeight: '600'
-              }}
-            >
-              {testStatus === 'testing' ? 'Testing...' : 'Test Connection'}
-            </button>
+              fontWeight: '600'
+            }}
+          >
+            {testStatus === 'testing' ? 'Testing…' : 'Test Connection'}
+          </button>
             
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '11px' }}>
               <button type="button" className="secondary" onClick={onClose}>Cancel</button>
               <button type="submit" disabled={testStatus === 'testing'}>Save Monitor</button>
             </div>
           </div>
         </form>
-      </div>
-    </div>
+
+        {/* Uptime Kuma Notification Dialog */}
+        <NotificationDialog
+          isOpen={isNotifDialogOpen}
+          onClose={() => setIsNotifDialogOpen(false)}
+          apiUrl={(import.meta.env.VITE_API_URL || '').replace(/\/$/, '')}
+          token={token}
+          notification={selectedNotification}
+          onSaved={async () => {
+            const fresh = await loadNotifications();
+            if (!selectedNotification && fresh.length > 0) {
+              const newest = fresh[0];
+              if (newest?.id && !selectedNotificationIds.includes(newest.id)) {
+                setSelectedNotificationIds(prev => [...prev, newest.id!]);
+              }
+            }
+          }}
+          onDeleted={async () => {
+            await loadNotifications();
+            if (selectedNotification?.id) {
+              setSelectedNotificationIds(prev => prev.filter(x => x !== selectedNotification.id));
+            }
+          }}
+        />
+    </Dialog>
   );
 };
 

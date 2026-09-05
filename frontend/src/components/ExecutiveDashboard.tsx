@@ -1,223 +1,310 @@
-import React from 'react';
-import { TrendingUp, DollarSign, Activity, CheckCircle2, ShieldCheck, Server, Database, Globe, Cpu } from 'lucide-react';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
+import React, { useMemo } from 'react';
+import { Activity, CheckCircle2, Server, Database, Globe, Cpu, ChevronRight } from 'lucide-react';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, ReferenceLine } from 'recharts';
+
+export interface SlaTrendBucket {
+  period: string;
+  label: string;
+  uptime_pct: number | null;
+  checks: number;
+  avg_response_ms: number | null;
+}
+
+export interface SlaTrend {
+  months: number;
+  buckets: SlaTrendBucket[];
+  first_heartbeat_at: string | null;
+  covered_months: number;
+  mttr: { minutes: number | null; sample_size: number };
+}
 
 interface ExecutiveDashboardProps {
   targets: any[];
-  stats?: any;
-  slaConfig?: {
-    normal: number;
-    warning: number;
-    critical: number;
-  };
+  slaConfig?: { normal: number; warning: number; critical: number };
+  /** From GET /api/dashboard/sla-trend. `null` while loading. */
+  slaTrend: SlaTrend | null;
+  slaTrendLoading: boolean;
+  /** Drill-down: jump to the dashboard filtered by a domain tag. */
+  onSelectDomain?: (tag: string) => void;
 }
 
-export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ targets, stats: _stats, slaConfig }) => {
+const numberFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
+
+function domainIcon(domain: string) {
+  if (domain.includes('DB')) return <Database size={16} style={{ color: 'var(--accent)' }} aria-hidden="true" />;
+  if (domain.includes('HTTP')) return <Globe size={16} style={{ color: 'var(--accent)' }} aria-hidden="true" />;
+  if (domain.includes('SERVER')) return <Server size={16} style={{ color: 'var(--accent)' }} aria-hidden="true" />;
+  return <Cpu size={16} style={{ color: 'var(--accent)' }} aria-hidden="true" />;
+}
+
+const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
+  targets, slaConfig, slaTrend, slaTrendLoading, onSelectDomain,
+}) => {
   const slaNormal = slaConfig?.normal ?? 99.9;
   const slaWarning = slaConfig?.warning ?? 99.0;
 
-  const totalTargets = targets.length;
-  const upTargets = targets.filter(t => t.status === 'up').length;
-  const downTargets = targets.filter(t => t.status === 'down').length;
-  const globalUptime = totalTargets > 0 ? ((upTargets / totalTargets) * 100).toFixed(2) : '100.00';
-  const globalUptimeNum = parseFloat(globalUptime);
+  /* One pass over targets instead of four separate filter/map/forEach walks.
+     `targets` is the live monitor list, so this recomputes on every WebSocket
+     heartbeat — memoised to keep the charts below from re-rendering with it. */
+  const summary = useMemo(() => {
+    const domains: Record<string, { total: number; up: number; tag: string }> = {};
+    let up = 0;
+    let down = 0;
 
-  const slaColor = globalUptimeNum >= slaNormal 
-    ? 'var(--color-up)' 
-    : globalUptimeNum >= slaWarning 
-      ? 'var(--color-warning)' 
+    for (const t of targets) {
+      const isUp = t.status === 'up';
+      if (isUp) up++;
+      else if (t.status === 'down') down++;
+
+      const rawTag = t.tags?.length ? t.tags[0] : 'core';
+      const key = rawTag.toUpperCase();
+      const bucket = domains[key] ?? (domains[key] = { total: 0, up: 0, tag: rawTag });
+      bucket.total++;
+      if (isUp) bucket.up++;
+    }
+
+    const total = targets.length;
+    return {
+      total,
+      up,
+      down,
+      domains,
+      domainCount: Object.keys(domains).length,
+      currentUptime: total > 0 ? (up / total) * 100 : 100,
+    };
+  }, [targets]);
+
+  const slaColor = summary.currentUptime >= slaNormal
+    ? 'var(--color-up)'
+    : summary.currentUptime >= slaWarning
+      ? 'var(--color-warning)'
       : 'var(--color-down)';
 
-  // TCO Savings Calculation vs Traditional APMs ($25/host avg)
-  const estimatedSaasCostMonthly = totalTargets * 25;
-  const snoompHostingCostMonthly = 40; // Estimated VM hosting
-  const monthlyTcoSavings = Math.max(0, estimatedSaasCostMonthly - snoompHostingCostMonthly);
-  const annualTcoSavings = monthlyTcoSavings * 12;
+  /* Recharts skips null points, so months predating the deployment render as a
+     gap rather than a plunge to zero. */
+  const chartData = useMemo(
+    () => (slaTrend?.buckets ?? []).map(b => ({
+      label: b.label,
+      uptime: b.uptime_pct,
+      checks: b.checks,
+      avgMs: b.avg_response_ms,
+    })),
+    [slaTrend]
+  );
 
-  // Group monitors by tag / domain for executive overview
-  const domainBreakdown: Record<string, { total: number; up: number }> = {};
-  targets.forEach(t => {
-    const tag = (t.tags && t.tags.length > 0) ? t.tags[0].toUpperCase() : 'CORE SERVICES';
-    if (!domainBreakdown[tag]) {
-      domainBreakdown[tag] = { total: 0, up: 0 };
-    }
-    domainBreakdown[tag].total += 1;
-    if (t.status === 'up') domainBreakdown[tag].up += 1;
-  });
+  /* Zoom the axis to the observed range — at a full 0–100 scale every bar in a
+     healthy month is visually identical. Floor is always drawn on the axis. */
+  const yDomain = useMemo<[number, number]>(() => {
+    const seen = chartData.map(d => d.uptime).filter((v): v is number => v != null);
+    if (seen.length === 0) return [99, 100];
+    const lowest = Math.min(...seen, slaNormal);
+    return [Math.max(0, Math.floor(lowest * 10) / 10 - 0.1), 100];
+  }, [chartData, slaNormal]);
 
-  // Mock trend data for executive SLA chart
-  const slaTrendData = [
-    { month: 'Jan', uptime: 99.98 },
-    { month: 'Feb', uptime: 99.95 },
-    { month: 'Mar', uptime: 99.99 },
-    { month: 'Apr', uptime: 99.97 },
-    { month: 'May', uptime: 99.99 },
-    { month: 'Jun', uptime: parseFloat(globalUptime) }
-  ];
+  const mttrMinutes = slaTrend?.mttr?.minutes ?? null;
+  const mttrSample = slaTrend?.mttr?.sample_size ?? 0;
+  const coverage = slaTrend?.covered_months ?? 0;
+  const requested = slaTrend?.months ?? 6;
+  const partialCoverage = slaTrend != null && coverage > 0 && coverage < requested;
 
   return (
-    <div style={{
-      width: '100%',
-      padding: '32px 40px',
-      fontFamily: 'var(--font-sans)',
-      boxSizing: 'border-box',
-      overflowY: 'auto',
-      height: 'calc(100vh - 60px)',
-      background: 'var(--bg-void)'
-    }}>
-      
-      {/* Header Eyebrow */}
-      <div style={{ marginBottom: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+    <div className="exec-dashboard">
+
+      <div className="exec-header">
         <div>
-          <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '4px' }}>
-            C-Suite Operations & Financial Control
-          </div>
-          <h1 style={{ margin: 0, fontSize: '32px', fontWeight: 800, fontFamily: 'var(--font-header)', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
-            Executive Command Center
-          </h1>
+          <div className="exec-eyebrow">Operations Overview</div>
+          <h1 className="exec-title">Executive Command Center</h1>
         </div>
 
-        {/* Live Status Badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '99px' }}>
-          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: downTargets > 0 ? 'var(--color-down)' : 'var(--color-up)', boxShadow: downTargets > 0 ? '0 0 10px var(--color-down)' : '0 0 10px var(--color-up)' }} />
-          <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
-            {downTargets > 0 ? `${downTargets} Active Insidents` : 'All Systems Operational'}
-          </span>
+        <div className="exec-live-badge">
+          <span
+            className="exec-live-dot"
+            style={{ background: summary.down > 0 ? 'var(--color-down)' : 'var(--color-up)' }}
+          />
+          <span>{summary.down > 0 ? `${summary.down} Active Incidents` : 'All Systems Operational'}</span>
         </div>
       </div>
 
-      {/* Top Row: 3 Wide Executive Metric Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '32px' }}>
-        
-        {/* Card 1: TCO Savings */}
+      {/* ── KPI row ── */}
+      <div className="exec-kpi-grid">
         <div className="double-bezel-outer">
-          <div className="double-bezel-inner" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--text-muted)', fontWeight: 700 }}>Est. TCO Savings</span>
-              <div style={{ padding: '8px', borderRadius: '50%', background: 'var(--accent-dim)', color: 'var(--accent)' }}>
-                <DollarSign size={20} />
-              </div>
+          <div className="double-bezel-inner exec-card">
+            <div className="exec-card-head">
+              <span className="exec-card-label">Monitored Infrastructure</span>
+              <div className="exec-card-icon accent"><Server size={20} aria-hidden="true" /></div>
             </div>
-            <div style={{ fontSize: '36px', fontWeight: 800, fontFamily: 'var(--font-header)', color: 'var(--text-primary)' }}>
-              ${monthlyTcoSavings.toLocaleString()} <span style={{ fontSize: '14px', color: 'var(--text-muted)', fontWeight: 500 }}>/ month</span>
+            <div className="exec-card-value">
+              {numberFmt.format(summary.total)} <span className="exec-card-unit">endpoints</span>
             </div>
-            <div style={{ fontSize: '13px', color: 'var(--color-up)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <TrendingUp size={16} /> ${annualTcoSavings.toLocaleString()} projected annual savings
+            <div className="exec-card-foot accent">
+              <Globe size={16} aria-hidden="true" /> Across {summary.domainCount} service domains
             </div>
           </div>
         </div>
 
-        {/* Card 2: Global SLA Scorecard */}
         <div className="double-bezel-outer">
-          <div className="double-bezel-inner" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--text-muted)', fontWeight: 700 }}>Global Availability SLA</span>
-              <div style={{ padding: '8px', borderRadius: '50%', background: 'var(--color-up-glow)', color: 'var(--color-up)' }}>
-                <CheckCircle2 size={20} />
-              </div>
+          <div className="double-bezel-inner exec-card">
+            <div className="exec-card-head">
+              <span className="exec-card-label">Current Availability</span>
+              <div className="exec-card-icon up"><CheckCircle2 size={20} aria-hidden="true" /></div>
             </div>
-            <div style={{ fontSize: '36px', fontWeight: 800, fontFamily: 'var(--font-header)', color: slaColor }}>
-              {globalUptime}%
+            <div className="exec-card-value" style={{ color: slaColor }}>
+              {summary.currentUptime.toFixed(2)}%
             </div>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-              Target SLA: <strong style={{ color: 'var(--text-primary)' }}>{slaNormal}%</strong> ({upTargets}/{totalTargets} Endpoints Healthy)
+            <div className="exec-card-foot">
+              Target SLA <strong>{slaNormal}%</strong> · {summary.up}/{summary.total} healthy right now
             </div>
           </div>
         </div>
 
-        {/* Card 3: Downtime Risk Mitigation */}
+        {/* Previously hardcoded "< 45s detection" labelled as MTTR. Now the real
+            figure from resolved incidents, or an explicit no-data state. */}
         <div className="double-bezel-outer">
-          <div className="double-bezel-inner" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--text-muted)', fontWeight: 700 }}>Avg Incident Resolution (MTTR)</span>
-              <div style={{ padding: '8px', borderRadius: '50%', background: 'rgba(217, 119, 6, 0.15)', color: 'var(--color-warning)' }}>
-                <Activity size={20} />
-              </div>
+          <div className="double-bezel-inner exec-card">
+            <div className="exec-card-head">
+              <span className="exec-card-label">Mean Time To Recovery</span>
+              <div className="exec-card-icon warn"><Activity size={20} aria-hidden="true" /></div>
             </div>
-            <div style={{ fontSize: '36px', fontWeight: 800, fontFamily: 'var(--font-header)', color: 'var(--text-primary)' }}>
-              &lt; 45s <span style={{ fontSize: '14px', color: 'var(--text-muted)', fontWeight: 500 }}>detection</span>
+            <div className="exec-card-value">
+              {slaTrendLoading ? (
+                <span className="exec-card-muted">—</span>
+              ) : mttrMinutes != null ? (
+                <>{numberFmt.format(mttrMinutes)} <span className="exec-card-unit">min</span></>
+              ) : (
+                <span className="exec-card-muted">No data</span>
+              )}
             </div>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <ShieldCheck size={16} style={{ color: 'var(--accent)' }} /> Zero-Latency Alert Engine
+            <div className="exec-card-foot">
+              {mttrMinutes != null
+                ? `Across ${mttrSample} resolved incident${mttrSample === 1 ? '' : 's'}`
+                : 'No incidents have resolved in this period'}
             </div>
           </div>
         </div>
-
       </div>
 
-      {/* Bottom Landscape Grid: 2/3 Chart + 1/3 Domain Breakdown */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', marginBottom: '32px' }}>
-        
-        {/* Left Column: Widescreen SLA Chart */}
+      {/* ── Trend + domain breakdown ── */}
+      <div className="exec-lower-grid">
         <div className="double-bezel-outer">
           <div className="double-bezel-inner" style={{ height: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, fontFamily: 'var(--font-header)' }}>
-                Enterprise SLA Trend History (6 Months)
-              </h3>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>HYPERTABLE TIME-SERIES</span>
+            <div className="exec-panel-head">
+              <h2 className="exec-panel-title">
+                Availability Trend ({requested} Months)
+              </h2>
+              {partialCoverage && (
+                <span className="exec-panel-note">
+                  {coverage} month{coverage === 1 ? '' : 's'} of recorded data
+                </span>
+              )}
             </div>
-            
-            <div style={{ width: '100%', height: 300 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={slaTrendData}>
-                  <defs>
-                    <linearGradient id="slaGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="var(--accent)" stopOpacity={0.0}/>
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="month" stroke="var(--text-muted)" fontSize={12} />
-                  <YAxis domain={[99.0, 100.0]} stroke="var(--text-muted)" fontSize={12} />
-                  <Tooltip contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '8px' }} />
-                  <Area type="monotone" dataKey="uptime" stroke="var(--accent)" strokeWidth={3} fillOpacity={1} fill="url(#slaGradient)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
 
-        {/* Right Column: Service Domain Health Breakdown */}
-        <div className="double-bezel-outer">
-          <div className="double-bezel-inner" style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, fontFamily: 'var(--font-header)' }}>
-              Domain Health Breakdown
-            </h3>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, overflowY: 'auto' }}>
-              {Object.keys(domainBreakdown).length > 0 ? (
-                Object.entries(domainBreakdown).map(([domain, data]) => {
-                  const pct = ((data.up / data.total) * 100).toFixed(1);
-                  return (
-                    <div key={domain} style={{ padding: '12px 16px', background: 'var(--bg-void)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        {domain.includes('DB') ? <Database size={16} style={{ color: 'var(--accent)' }} /> :
-                         domain.includes('HTTP') ? <Globe size={16} style={{ color: 'var(--accent)' }} /> :
-                         domain.includes('SERVER') ? <Server size={16} style={{ color: 'var(--accent)' }} /> :
-                         <Cpu size={16} style={{ color: 'var(--accent)' }} />}
-                        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{domain}</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{data.up}/{data.total}</span>
-                        <span style={{ fontSize: '13px', fontWeight: 800, color: parseFloat(pct) >= 99 ? 'var(--color-up)' : 'var(--color-down)' }}>
-                          {pct}%
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
-                  No active targets configured.
+            <div style={{ width: '100%', height: 300 }}>
+              {slaTrendLoading ? (
+                <div className="exec-chart-placeholder">Loading trend…</div>
+              ) : coverage === 0 ? (
+                <div className="exec-chart-placeholder">
+                  No heartbeat history recorded yet. The trend appears once monitors
+                  have been running for a full calendar month.
                 </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="slaGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="var(--accent)" stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="label" stroke="var(--text-muted)" fontSize={12} />
+                    <YAxis
+                      domain={yDomain}
+                      stroke="var(--text-muted)"
+                      fontSize={12}
+                      tickFormatter={(v: number) => `${v.toFixed(2)}%`}
+                      width={62}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '8px',
+                        color: 'var(--text-primary)',
+                      }}
+                      formatter={(value: any, _n: any, entry: any) => {
+                        if (value == null) return ['No data', 'Availability'];
+                        const checks = entry?.payload?.checks ?? 0;
+                        return [`${Number(value).toFixed(3)}% · ${numberFmt.format(checks)} checks`, 'Availability'];
+                      }}
+                    />
+                    <ReferenceLine
+                      y={slaNormal}
+                      stroke="var(--color-warning)"
+                      strokeDasharray="5 3"
+                      label={{ value: `SLA ${slaNormal}%`, position: 'insideTopRight', fill: 'var(--color-warning)', fontSize: 11 }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="uptime"
+                      stroke="var(--accent)"
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#slaGradient)"
+                      connectNulls={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
               )}
             </div>
           </div>
         </div>
 
-      </div>
+        <div className="double-bezel-outer">
+          <div className="double-bezel-inner exec-domain-panel">
+            <h2 className="exec-panel-title">Domain Health Breakdown</h2>
 
+            <div className="exec-domain-list">
+              {Object.keys(summary.domains).length > 0 ? (
+                Object.entries(summary.domains).map(([domain, data]) => {
+                  const pct = (data.up / data.total) * 100;
+                  return (
+                    <button
+                      key={domain}
+                      type="button"
+                      className="exec-domain-row"
+                      onClick={() => onSelectDomain?.(data.tag)}
+                      aria-label={`View ${domain} monitors, ${data.up} of ${data.total} healthy`}
+                    >
+                      <span className="exec-domain-name">
+                        {domainIcon(domain)}
+                        {domain}
+                      </span>
+                      <span className="exec-domain-stats">
+                        <span className="exec-domain-count">{data.up}/{data.total}</span>
+                        <span
+                          className="exec-domain-pct"
+                          style={{ color: pct >= slaWarning ? 'var(--color-up)' : 'var(--color-down)' }}
+                        >
+                          {pct.toFixed(1)}%
+                        </span>
+                        <ChevronRight size={14} aria-hidden="true" className="exec-domain-chevron" />
+                      </span>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="exec-chart-placeholder">No active targets configured.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
-export default ExecutiveDashboard;
+
+/* Memoised: App re-renders on every WebSocket message, and this subtree carries
+   two Recharts surfaces. Props are compared shallowly, so `targets` identity
+   still gates it — but the common case (a re-render from unrelated App state)
+   is skipped entirely. */
+export default React.memo(ExecutiveDashboard);
+export { ExecutiveDashboard };

@@ -18,6 +18,6 @@ class Incident(Base):
             "target_id": self.target_id,
             "from_status": self.from_status,
             "to_status": self.to_status,
-            "started_at": self.started_at.isoformat() if self.started_at else None,
-            "resolved_at": self.resolved_at.isoformat() if self.resolved_at else None
+            "started_at": self.started_at.isoformat() + "Z" if self.started_at else None,
+            "resolved_at": self.resolved_at.isoformat() + "Z" if self.resolved_at else None
         }

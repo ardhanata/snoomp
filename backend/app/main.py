@@ -19,7 +19,7 @@ from app.models.status_page import StatusPage
 from app.auth.security import get_password_hash
 from app.scheduler import start_scheduler, stop_scheduler
 from app.routes import auth, targets, dashboard
-from app.routes import status_pages
+from app.routes import status_pages, settings, notifications
 from app import websockets
 
 # Setup logging
@@ -109,10 +109,15 @@ app.include_router(auth.router)
 app.include_router(targets.router)
 app.include_router(dashboard.router)
 app.include_router(status_pages.router)
+app.include_router(settings.router)
+app.include_router(notifications.router)
 app.include_router(websockets.router)
 
 def get_app_version() -> str:
+    import sys
     locations = [
+        os.path.join(getattr(sys, "_MEIPASS", ""), "VERSION"),
+        os.path.join(os.path.dirname(sys.executable), "VERSION"),
         os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "VERSION"),
         "/VERSION"
     ]
@@ -125,12 +130,56 @@ def get_app_version() -> str:
                 pass
     return "0.3.0"
 
-@app.get("/")
-def read_root():
-    return {"name": "Snoomp Monitor API", "status": "running", "version": get_app_version()}
-
 @app.get("/api/version")
 def get_version():
     return {"version": get_app_version(), "release_date": "2026-07-30", "name": "Snoomp Enterprise Observability"}
+
+def _find_frontend_dist() -> str | None:
+    import sys
+    candidates = []
+    bundle_dir = getattr(sys, "_MEIPASS", None)
+    if bundle_dir:
+        candidates.extend([
+            os.path.join(bundle_dir, "frontend", "dist"),
+            os.path.join(bundle_dir, "dist"),
+        ])
+    if getattr(sys, "frozen", False):
+        exe_dir = os.path.dirname(sys.executable)
+        candidates.extend([
+            os.path.join(exe_dir, "frontend", "dist"),
+            os.path.join(exe_dir, "dist"),
+        ])
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    candidates.extend([
+        os.path.join(project_root, "frontend", "dist"),
+        os.path.join(os.getcwd(), "frontend", "dist"),
+        os.path.join(os.getcwd(), "dist"),
+    ])
+    for p in candidates:
+        if p and os.path.isdir(p) and os.path.isfile(os.path.join(p, "index.html")):
+            return os.path.abspath(p)
+    return None
+
+_frontend_dist = _find_frontend_dist()
+if _frontend_dist:
+    from fastapi.staticfiles import StaticFiles
+    from fastapi.responses import FileResponse
+    logger.info("Serving frontend static assets from %s", _frontend_dist)
+    _assets_path = os.path.join(_frontend_dist, "assets")
+    if os.path.exists(_assets_path):
+        app.mount("/assets", StaticFiles(directory=_assets_path), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        if full_path.startswith("api/") or full_path == "api" or full_path.startswith("ws"):
+            return {"error": "Not Found"}
+        target_file = os.path.join(_frontend_dist, full_path)
+        if full_path and os.path.isfile(target_file):
+            return FileResponse(target_file)
+        return FileResponse(os.path.join(_frontend_dist, "index.html"))
+else:
+    @app.get("/")
+    def read_root():
+        return {"name": "Snoomp Monitor API", "status": "running", "version": get_app_version()}
 
 

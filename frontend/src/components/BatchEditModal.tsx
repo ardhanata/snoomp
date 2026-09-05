@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, Layers, Tag, Clock, Power } from 'lucide-react';
+import { X, Layers, Tag, Clock, Power, RefreshCw } from 'lucide-react';
+import Dialog from './Dialog';
 
 interface BatchEditModalProps {
   isOpen: boolean;
@@ -12,7 +13,7 @@ interface BatchEditModalProps {
     tagsStr: string;
     checkInterval: number | null;
     enabledState: 'enable' | 'disable' | 'keep';
-  }) => void;
+  }) => void | Promise<void>;
 }
 
 const normalizeTags = (tags: any): string[] => {
@@ -85,81 +86,45 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
     }
   };
 
-  // Focus Trap Hook
-  const modalRef = React.useRef<HTMLDivElement>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  React.useEffect(() => {
-    if (!isOpen || !modalRef.current) return;
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-
-    const focusable = modalRef.current.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    if (focusable.length > 0) focusable[0].focus();
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key !== 'Tab') return;
-      const currentFocusable = modalRef.current?.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      if (!currentFocusable || currentFocusable.length === 0) return;
-      const first = currentFocusable[0];
-      const last = currentFocusable[currentFocusable.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
-        previouslyFocused.focus();
-      }
-    };
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onApplyBatch({
-      tagAction,
-      tagsStr,
-      checkInterval: checkInterval === '' ? null : Number(checkInterval),
-      enabledState,
-    });
-    onClose();
+    setIsSubmitting(true);
+    try {
+      await onApplyBatch({
+        tagAction,
+        tagsStr,
+        checkInterval: checkInterval === '' ? null : Number(checkInterval),
+        enabledState,
+      });
+    } finally {
+      setIsSubmitting(false);
+      onClose();
+    }
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
       aria-labelledby="batch-modal-title"
+      className="batch-edit-modal-dialog"
       style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(6px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 2000,
-        padding: '24px'
+        padding: 0,
+        margin: 'auto',
+        background: 'transparent',
+        border: 'none',
+        maxWidth: '540px',
+        width: '100%',
       }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div ref={modalRef} className="double-bezel-outer" style={{ maxWidth: '540px', width: '100%' }}>
+      <div className="double-bezel-outer" style={{ width: '100%' }}>
         <div className="double-bezel-inner" style={{ padding: '24px' }}>
           
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ padding: '8px', borderRadius: '10px', background: 'var(--accent-dim)', color: 'var(--accent)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
+              <div style={{ padding: '8px', borderRadius: '11px', background: 'var(--accent-dim)', color: 'var(--accent)' }}>
                 <Layers size={20} />
               </div>
               <div>
@@ -184,8 +149,8 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             
             {assignedTagsList.length > 0 && (
-              <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+              <div style={{ background: 'rgba(255,255,255,0.03)', padding: '11px 12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
                   Currently Assigned Tags across {selectedCount} Monitors
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -195,8 +160,8 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
                       <span
                         key={name}
                         style={{
-                          fontSize: '11px',
-                          padding: '3px 6px 3px 10px',
+                          fontSize: '12px',
+                          padding: '3px 6px 3px 11px',
                           borderRadius: '6px',
                           background: isMarkedForRemove ? 'rgba(237, 66, 69, 0.15)' : 'var(--bg-elevated)',
                           border: `1px solid ${isMarkedForRemove ? 'rgba(237, 66, 69, 0.4)' : 'var(--border)'}`,
@@ -208,7 +173,7 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
                         }}
                       >
                         <span>{name}</span>
-                        <span style={{ opacity: 0.6, fontSize: '10px', fontFamily: 'var(--font-mono)' }}>({count})</span>
+                        <span style={{ opacity: 0.6, fontSize: '11px', fontFamily: 'var(--font-mono)' }}>({count})</span>
                         <button
                           type="button"
                           onClick={() => toggleRemoveTag(name)}
@@ -236,46 +201,46 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
             )}
 
             {/* Tag Modification */}
-            <div style={{ background: 'var(--bg-void)', padding: '14px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+            <div role="group" aria-labelledby="batch-tag-mod" style={{ background: 'var(--bg-void)', padding: '14px', borderRadius: '11px', border: '1px solid var(--border)' }}>
+              <div id="batch-tag-mod" style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                 <Tag size={14} color="var(--accent)" /> Tags Modification
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '10px' }}>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '11px' }}>
                 <button
                   type="button"
                   onClick={() => { setTagAction('keep'); setTagsStr(''); }}
-                  style={{ fontSize: '11px', padding: '6px 4px', borderRadius: '6px', background: tagAction === 'keep' ? 'var(--accent-dim)' : 'transparent', border: `1px solid ${tagAction === 'keep' ? 'var(--accent)' : 'var(--border)'}`, color: tagAction === 'keep' ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', textAlign: 'center' }}
+                  style={{ fontSize: '12px', padding: '6px 4px', borderRadius: '6px', background: tagAction === 'keep' ? 'var(--accent-dim)' : 'transparent', border: `1px solid ${tagAction === 'keep' ? 'var(--accent)' : 'var(--border)'}`, color: tagAction === 'keep' ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', textAlign: 'center' }}
                 >
                   Unchanged
                 </button>
                 <button
                   type="button"
                   onClick={() => setTagAction('add')}
-                  style={{ fontSize: '11px', padding: '6px 4px', borderRadius: '6px', background: tagAction === 'add' ? 'var(--accent-dim)' : 'transparent', border: `1px solid ${tagAction === 'add' ? 'var(--accent)' : 'var(--border)'}`, color: tagAction === 'add' ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', textAlign: 'center' }}
+                  style={{ fontSize: '12px', padding: '6px 4px', borderRadius: '6px', background: tagAction === 'add' ? 'var(--accent-dim)' : 'transparent', border: `1px solid ${tagAction === 'add' ? 'var(--accent)' : 'var(--border)'}`, color: tagAction === 'add' ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', textAlign: 'center' }}
                 >
                   + Append
                 </button>
                 <button
                   type="button"
                   onClick={() => setTagAction('replace')}
-                  style={{ fontSize: '11px', padding: '6px 4px', borderRadius: '6px', background: tagAction === 'replace' ? 'var(--accent-dim)' : 'transparent', border: `1px solid ${tagAction === 'replace' ? 'var(--accent)' : 'var(--border)'}`, color: tagAction === 'replace' ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', textAlign: 'center' }}
+                  style={{ fontSize: '12px', padding: '6px 4px', borderRadius: '6px', background: tagAction === 'replace' ? 'var(--accent-dim)' : 'transparent', border: `1px solid ${tagAction === 'replace' ? 'var(--accent)' : 'var(--border)'}`, color: tagAction === 'replace' ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', textAlign: 'center' }}
                 >
                   Replace All
                 </button>
                 <button
                   type="button"
                   onClick={() => setTagAction('remove')}
-                  style={{ fontSize: '11px', padding: '6px 4px', borderRadius: '6px', background: tagAction === 'remove' ? 'rgba(237, 66, 69, 0.15)' : 'transparent', border: `1px solid ${tagAction === 'remove' ? 'rgba(237, 66, 69, 0.4)' : 'var(--border)'}`, color: tagAction === 'remove' ? 'var(--color-down)' : 'var(--text-muted)', cursor: 'pointer', textAlign: 'center' }}
+                  style={{ fontSize: '12px', padding: '6px 4px', borderRadius: '6px', background: tagAction === 'remove' ? 'rgba(237, 66, 69, 0.15)' : 'transparent', border: `1px solid ${tagAction === 'remove' ? 'rgba(237, 66, 69, 0.4)' : 'var(--border)'}`, color: tagAction === 'remove' ? 'var(--color-down)' : 'var(--text-muted)', cursor: 'pointer', textAlign: 'center' }}
                 >
                   - Remove
                 </button>
               </div>
 
               {tagAction !== 'keep' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '11px', marginTop: '11px' }}>
                   {/* Section 1: Environment Tags */}
                   <div>
-                    <div style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
                       Section 1: Environment Tags
                     </div>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -287,9 +252,9 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
                             type="button"
                             onClick={() => toggleTagInInput(env)}
                             style={{
-                              fontSize: '11px',
+                              fontSize: '12px',
                               fontWeight: 600,
-                              padding: '3px 10px',
+                              padding: '3px 11px',
                               borderRadius: '6px',
                               border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
                               background: isSelected ? 'var(--accent-dim)' : 'var(--bg-elevated)',
@@ -307,7 +272,7 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
                   {/* Section 2: System / Application Group Tags */}
                   {groupTagOptions.length > 0 && (
                     <div>
-                      <div style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
                         Section 2: System / Application Group Tags
                       </div>
                       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', maxHeight: '80px', overflowY: 'auto' }}>
@@ -319,7 +284,7 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
                               type="button"
                               onClick={() => toggleTagInInput(grp)}
                               style={{
-                                fontSize: '10.5px',
+                                fontSize: '12px',
                                 padding: '2px 8px',
                                 borderRadius: '4px',
                                 border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
@@ -338,7 +303,7 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
 
                   {/* Modifiable Tag Input */}
                   <div>
-                    <label htmlFor="batch-tags-input" style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                    <label htmlFor="batch-tags-input" style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
                       Modifiable Tag Input
                     </label>
                     <input
@@ -355,7 +320,7 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
             </div>
 
             {/* Check Interval */}
-            <div style={{ background: 'var(--bg-void)', padding: '14px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+            <div style={{ background: 'var(--bg-void)', padding: '14px', borderRadius: '11px', border: '1px solid var(--border)' }}>
               <label htmlFor="batch-interval-input" style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                 <Clock size={14} color="var(--accent)" /> Check Interval (seconds)
               </label>
@@ -372,29 +337,29 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
             </div>
 
             {/* Enabled / Disabled State */}
-            <div style={{ background: 'var(--bg-void)', padding: '14px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+            <div role="group" aria-labelledby="batch-active-status" style={{ background: 'var(--bg-void)', padding: '14px', borderRadius: '11px', border: '1px solid var(--border)' }}>
+              <div id="batch-active-status" style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                 <Power size={14} color="var(--accent)" /> Active Status
-              </label>
+              </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   type="button"
                   onClick={() => setEnabledState('keep')}
-                  style={{ flex: 1, fontSize: '11px', padding: '6px', borderRadius: '6px', background: enabledState === 'keep' ? 'var(--accent-dim)' : 'transparent', border: `1px solid ${enabledState === 'keep' ? 'var(--accent)' : 'var(--border)'}`, color: enabledState === 'keep' ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer' }}
+                  style={{ flex: 1, fontSize: '12px', padding: '6px', borderRadius: '6px', background: enabledState === 'keep' ? 'var(--accent-dim)' : 'transparent', border: `1px solid ${enabledState === 'keep' ? 'var(--accent)' : 'var(--border)'}`, color: enabledState === 'keep' ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer' }}
                 >
                   Keep State
                 </button>
                 <button
                   type="button"
                   onClick={() => setEnabledState('enable')}
-                  style={{ flex: 1, fontSize: '11px', padding: '6px', borderRadius: '6px', background: enabledState === 'enable' ? 'rgba(35,134,54,0.15)' : 'transparent', border: `1px solid ${enabledState === 'enable' ? 'var(--color-up)' : 'var(--border)'}`, color: enabledState === 'enable' ? 'var(--color-up)' : 'var(--text-muted)', cursor: 'pointer' }}
+                  style={{ flex: 1, fontSize: '12px', padding: '6px', borderRadius: '6px', background: enabledState === 'enable' ? 'rgba(35,134,54,0.15)' : 'transparent', border: `1px solid ${enabledState === 'enable' ? 'var(--color-up)' : 'var(--border)'}`, color: enabledState === 'enable' ? 'var(--color-up)' : 'var(--text-muted)', cursor: 'pointer' }}
                 >
                   Enable All
                 </button>
                 <button
                   type="button"
                   onClick={() => setEnabledState('disable')}
-                  style={{ flex: 1, fontSize: '11px', padding: '6px', borderRadius: '6px', background: enabledState === 'disable' ? 'rgba(218,54,51,0.15)' : 'transparent', border: `1px solid ${enabledState === 'disable' ? 'var(--color-down)' : 'var(--border)'}`, color: enabledState === 'disable' ? 'var(--color-down)' : 'var(--text-muted)', cursor: 'pointer' }}
+                  style={{ flex: 1, fontSize: '12px', padding: '6px', borderRadius: '6px', background: enabledState === 'disable' ? 'rgba(218,54,51,0.15)' : 'transparent', border: `1px solid ${enabledState === 'disable' ? 'var(--color-down)' : 'var(--border)'}`, color: enabledState === 'disable' ? 'var(--color-down)' : 'var(--text-muted)', cursor: 'pointer' }}
                 >
                   Disable All
                 </button>
@@ -402,12 +367,18 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
             </div>
 
             {/* Modal Actions */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '11px', marginTop: '11px' }}>
               <button type="button" className="secondary" onClick={onClose} style={{ padding: '8px 16px', fontSize: '12px' }}>
                 Cancel
               </button>
-              <button type="submit" style={{ padding: '8px 18px', fontSize: '12px', fontWeight: 700, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
-                Apply Batch Updates
+              <button type="submit" disabled={isSubmitting} style={{ padding: '8px 18px', fontSize: '12px', fontWeight: 700, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '6px', cursor: isSubmitting ? 'not-allowed' : 'pointer', opacity: isSubmitting ? 0.7 : 1 }}>
+                {isSubmitting ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <RefreshCw size={14} className="spin" /> Applying…
+                  </span>
+                ) : (
+                  'Apply Batch Updates'
+                )}
               </button>
             </div>
 
@@ -415,7 +386,7 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
 
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 };
 

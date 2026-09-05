@@ -67,8 +67,8 @@ const PublicStatusPage: React.FC<PublicStatusPageProps> = ({ slug }) => {
 
   if (!data) {
     return (
-      <div style={{ minHeight: '100vh', padding: '60px 24px', color: 'var(--text-muted)', background: 'var(--bg-void)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px' }}>
-        Loading system status...
+      <div aria-live="polite" style={{ minHeight: '100vh', padding: '60px 24px', color: 'var(--text-muted)', background: 'var(--bg-void)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px' }}>
+        Loading system status…
       </div>
     );
   }
@@ -99,7 +99,7 @@ const PublicStatusPage: React.FC<PublicStatusPageProps> = ({ slug }) => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             {data.logo_url ? (
-              <img src={data.logo_url} alt="Logo" style={{ height: '52px', borderRadius: '12px' }} />
+              <img src={data.logo_url} alt="Logo" width="52" height="52" style={{ height: '52px', width: 'auto', borderRadius: '12px' }} />
             ) : (
               <div style={{ padding: '8px 12px', borderRadius: '16px', background: 'var(--accent-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--accent-glow)' }}>
                 <SnoompLogo size={36} color="var(--accent)" showText={false} />
@@ -264,7 +264,7 @@ const PublicStatusPage: React.FC<PublicStatusPageProps> = ({ slug }) => {
                                 <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>
                                   {m.name}
                                 </div>
-                                <div style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                                <div style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
                                   {m.type ? m.type.toUpperCase() : 'HTTP'} MONITOR • {uptime.toFixed(1)}% 24h
                                 </div>
                               </div>
@@ -284,7 +284,7 @@ const PublicStatusPage: React.FC<PublicStatusPageProps> = ({ slug }) => {
                             </div>
 
                             {/* 30-bar Heartbeat Strip */}
-                            <div className="mini-hb-row">
+                            <div className="mini-hb-row" role="img" aria-label={`${recentHbs.filter((h: any) => h.status === 'up').length} of ${recentHbs.length || 20} checks OK`}>
                               {recentHbs.length > 0
                                 ? recentHbs.map((hb: any, i: number) => (
                                     <div key={i} className={`mini-hb-bar ${hb.status || 'unknown'}`} />

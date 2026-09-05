@@ -4,7 +4,7 @@ import redis
 import os
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, case
 from typing import List, Optional, Dict, Any
 
 from app.database import get_db
@@ -74,16 +74,36 @@ def get_stats(db: Session = Depends(get_db)):
         }
     }
 
+#: Hard ceiling on rows returned in one call, whatever the caller asks for.
+_MAX_HEARTBEAT_ROWS = 5000
+
+
 @router.get("/targets/{target_id}/heartbeats", dependencies=[Depends(require_viewer)])
-def get_target_heartbeats(target_id: str, limit: int = 50, db: Session = Depends(get_db)):
-    """Returns the last N heartbeats for a monitor to build the status timeline blocks."""
-    heartbeats = (
-        db.query(Heartbeat)
-        .filter_by(target_id=target_id)
-        .order_by(Heartbeat.checked_at.desc())
-        .limit(limit)
-        .all()
-    )
+def get_target_heartbeats(
+    target_id: str,
+    limit: int = 50,
+    hours: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Heartbeats for one monitor, newest-first internally and returned oldest-first.
+
+    `hours` filters server-side. Without it, callers wanting a time window had
+    to guess a row count from the check interval and discard the overshoot
+    client-side — a 90-day report pulled ~130k rows to render a few hundred.
+
+    `limit` still applies as a safety ceiling in both modes.
+    """
+    query = db.query(Heartbeat).filter(Heartbeat.target_id == target_id)
+
+    if hours is not None:
+        hours = max(1, min(hours, 24 * 400))
+        cutoff = datetime.datetime.utcnow() - datetime.timedelta(hours=hours)
+        query = query.filter(Heartbeat.checked_at >= cutoff)
+
+    effective_limit = max(1, min(limit, _MAX_HEARTBEAT_ROWS))
+    heartbeats = query.order_by(Heartbeat.checked_at.desc()).limit(effective_limit).all()
+
     # Reverse to keep chronological order
     return [hb.to_dict() for hb in reversed(heartbeats)]
 
@@ -111,10 +131,19 @@ def get_target_metrics(target_id: str, hours: int = 24, db: Session = Depends(ge
         ts = m.checked_at.timestamp()
         bucket_ts = int(ts // bucket_seconds) * bucket_seconds
         if bucket_ts not in buckets:
-            buckets[bucket_ts] = {"cpus": [], "mems": [], "disks": []}
+            buckets[bucket_ts] = {"cpus": [], "mems": [], "disks": [], "details": {}}
         if m.cpu_percent is not None: buckets[bucket_ts]["cpus"].append(m.cpu_percent)
         if m.mem_percent is not None: buckets[bucket_ts]["mems"].append(m.mem_percent)
         if m.disk_percent is not None: buckets[bucket_ts]["disks"].append(m.disk_percent)
+
+        # Carry the numeric fields out of details_json through the bucketing.
+        # Database monitors chart from these (connections, cache hit ratio,
+        # ops/sec, database size); without this they simply vanish the moment
+        # the user switches from 24h to 7d.
+        for k, v in (m.details_json or {}).items():
+            if isinstance(v, bool) or not isinstance(v, (int, float)):
+                continue
+            buckets[bucket_ts]["details"].setdefault(k, []).append(float(v))
 
     result = []
     for b_ts in sorted(buckets.keys()):
@@ -127,8 +156,262 @@ def get_target_metrics(target_id: str, hours: int = 24, db: Session = Depends(ge
             "cpu_percent": round(sum(b["cpus"]) / len(b["cpus"]), 1) if b["cpus"] else None,
             "mem_percent": round(sum(b["mems"]) / len(b["mems"]), 1) if b["mems"] else None,
             "disk_percent": round(sum(b["disks"]) / len(b["disks"]), 1) if b["disks"] else None,
+            "details_json": {
+                k: round(sum(vals) / len(vals), 2)
+                for k, vals in b["details"].items() if vals
+            },
         })
     return result
+
+def _month_starts(count: int, now: datetime.datetime) -> List[datetime.datetime]:
+    """The first instant of each of the last `count` months, oldest first."""
+    anchor = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    starts = []
+    for _ in range(count):
+        starts.append(anchor)
+        # Step back one month by landing on the previous month's last day.
+        anchor = (anchor - datetime.timedelta(days=1)).replace(day=1)
+    return list(reversed(starts))
+
+
+@router.get("/sla-trend", dependencies=[Depends(require_viewer)])
+def get_sla_trend(months: int = 6, db: Session = Depends(get_db)):
+    """
+    Fleet-wide availability per calendar month.
+
+    Aggregated in SQL rather than client-side on purpose: at a 60s interval,
+    52 monitors over six months is roughly 13 million heartbeats. The old
+    Executive chart sidestepped this by hardcoding five of its six data points.
+
+    Months with no heartbeats return `uptime_pct: null` so the UI can render a
+    gap instead of implying 0% availability for a period that predates the
+    deployment.
+    """
+    months = max(1, min(months, 24))
+    now = datetime.datetime.utcnow()
+    starts = _month_starts(months, now)
+    window_start = starts[0]
+
+    # date_trunc is Postgres-only; SQLite dev databases need strftime.
+    if db.bind.dialect.name == "postgresql":
+        bucket = func.to_char(func.date_trunc("month", Heartbeat.checked_at), "YYYY-MM")
+    else:
+        bucket = func.strftime("%Y-%m", Heartbeat.checked_at)
+
+    rows = (
+        db.query(
+            bucket.label("period"),
+            func.count(Heartbeat.id).label("checks"),
+            func.sum(
+                case((Heartbeat.status.in_(("down", "critical")), 1), else_=0)
+            ).label("down_checks"),
+            func.avg(Heartbeat.response_time_ms).label("avg_ms"),
+        )
+        .filter(Heartbeat.checked_at >= window_start)
+        .group_by(bucket)
+        .all()
+    )
+    by_period = {r.period: r for r in rows}
+
+    earliest = db.query(func.min(Heartbeat.checked_at)).scalar()
+
+    buckets = []
+    for start in starts:
+        period = start.strftime("%Y-%m")
+        row = by_period.get(period)
+        checks = int(row.checks) if row else 0
+        if checks > 0:
+            down = int(row.down_checks or 0)
+            uptime = round(((checks - down) / checks) * 100, 3)
+            avg_ms = round(float(row.avg_ms), 1) if row.avg_ms is not None else None
+        else:
+            uptime, avg_ms = None, None
+
+        buckets.append({
+            "period": period,
+            "label": start.strftime("%b"),
+            "uptime_pct": uptime,
+            "checks": checks,
+            "avg_response_ms": avg_ms,
+        })
+
+    return {
+        "months": months,
+        "buckets": buckets,
+        # Lets the UI say "3 months of data" instead of drawing empty months
+        # as though availability were unknown for a reason.
+        "first_heartbeat_at": earliest.isoformat() + "Z" if earliest else None,
+        "covered_months": sum(1 for b in buckets if b["checks"] > 0),
+        "mttr": _fleet_mttr(db, window_start),
+    }
+
+
+def _fleet_mttr(db: Session, since: datetime.datetime) -> Dict[str, Any]:
+    """
+    Mean time to recovery across the fleet, from resolved incidents.
+
+    Returns `minutes: None` when nothing has resolved in the window — the
+    caller must render that as "no data", not as zero. A dashboard claiming
+    0-minute recovery is worse than one admitting it doesn't know yet.
+    """
+    resolved = (
+        db.query(Incident.started_at, Incident.resolved_at)
+        .filter(
+            Incident.resolved_at.isnot(None),
+            Incident.started_at >= since,
+            Incident.to_status.in_(("down", "critical")),
+        )
+        .all()
+    )
+    if not resolved:
+        return {"minutes": None, "sample_size": 0}
+
+    total_sec = sum(
+        (r.resolved_at - r.started_at).total_seconds()
+        for r in resolved
+        if r.resolved_at and r.started_at
+    )
+    return {
+        "minutes": round((total_sec / len(resolved)) / 60, 1),
+        "sample_size": len(resolved),
+    }
+
+
+#: Statuses that count as an outage. Note `critical` is included — the previous
+#: client-side calculation counted "up" as `status != 'down'`, so critical
+#: heartbeats inflated uptime while simultaneously opening an outage entry in
+#: the incident log. The two disagreed; this is the consistent definition.
+_DOWN_STATUSES = frozenset({"down", "critical"})
+
+
+def _report_bucket_count(hours: int) -> int:
+    """Readable number of chart buckets for a given window."""
+    if hours <= 24:
+        return 12
+    if hours <= 168:
+        return 7
+    return 30
+
+
+@router.get("/targets/{target_id}/report", dependencies=[Depends(require_viewer)])
+def get_target_report(target_id: str, hours: int = 168, db: Session = Depends(get_db)):
+    """
+    Availability report for one monitor, aggregated server-side.
+
+    Replaces a client-side calculation that derived a row limit from the check
+    interval, fetched that many heartbeats, then filtered and reduced them in
+    the browser — roughly 130k rows over the wire for a 90-day report.
+
+    Only four columns are read, and a single pass produces every figure.
+    """
+    hours = max(1, min(hours, 24 * 400))
+    target = db.query(Target).filter_by(id=target_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+
+    now = datetime.datetime.utcnow()
+    window_start = now - datetime.timedelta(hours=hours)
+    interval_sec = target.check_interval or 60
+
+    rows = (
+        db.query(
+            Heartbeat.checked_at,
+            Heartbeat.status,
+            Heartbeat.response_time_ms,
+            Heartbeat.error,
+        )
+        .filter(Heartbeat.target_id == target_id, Heartbeat.checked_at >= window_start)
+        .order_by(Heartbeat.checked_at.asc())
+        .all()
+    )
+
+    bucket_count = _report_bucket_count(hours)
+    bucket_ms = (hours * 3600 * 1000) / bucket_count
+    buckets = [{"up": 0, "down": 0, "lat_sum": 0.0, "lat_n": 0} for _ in range(bucket_count)]
+
+    latencies: List[float] = []
+    down_checks = 0
+    failures = 0
+    outages: List[Dict[str, Any]] = []
+    current: Optional[Dict[str, Any]] = None
+    prev_down = False
+
+    for checked_at, status, response_ms, error in rows:
+        is_down = (status or "").lower() in _DOWN_STATUSES
+
+        if is_down:
+            down_checks += 1
+            if not prev_down:
+                failures += 1
+                current = {"started": checked_at, "ended": None, "error": error}
+        elif current is not None:
+            current["ended"] = checked_at
+            outages.append(current)
+            current = None
+        prev_down = is_down
+
+        idx = int((checked_at - window_start).total_seconds() * 1000 // bucket_ms)
+        if 0 <= idx < bucket_count:
+            b = buckets[idx]
+            b["down" if is_down else "up"] += 1
+            if response_ms and response_ms > 0:
+                b["lat_sum"] += response_ms
+                b["lat_n"] += 1
+
+        if response_ms and response_ms > 0:
+            latencies.append(response_ms)
+
+    # An outage still open at the end of the window has no recovery timestamp.
+    if current is not None:
+        outages.append(current)
+
+    total = len(rows)
+    uptime_pct = ((total - down_checks) / total * 100) if total else 100.0
+    total_downtime_sec = down_checks * interval_sec
+
+    latencies.sort()
+    avg_latency = (sum(latencies) / len(latencies)) if latencies else None
+    p95_latency = (
+        latencies[min(len(latencies) - 1, int(len(latencies) * 0.95))] if latencies else None
+    )
+
+    timeline = []
+    for i, b in enumerate(buckets):
+        checks = b["up"] + b["down"]
+        timeline.append({
+            "start": (window_start + datetime.timedelta(milliseconds=bucket_ms * i)).isoformat() + "Z",
+            "checks": checks,
+            "uptime_pct": round(b["up"] / checks * 100, 3) if checks else None,
+            "avg_latency": round(b["lat_sum"] / b["lat_n"], 1) if b["lat_n"] else None,
+        })
+
+    return {
+        "target_id": target_id,
+        "range_hours": hours,
+        "total_checks": total,
+        "uptime_pct": round(uptime_pct, 4),
+        "downtime_pct": round(100 - uptime_pct, 4),
+        "total_downtime_sec": total_downtime_sec,
+        "failures": failures,
+        "mttr_min": round((total_downtime_sec / 60) / failures) if failures else 0,
+        "mtbf_hours": (
+            round(((total - down_checks) * interval_sec / 3600) / failures) if failures else hours
+        ),
+        "avg_response_ms": round(avg_latency, 1) if avg_latency is not None else None,
+        "p95_response_ms": round(p95_latency, 1) if p95_latency is not None else None,
+        "bucket_ms": bucket_ms,
+        "timeline": timeline,
+        # Latest first, matching how the report table reads.
+        "outages": [
+            {
+                "started": o["started"].isoformat() + "Z",
+                "ended": o["ended"].isoformat() + "Z" if o["ended"] else None,
+                "error": o["error"],
+            }
+            for o in reversed(outages)
+        ],
+    }
+
 
 @router.get("/incidents", dependencies=[Depends(require_viewer)])
 def get_recent_incidents(limit: int = 20, db: Session = Depends(get_db)):

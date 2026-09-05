@@ -136,7 +136,7 @@ def get_public_status_page(slug: str, db: Session = Depends(get_db)):
             Heartbeat.target_id == mid,
             Heartbeat.checked_at >= cutoff
         ).all()
-        up_24h = sum(1 for h in hbs_24h if h.status == 'up')
+        up_24h = sum(1 for h in hbs_24h if h.status != 'down')
         total_24h = len(hbs_24h) or 1
         uptime_pct = round((up_24h / total_24h) * 100, 2)
 

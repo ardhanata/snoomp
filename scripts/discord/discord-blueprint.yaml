@@ -1,0 +1,158 @@
+# Snoomp Discord Server — declarative blueprint
+# Consumed by setup_discord_server.py. Source of truth: docs/DISCORD-SERVER-BLUEPRINT.md
+#
+# Permission names are Discord API constants (see PERMISSIONS in setup_discord_server.py).
+# Overwrite keys are role names from the `roles` list below, or the literal "@everyone".
+
+guild:
+  name: Snoomp
+  # 4 = VERY_HIGH (verified phone required)
+  verification_level: 4
+  # 1 = ONLY_MENTIONS. Critical: alert webhooks make ALL_MESSAGES unusable.
+  default_message_notifications: 1
+  # 2 = ALL_MEMBERS
+  explicit_content_filter: 2
+
+# Server-level baseline for @everyone. Everything not listed here is denied,
+# then re-granted per category/channel. Do not add VIEW_CHANNEL here.
+everyone_permissions:
+  - READ_MESSAGE_HISTORY
+  - ADD_REACTIONS
+  - USE_EXTERNAL_EMOJIS
+  - USE_APPLICATION_COMMANDS
+
+# Listed highest-first. The script reorders roles to match this order,
+# placing them directly beneath the bot's own highest role.
+roles:
+  - name: Owner
+    color: "#2563EB"
+    hoist: true
+    mentionable: false
+    permissions: [ADMINISTRATOR]
+
+  - name: Maintainer
+    color: "#10B981"
+    hoist: true
+    mentionable: true
+    permissions:
+      - MANAGE_CHANNELS
+      - MANAGE_ROLES
+      - MANAGE_MESSAGES
+      - MANAGE_WEBHOOKS
+      - MANAGE_NICKNAMES
+      - KICK_MEMBERS
+      - BAN_MEMBERS
+      - MODERATE_MEMBERS
+      - VIEW_AUDIT_LOG
+      - CREATE_INSTANT_INVITE
+      - MENTION_EVERYONE
+      - MANAGE_THREADS
+      - MANAGE_EVENTS
+
+  - name: Backend
+    color: "#06B6D4"
+    hoist: false
+    mentionable: true
+    permissions: []
+
+  - name: Frontend
+    color: "#A855F7"
+    hoist: false
+    mentionable: true
+    permissions: []
+
+  - name: Infra
+    color: "#F59E0B"
+    hoist: false
+    mentionable: true
+    permissions: []
+
+  - name: OnCall
+    color: "#EF4444"
+    hoist: true
+    mentionable: true
+    permissions: []
+
+  - name: Contributor
+    color: "#94A3B8"
+    hoist: false
+    mentionable: true
+    permissions: []
+
+  - name: Bot
+    color: "#4B5563"
+    hoist: false
+    mentionable: false
+    permissions: []
+
+# Reusable overwrite fragments, referenced with `use:` on any channel/category.
+anchors:
+  read_only_everyone: &read_only_everyone
+    "@everyone":
+      allow: [VIEW_CHANNEL, READ_MESSAGE_HISTORY]
+      deny: [SEND_MESSAGES, CREATE_PUBLIC_THREADS, CREATE_PRIVATE_THREADS]
+    Maintainer:
+      allow: [SEND_MESSAGES, MANAGE_MESSAGES, EMBED_LINKS, ATTACH_FILES]
+
+  hidden_everyone: &hidden_everyone
+    "@everyone":
+      deny: [VIEW_CHANNEL]
+
+  dev_team: &dev_team
+    Backend:
+      allow: [VIEW_CHANNEL, SEND_MESSAGES, EMBED_LINKS, ATTACH_FILES, CREATE_PUBLIC_THREADS, SEND_MESSAGES_IN_THREADS]
+    Frontend:
+      allow: [VIEW_CHANNEL, SEND_MESSAGES, EMBED_LINKS, ATTACH_FILES, CREATE_PUBLIC_THREADS, SEND_MESSAGES_IN_THREADS]
+    Infra:
+      allow: [VIEW_CHANNEL, SEND_MESSAGES, EMBED_LINKS, ATTACH_FILES, CREATE_PUBLIC_THREADS, SEND_MESSAGES_IN_THREADS]
+    Maintainer:
+      allow: [VIEW_CHANNEL, SEND_MESSAGES, MANAGE_MESSAGES, MANAGE_THREADS, EMBED_LINKS, ATTACH_FILES, CREATE_PUBLIC_THREADS, SEND_MESSAGES_IN_THREADS]
+
+categories:
+  # ---------------------------------------------------------------- INFO
+  - name: INFO
+    overwrites: *read_only_everyone
+    channels:
+      - name: start-here
+        type: text
+        topic: "Server map, role self-assignment, and who to ping for what. Read this first."
+
+  # ---------------------------------------------------------------- DEV
+  - name: DEV
+    overwrites:
+      <<: [*hidden_everyone, *dev_team]
+    channels:
+      - name: general-dev
+        type: text
+        topic: "Cross-cutting discussion and questions."
+        default_auto_archive_duration: 1440
+
+  # ---------------------------------------------------------- OPERATIONS
+  - name: OPERATIONS
+    overwrites:
+      "@everyone":
+        deny: [VIEW_CHANNEL]
+      Contributor:
+        allow: [VIEW_CHANNEL, READ_MESSAGE_HISTORY]
+        deny: [SEND_MESSAGES]
+      Backend:
+        allow: [VIEW_CHANNEL, READ_MESSAGE_HISTORY]
+        deny: [SEND_MESSAGES]
+      Frontend:
+        allow: [VIEW_CHANNEL, READ_MESSAGE_HISTORY]
+        deny: [SEND_MESSAGES]
+      Infra:
+        allow: [VIEW_CHANNEL, READ_MESSAGE_HISTORY]
+        deny: [SEND_MESSAGES]
+      Maintainer:
+        allow: [VIEW_CHANNEL, SEND_MESSAGES, MANAGE_MESSAGES, MANAGE_WEBHOOKS]
+    channels:
+      - name: alerts-critical
+        type: text
+        topic: "Snoomp DOWN alerts only. Pings @OnCall. Every DOWN gets a RECOVERED."
+        overwrites:
+          Contributor:
+            deny: [VIEW_CHANNEL]
+      - name: alerts-warning
+        type: text
+        topic: "Degraded, SLA-warning, SSL-expiring. No pings, ever."

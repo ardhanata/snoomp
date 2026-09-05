@@ -210,11 +210,178 @@ R4 belongs in **P0** — it is a correctness problem visible to users, not a pol
 
 ---
 
+## Share feature (added post-audit) — reviewed and fixed
+
+The monitor detail view gained a Share button using the Web Share API with a clipboard fallback. The instinct — share a *link*, not a rasterised screenshot — is right for this product. Three defects, now fixed.
+
+### R9 — Clipboard fallback threw in the primary deployment mode ✅ fixed
+
+Both `navigator.share` and `navigator.clipboard` require a **secure context**. On `http://<lan-ip>:5173` — which is Mode B, the native-Windows deployment — `navigator.share` is undefined, so control fell to the clipboard branch, where `navigator.clipboard` is *also* undefined. Reading `.writeText` off `undefined` throws synchronously, before the `.then()`, so nothing caught it: the button silently did nothing.
+
+It worked on `localhost` and nowhere anyone would actually use it.
+
+Two further call sites had the same latent bug — `copyPublicUrl` and the SQL-query copy button in Engine Diagnostics.
+
+**Fixed** with a single `copyToClipboard()` helper (`App.tsx:44`) that checks `window.isSecureContext`, attempts the async API, and falls back to a `document.execCommand('copy')` textarea, which carries no secure-context requirement. All three sites now route through it; `navigator.clipboard` no longer appears anywhere else in the codebase.
+
+### R10 — The shared link pointed at the dashboard root ✅ fixed
+
+The button shared `window.location.href`. Because view state is `useState` and never touches the URL (finding 5.3), that is the app root on *every* screen. A recipient clicked and landed on the home view rather than the monitor in question — while the sender saw a share sheet and a success message, and reasonably assumed it had worked.
+
+Silent wrongness like this is worse than a missing feature, because nothing prompts anyone to check.
+
+**Fixed** with `monitorShareUrl()` (`:71`) emitting `?monitor=<id>`, resolved once on first load in `fetchMonitorsDirectly` behind a `deepLinkResolved` ref so it cannot fight subsequent user navigation.
+
+This is a deliberately narrow slice of URL state — enough to make the shipped feature honest. **It does not close finding 5.3.** Filters, view, search and batch mode are still unshareable and the back button still exits the app.
+
+### R11 — Result was unannounced, and used the 13th `alert()` ✅ fixed
+
+Success went through `alert("Link copied!")`; failure had no path at all. Replaced with the existing inline-confirmation pattern (icon swap to a check, matching `copiedSlug`) plus a `role="status" aria-live="polite"` region, so the outcome is announced rather than only shown. The failure case now says what to do instead of just reporting the problem.
+
+Added `aria-label={`Share ${sm.name}`}` — the button was icon-only with `title` alone. Also added the `.sr-only` utility to `dashboard.css`, which the codebase did not previously have.
+
+### On the "YAGNI, use the OS screenshot tool" advice
+
+Recorded because the reasoning matters more than the conclusion.
+
+The conclusion — don't add `html2canvas` — is defensible. The reasoning was wrong three ways:
+
+1. **It answered a different question.** Screenshot capture ≠ share. Sharing is artifact + context + distribution. An OS screenshot yields a bitmap with no monitor identity, no timestamp and no link back; it needs a human present, and cannot be attached to an alert or run on a schedule.
+2. **YAGNI was misapplied.** YAGNI argues against *speculative features*. This feature was explicitly requested — the opposite of speculative. The principle was used to argue against a dependency, which is not what it governs.
+3. **The bundle-size objection was inconsistent.** `html2canvas` is ~48 KB gzipped and lazy-loadable to zero cost until clicked. This app statically imports `recharts` (~150 KB gz) into the bundle that renders the **login screen**. Rejecting 48 KB deferred while shipping 150 KB eagerly is not a coherent budget.
+
+The actual disqualifying reason went unmentioned: `html2canvas` reimplements CSS rendering in JavaScript and supports neither `backdrop-filter`, `mix-blend-mode`, nor `conic-gradient`. Snoomp uses all three — navbar, grain overlay, and print-report chart respectively. The output would have been visibly wrong.
+
+**If an image export is wanted later,** the version worth building is server-side rendering (Playwright) triggered by the alert pipeline, producing an attachment for Slack/Discord. That works at 3am with nobody watching, which is when it matters. Client-side rasterisation needs a human already looking at the screen — the case where a link is better anyway.
+
+**Security note.** Any share of a monitor — link or image — carries internal hostnames and RFC1918 addresses into whatever destination it lands in. Same exposure class as **F10** in the security review. Worth deciding deliberately whether monitor links should be shareable outside the org boundary at all.
+
+---
+
+## Live verification — 2026-08-03, running instance (v0.3.0)
+
+First pass against the running app rather than source. Public status page audited unauthenticated; dashboard audited in an existing admin session (read-only — no checks triggered, nothing saved). Contrast figures below are **computed from rendered DOM against actual composited backgrounds**, which is what every prior document had to leave unverified.
+
+### Confirmed fixed ✓
+
+| Finding | Live evidence |
+|---|---|
+| **R4** fake DB gauges | Gone. Engine Diagnostics is the single source — `CONNECTIONS 36 / 250` from real `pg_stat_activity`. No more 54% vs 47/250 conflict |
+| **R5** duplicated Total Size | One card only |
+| **R6** unreadable chart | Split into single-unit **Database Query Latency (24h)**; x-axis ticks **40 → 15**; y-axis a clean `0–4ms` |
+| **R7** badge vs strip windows | Rows now read `99.9% Uptime (24h)` + `Heartbeat (30m)` — both windows labelled |
+| **F10** internal IPs public | Removed. Public cards show `DB MONITOR • 100.0% 24h`, no `10.216.x.x` |
+| Public page gaps | `System Status` h1 fallback, `Updated 9:08:29 PM`, real `24h Average Uptime: 99.99%`, heartbeat strips rendered, decorative eyebrows removed |
+| Button colour inheritance | `MIS-BPDLH` category title renders correctly |
+| Icon buttons | **Zero** buttons without an accessible name across both views |
+| Focus ring | Renders on real keyboard Tab — `:focus-visible` matches, two-layer `box-shadow` ring. (A programmatic `.focus()` probe reports no ring; that's a false positive, not a defect.) |
+| Live regions | 2 present on the dashboard |
+| **R9** secure-context clipboard | Live. `navigator.clipboard` appears only inside the guarded helper |
+| **R10** share deep link | Works — `?monitor=<id>` resolves to the correct detail view |
+
+### R12 — Contrast: now marginal rather than failing ⚠️
+
+**Corrected.** An earlier pass in this session recorded 53 failing nodes with `--color-up` at `#238636`/9.5px measuring 4.00:1. Both the token and the font size were changed while the audit was in progress, and the first measurement also walked past translucent badge tints instead of compositing them. Re-measured with transitions disabled and full alpha compositing:
+
+| Element | Colour | Size | Ratio | Needs | Count |
+|---|---|---|---|---|---|
+| Sidebar uptime badges | `#2ea043` | 11px | **4.43** | 4.5 | 49 |
+| `0.0%` label | `#768390` | 11px | **4.44** | 4.5 | 1 |
+| **Active nav CTA ("Dashboard")** | `#ffffff` on accent | 13px | **3.37** | 4.5 | 2 |
+
+`--color-up` has already been lightened to `#2ea043` and the badges moved 9.5px → 11px — both as recommended. The result is **0.07 short of AA**, not the substantial failure previously recorded. Reducing the badge tint alpha slightly, or nudging to `#35b14a`, clears it.
+
+**The one clear failure is the active nav button**: white text on the accent fill at **3.37:1**, present in *both* themes. That is the only genuine contrast defect left in the app.
+
+### R12b — Light mode is fixed ✓
+
+Measured settled, transitions disabled: **1 failing node** in the entire light theme — the avatar initial at 3.68:1.
+
+This closes Part 6.2 ("light mode is structurally broken"). Surfaces separate, borders are visible, KPI numbers are legible, the incident banner reads correctly. The white-on-white panels and invisible gridlines are gone.
+
+One small leak remains: `applyAccent()` writes `--accent` inline on `documentElement`, so the user-selected accent does not adapt per theme — the dark accent `#3b82f6` persists into light mode where the theme defines `#2563EB`. Store the choice as a hue and resolve it per theme.
+
+### R12c — Measurement caveat for future passes
+
+Three of this session's contrast readings were wrong on first measurement: sampled during CSS transitions, or computed against an opaque ancestor rather than the composited translucent parent. Any future contrast check should disable transitions first and composite the full alpha stack. The corrected numbers above are the ones to trust.
+
+### R13 — The latency chart plots an empty series 🔴
+
+`DATABASE QUERY LATENCY (24H)` renders a path that is constant — `M65,155C…,155,…,155` across the full width — against a `0–4ms` axis, while the same monitor's header reads **348.7 ms** and the sidebar shows 90 ms.
+
+The chart is not flat because latency is flat. It is plotting a metric that is empty or zero and labelling it as query latency.
+
+This is the same failure mode as R4, which was just fixed: a chart that looks like data and isn't is worse than an empty state, because nothing invites a second look. Confirm which field the series reads and add an explicit "no data yet" state when the series is empty.
+
+### R14 — Heading structure is effectively absent
+
+The entire monitor detail page exposes **one heading**: `h2: MIS PROD DB`. There is no `h1`, and "Heartbeat Timeline", "Engine Diagnostics", "Database Query Latency" are styled text rather than headings.
+
+A screen-reader user navigating by heading gets a single landmark on the densest page in the product. WCAG 1.3.1 / 2.4.6. (The public status page is correct by contrast: clean `h1 → h2 → h3`.)
+
+### R15 — Tabs carry `aria-selected` without `role="tab"`
+
+The Engine Diagnostics tabs set `aria-selected="true|false"` on plain `<button>` elements with no `role`. `aria-selected` is only valid on `tab`, `option`, `row` and `gridcell` — on a bare button it is ignored, so the attribute conveys nothing while implying the pattern is handled.
+
+Needs `role="tablist"` on the container, `role="tab"` + `aria-controls` on each button, and `role="tabpanel"` + `aria-labelledby` on the panel. Half the pattern is worse than none, because it reads as done.
+
+### R16 — Smaller live findings
+
+- **Query table**: 8 `<th>`, **0** with `scope`, no `<caption>`.
+- **Empty query cells** render an empty bordered `<code>` box plus a Copy button that copies an empty string (PIDs 283062, 380660). Show `—` and suppress the button when the statement is empty.
+- **Shared links take ~8 seconds to resolve** with 52 monitors. The recipient sees the dashboard home, then a jump to the detail view, with no loading state. The deep link works, but the arrival experience needs a skeleton or a "Loading monitor…" state.
+- **Client IP is accent-blue** in the query table and is not interactive — still reads as a link.
+- **`/api/targets/` returns a 307 redirect** (observed as `opaqueredirect`); the route is registered as `@router.get("")`. Every call pays an extra round trip. Drop the trailing slash client-side or register both.
+- **`RECONNECTING` on first paint**: the pill starts in a warning state before the first WS attempt resolves, so a normal load briefly shows an alarm state on a monitoring tool. Start in a neutral "Connecting…" state.
+
+### R17 — Functional sweep: everything works ✓
+
+Exercised live against the running app (read-only — nothing saved, no checks triggered):
+
+| Feature | Result |
+|---|---|
+| Search filter | 52 → 3 for "MongoDB", 0 for no-match, resets cleanly |
+| Empty state | Now reads "No monitors match your filters. **Clear filters**" — the affordance previously missing |
+| Tag / environment chips | `<button>` with `aria-pressed` ✓ (C2 resolved). MIS-BPDLH filters 52 → 47 |
+| Group by | `none` / `tags` / `type` all present |
+| Batch mode | Renders 52 checkboxes correctly |
+| Executive View | Renders, chart present |
+| Status Pages | Renders, 2 cards |
+| Monitor detail | Renders, Engine Diagnostics live |
+| `?monitor=<id>` deep link | Resolves to the correct monitor (~8 s with 52 monitors) |
+| WebSocket | `LIVE`, stable |
+
+No broken functionality found.
+
+### R18 — Dialog primitive: better than recommended, one gap 🟡
+
+`Dialog.tsx` uses the native `<dialog>` element with `showModal()` rather than a hand-rolled trap. Verified live: `:modal` matches, focus moves inside, and background buttons are **not focusable** — the browser's top-layer inertness does the work. All five modals use it. This is a stronger fix than the `<Dialog>` primitive proposed in R3, with fewer lines.
+
+**Two gaps:**
+
+1. **Focus is not restored on close.** Open "Add New Monitor", press Escape — focus lands on `<body>`, not the trigger. A keyboard user is dumped at the top of the document and must tab back through the navbar and sidebar. Cause: `handleCancel` calls `preventDefault()` on the `cancel` event, which suppresses the browser's native close-and-restore path; the subsequent programmatic `close()` has lost the anchor. Capture `document.activeElement` when `isOpen` flips true and restore it explicitly.
+2. **Initial focus lands on the Close button** — the first focusable in the dialog. For a form dialog the first field is the right target; as it stands, a keyboard user pressing Enter immediately dismisses what they just opened. Give the dialog `tabIndex={-1}` and focus it, or focus the first input.
+
+### R19 — Carried forward, still live
+
+- **`ExecutiveDashboard.tsx:84` still reads "Active Insidents"** — flagged in the first review, still shipping. Now also grammatically wrong at count 1 ("1 Active Insidents").
+- **TCO figures still fabricated** — "EST. TCO SAVINGS $1,260 / month" from a hardcoded $25/host assumption, in a view labelled "C-Suite Operations & Financial Control".
+- **`h2` on the detail page is "HEARTBEAT TIMELINE — LAST 60 CHECKS"**, not the monitor name. R14 (heading structure) is unresolved: no `h1`, and the one `h2` labels a section rather than the page subject.
+- **"1 Active Incident(s) Detected"** — the `(s)` pluralisation persists on the dashboard banner.
+
+### Method note
+
+Three times during this pass I screenshotted before the app had finished loading and drew a wrong conclusion — including one where I nearly reported the dashboard as showing all zeros with a dead API. Each was premature measurement, not a defect. Worth recording: **this app takes 5–10 seconds to populate with 52 monitors**, which is itself a finding — there is no loading state anywhere, so an unpopulated dashboard is indistinguishable from a broken one.
+
+---
+
 ## Priority
 
 **P0 — reopens a critical finding / displays false data**
 1. Redact `config_json` on `GET /api/targets/{id}`, `POST`, `PUT` (R1). Add a test asserting no response body contains a secret.
-2. Feed the database gauges from real database fields, or delete them (R4). Two cards labelled "Connections" currently disagree by 3×.
+2. ~~Feed the database gauges from real database fields (R4)~~ — **done**, verified live.
+3. Fix or empty-state the latency chart (R13) — currently plots a zero series labelled as 348 ms latency.
+4. Lighten `--color-up` and `--color-down` for dark (R12) — one change clears 53 failing text nodes, including the `LIVE` pill regression from R2.
 
 **P1 — regressions, access blockers, unusable features**
 3. Decouple the pill tint from the text hue; verify all six state × theme combinations (R2).
@@ -222,6 +389,11 @@ R4 belongs in **P0** — it is a correctness problem visible to users, not a pol
 5. Fix the 24h chart: tick interval, separate axes for percentage vs count, reference line for flat series (R6).
 6. Resolve the duplicated Total Size / Connections cards — one home per metric (R5).
 7. Define `--surface-raised` in `:root`, then migrate the 44 literals.
+
+**Fixed in this pass**
+- R9 secure-context clipboard crash — `copyToClipboard()` helper, all three call sites.
+- R10 share link pointing at the app root — `?monitor=<id>` deep link.
+- R11 unannounced result, `alert()`, missing accessible name — inline confirmation + live region + `aria-label` + `.sr-only` utility.
 
 **P2 — carried forward**
 8. Label the windows on the uptime badge and heartbeat strip (R7).

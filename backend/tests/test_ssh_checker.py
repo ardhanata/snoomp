@@ -86,3 +86,42 @@ def test_host_reboot_guardrail():
     m_reboot = parse_metrics_output(SAMPLE_OUTPUT_1, target_id=target_id)
     # Negative delta total correctly guarded: returns load_percent fallback
     assert m_reboot["cpu_percent"] == 40.0
+
+
+@pytest.mark.asyncio
+async def test_check_ssh_timeout_retries_and_reports_real_error(monkeypatch):
+    from unittest.mock import AsyncMock, patch
+    from app.checkers.ssh import check_ssh
+    import asyncssh
+
+    attempts = 0
+
+    class MockConnectCtx:
+        async def __aenter__(self):
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise asyncssh.DisconnectError(1, "Login timeout expired")
+            # 2nd attempt succeeds
+            mock_conn = AsyncMock()
+            mock_result = AsyncMock()
+            mock_result.exit_status = 0
+            mock_result.stdout = SAMPLE_OUTPUT_1
+            mock_conn.run = AsyncMock(return_value=mock_result)
+            return mock_conn
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            return None
+
+    with patch("asyncssh.connect", side_effect=lambda *args, **kwargs: MockConnectCtx()):
+        res = await check_ssh(
+            host="192.168.1.50",
+            username="root",
+            password="secretpassword",
+            timeout=5
+        )
+        assert attempts == 2
+        assert res.status in ["up", "warning", "critical"]
+        assert res.details is not None
+        assert res.details["cpu_percent"] == 40.0
+

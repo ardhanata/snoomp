@@ -25,8 +25,8 @@ async def check_snmp(host: str, community: str = "public", port: int = 161) -> C
 
     if use_mock or host in ["127.0.0.1", "localhost"]:
         metrics = _get_mock_metrics()
-        status = evaluate_resource_status(metrics["cpu_percent"], metrics["mem_percent"], metrics["disk_percent"])
-        return CheckerResult(status=status, response_time_ms=0.0, details=metrics)
+        status, err = evaluate_resource_status(metrics["cpu_percent"], metrics["mem_percent"], metrics["disk_percent"])
+        return CheckerResult(status=status, response_time_ms=0.0, error=err, details=metrics)
 
     try:
         try:
@@ -162,10 +162,11 @@ async def check_snmp(host: str, community: str = "public", port: int = 161) -> C
             "disk_total_gb": disk_total_gb
         }
         
-        status = evaluate_resource_status(metrics["cpu_percent"], metrics["mem_percent"], metrics["disk_percent"])
+        status, err = evaluate_resource_status(metrics["cpu_percent"], metrics["mem_percent"], metrics["disk_percent"])
         return CheckerResult(
             status=status, 
             response_time_ms=latency, 
+            error=err,
             details=metrics
         )
 
