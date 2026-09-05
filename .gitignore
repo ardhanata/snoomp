@@ -48,3 +48,9 @@ Thumbs.db
 # Docker volumes
 db_data/
 redis_data/
+
+# Etc
+
+.agents
+.codegraph
+.superpowers
