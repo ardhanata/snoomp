@@ -26,8 +26,14 @@ node_modules/
 frontend/dist/
 
 # Database files (standalone mode)
-backend/*.db
-backend/*.sqlite3
+*.db
+*.sqlite
+*.sqlite3
+
+# Media & video recordings
+*.mp4
+*.mkv
+*.mov
 
 # IDE
 .vscode/
