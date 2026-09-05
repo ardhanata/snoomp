@@ -1,6 +1,6 @@
 # Snoomp — Enterprise Infrastructure Health & Status Platform
 
-> **Version:** `v0.3.0`  
+> **Version:** `v1.0.0`  
 > **Repository Root:** `d:/Project/snoomp`
 
 ---
@@ -97,6 +97,7 @@
 ## 📝 6. Changelog & Versioning Rules (For Agents)
 
 - **Always update the Changelog and Version:** When completing tasks that modify behavior, features, or architecture, agents MUST update `CHANGELOG.md` and the `VERSION` file.
-- **Versioning Schema:** 
-  - If making a **major** update (new features, major refactors), increment the Y digit: `x.Y.x` (e.g., `0.2.1` -> `0.3.0`).
-  - If making a **minor** update (bug fixes, small tweaks), increment the Z digit: `x.x.Y` (e.g., `0.3.0` -> `0.3.1`).
+- **Versioning Schema (SemVer):** 
+  - **Major (`X.0.0`):** Breaking architectural changes, major platform graduation (e.g., `0.3.1` -> `1.0.0`).
+  - **Minor (`1.X.0`):** New features, checkers, or installers in a backward-compatible manner (e.g., `1.0.0` -> `1.1.0`).
+  - **Patch (`1.0.X`):** Backward-compatible bug fixes and small tweaks (e.g., `1.0.0` -> `1.0.1`).

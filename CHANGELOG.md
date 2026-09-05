@@ -5,6 +5,24 @@ All notable changes to Snoomp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-09-06
+
+### Added
+- **Automated 1-Click Dependency Provisioning (`scripts/install.ps1`):**
+  - Automated installation of **PostgreSQL 15** via Windows Package Manager (`winget`) or direct unattended EnterpriseDB silent installer fallback with automatic database (`snoomp_db`) and role (`snoomp_admin`) provisioning.
+  - Automated installation of native **Redis Windows Service** (`SnoompRedis` on TCP 6379) via `winget` or direct standalone pre-compiled binary distribution.
+- **Smart Pre-Flight Network Engine (`scripts/install.ps1`):**
+  - Automatic Hyper-V / Host Network Reserved Range collision detection (`netsh interface ipv4 show excludedportrange`).
+  - Active listener detection and process inspection (`PID`, process name, executable path).
+  - Pre-flight status table rendering with zero-friction auto-adoption of free port 8008 and automated conflict resolution.
+- **GitHub Release Distribution:**
+  - Published official standalone Windows executable distribution package (`snoomp-windows-x64.zip`) attached to GitHub Release `v1.0.0` for 1-liner native server installations (`irm https://raw.githubusercontent.com/ardhanata/snoomp/main/scripts/install.ps1 | iex`).
+
+### Changed
+- Graduated versioning scheme to SemVer `v1.0.0` (Enterprise GA Release) across frontend, backend API metadata, `VERSION`, and documentation.
+
+---
+
 ## [0.3.1] - 2026-09-05
 
 ### Added

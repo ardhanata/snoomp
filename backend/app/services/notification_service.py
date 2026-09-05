@@ -336,7 +336,7 @@ def send_direct_webhook(cfg: Dict[str, Any], title: str, body: str, monitor_data
         raise ValueError("Webhook URL is required")
 
     method = (cfg.get("httpMethod") or "POST").upper()
-    headers = {"User-Agent": "Snoomp-Monitor/0.3.1"}
+    headers = {"User-Agent": "Snoomp-Monitor/1.0.0"}
 
     add_headers = cfg.get("webhookAdditionalHeaders")
     if add_headers:

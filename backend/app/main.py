@@ -129,11 +129,11 @@ def get_app_version() -> str:
                     return f.read().strip()
             except Exception:
                 pass
-    return "0.3.0"
+    return "1.0.0"
 
 @app.get("/api/version")
 def get_version():
-    return {"version": get_app_version(), "release_date": "2026-07-30", "name": "Snoomp Enterprise Observability"}
+    return {"version": get_app_version(), "release_date": "2026-09-06", "name": "Snoomp Enterprise Observability"}
 
 def _find_frontend_dist() -> str | None:
     import sys
