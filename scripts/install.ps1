@@ -17,6 +17,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
+if ($PSVersionTable.PSVersion.Major -ge 7) { $PSNativeCommandUseErrorActionPreference = $false }
 
 function Show-Banner {
     Clear-Host
@@ -146,6 +147,9 @@ function Find-NextAvailablePort([int]$startPort) {
     $p = $startPort
     while (-not (Test-PortAvailable $p)) {
         $p++
+        if ($p -gt 65535) {
+            throw "No available TCP port found in range $startPort to 65535."
+        }
     }
     return $p
 }
@@ -381,7 +385,9 @@ function Invoke-PsqlCommand {
         $env:PGPASSWORD = $Password
     }
     try {
-        $res = & $PsqlExe $ArgumentList 2>&1
+        # Ensure -w is passed to prevent psql hanging on interactive password prompts
+        $psqlArgs = if ($ArgumentList -contains "-w") { $ArgumentList } else { @("-w") + $ArgumentList }
+        $res = & $PsqlExe $psqlArgs 2>&1
         $outStr = ($res | Out-String).Trim()
         return [PSCustomObject]@{
             ExitCode = $LASTEXITCODE
@@ -403,21 +409,25 @@ function Ensure-PostgresDatabaseAndUser {
         [string]$SuperUserPassword = ""
     )
 
-    $psqlPaths = @(
-        "C:\Program Files\PostgreSQL\17\bin\psql.exe",
-        "C:\Program Files\PostgreSQL\16\bin\psql.exe",
-        "C:\Program Files\PostgreSQL\15\bin\psql.exe",
-        "C:\Program Files\PostgreSQL\*\bin\psql.exe"
-    )
-    $psqlExe = $null
-    foreach ($pathPattern in $psqlPaths) {
-        $found = Resolve-Path $pathPattern -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($found -and (Test-Path $found.Path)) {
-            $psqlExe = $found.Path
-            break
+    $resolvedPsql = @()
+    try {
+        $candidates = Get-ChildItem -Path "C:\Program Files\PostgreSQL" -Directory -ErrorAction SilentlyContinue |
+            Sort-Object {
+                $verNum = 0.0
+                if ([double]::TryParse($_.Name, [ref]$verNum)) { $verNum } else { 0.0 }
+            } -Descending
+        foreach ($d in $candidates) {
+            $p = Join-Path $d.FullName "bin\psql.exe"
+            if (Test-Path $p) {
+                $resolvedPsql += $p
+            }
         }
-    }
-    if (-not $psqlExe) {
+    } catch {}
+
+    $psqlExe = $null
+    if ($resolvedPsql.Count -gt 0) {
+        $psqlExe = $resolvedPsql[0]
+    } else {
         $cmdPsql = Get-Command psql.exe -ErrorAction SilentlyContinue
         if ($cmdPsql) { $psqlExe = $cmdPsql.Source }
     }
@@ -435,12 +445,22 @@ function Ensure-PostgresDatabaseAndUser {
         return $true
     }
 
-    Write-Host "  Role '$SnoompUser' or database '$DatabaseName' not found (or password differs)." -ForegroundColor Yellow
+    if ($testUserConn.Output -match 'does not exist') {
+        Write-Host "  [INFO] Role '$SnoompUser' or database '$DatabaseName' does not exist -- initiating setup." -ForegroundColor Yellow
+    } elseif ($testUserConn.Output -match 'password authentication failed') {
+        Write-Host "  [WARN] Role '$SnoompUser' exists but password authentication failed. Re-syncing credentials via superuser..." -ForegroundColor Yellow
+    } else {
+        Write-Host "  [INFO] Database probe output: $($testUserConn.Output)" -ForegroundColor Gray
+    }
+
     Write-Host "  Attempting automated setup via PostgreSQL 'postgres' superuser..." -ForegroundColor Yellow
 
     $superCandidates = @()
     if (-not [string]::IsNullOrWhiteSpace($SuperUserPassword)) { $superCandidates += $SuperUserPassword }
     if (-not [string]::IsNullOrWhiteSpace($SnoompPassword) -and $SnoompPassword -notin $superCandidates) { $superCandidates += $SnoompPassword }
+    foreach ($cand in @("postgres", "root", "admin", "")) {
+        if ($cand -notin $superCandidates) { $superCandidates += $cand }
+    }
 
     $authenticatedSuper = $null
     foreach ($cand in $superCandidates) {
@@ -455,7 +475,11 @@ function Ensure-PostgresDatabaseAndUser {
         Write-Host "  Connecting as PostgreSQL superuser 'postgres' requires credentials." -ForegroundColor Yellow
         $superInput = Read-Host "  Enter 'postgres' superuser password" -AsSecureString
         $Bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($superInput)
-        $enteredPass = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($Bstr)
+        try {
+            $enteredPass = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($Bstr)
+        } finally {
+            [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($Bstr)
+        }
         if (-not [string]::IsNullOrWhiteSpace($enteredPass)) {
             $testSuper = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-c", "SELECT 1;") -Password $enteredPass
             if ($testSuper.ExitCode -eq 0) {
@@ -465,19 +489,22 @@ function Ensure-PostgresDatabaseAndUser {
     }
 
     if ($null -ne $authenticatedSuper) {
-        Write-Host "  Creating/updating role '$SnoompUser' with superuser rights..." -ForegroundColor Yellow
-        $createRoleSql = "DO `$do`$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$SnoompUser') THEN CREATE ROLE $SnoompUser WITH LOGIN PASSWORD '$SnoompPassword' SUPERUSER; ELSE ALTER ROLE $SnoompUser WITH PASSWORD '$SnoompPassword' SUPERUSER; END IF; END `$do`$;"
-        $null = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-c", $createRoleSql) -Password $authenticatedSuper
+        Write-Host "  Creating/updating role '$SnoompUser' (least privilege LOGIN role)..." -ForegroundColor Yellow
+        $createRoleSql = "DO `$do`$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = :'u') THEN EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', :'u', :'p'); ELSE EXECUTE format('ALTER ROLE %I PASSWORD %L', :'u', :'p'); END IF; END `$do`$;"
+        $null = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-v", "u=$SnoompUser", "-v", "p=$SnoompPassword", "-c", $createRoleSql) -Password $authenticatedSuper
 
         Write-Host "  Ensuring database '$DatabaseName' exists with owner '$SnoompUser'..." -ForegroundColor Yellow
-        $checkDbSql = "SELECT 1 FROM pg_database WHERE datname = '$DatabaseName';"
-        $resCheck = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-t", "-c", $checkDbSql) -Password $authenticatedSuper
+        $checkDbSql = "SELECT 1 FROM pg_database WHERE datname = :'d';"
+        $resCheck = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-t", "-v", "d=$DatabaseName", "-c", $checkDbSql) -Password $authenticatedSuper
 
         if ($resCheck.Output -notmatch "1") {
-            $null = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-c", "CREATE DATABASE $DatabaseName OWNER $SnoompUser;") -Password $authenticatedSuper
+            $null = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-v", "d=$DatabaseName", "-v", "u=$SnoompUser", "-c", "CREATE DATABASE :`"d`" OWNER :`"u`";") -Password $authenticatedSuper
         } else {
-            $null = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-c", "ALTER DATABASE $DatabaseName OWNER TO $SnoompUser;") -Password $authenticatedSuper
+            $null = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-v", "d=$DatabaseName", "-v", "u=$SnoompUser", "-c", "ALTER DATABASE :`"d`" OWNER TO :`"u`";") -Password $authenticatedSuper
         }
+
+        # Ensure full grants on the target database
+        $null = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", "postgres", "-d", "postgres", "-v", "d=$DatabaseName", "-v", "u=$SnoompUser", "-c", "GRANT ALL PRIVILEGES ON DATABASE :`"d`" TO :`"u`";") -Password $authenticatedSuper
 
         # Final verification
         $verifyConn = Invoke-PsqlCommand -PsqlExe $psqlExe -ArgumentList @("-h", $HostName, "-p", "$Port", "-U", $SnoompUser, "-d", $DatabaseName, "-c", "SELECT 1;") -Password $SnoompPassword
@@ -486,12 +513,12 @@ function Ensure-PostgresDatabaseAndUser {
             return $true
         } else {
             Write-Host "  [WARN] Database created but connection check output: $($verifyConn.Output)" -ForegroundColor Yellow
-            return $true
+            return $false
         }
     } else {
         Write-Host "  [WARN] Could not authenticate as 'postgres' superuser to auto-provision." -ForegroundColor Yellow
         Write-Host "         You may need to manually execute:" -ForegroundColor Gray
-        Write-Host "         psql -U postgres -c `"CREATE USER $SnoompUser WITH PASSWORD '$SnoompPassword' SUPERUSER;`"" -ForegroundColor Gray
+        Write-Host "         psql -U postgres -c `"CREATE USER $SnoompUser WITH PASSWORD '$SnoompPassword';`"" -ForegroundColor Gray
         Write-Host "         psql -U postgres -c `"CREATE DATABASE $DatabaseName OWNER $SnoompUser;`"" -ForegroundColor Gray
         return $false
     }
@@ -521,7 +548,7 @@ function Install-PostgreSqlDependency {
                 "--silent",
                 "--accept-source-agreements",
                 "--accept-package-agreements",
-                "--override", "`"--mode unattended --unattendedmodeui none --superpassword `"$SuperUserPassword`" --serverport $Port`""
+                "--override", "--mode unattended --unattendedmodeui none --superpassword `"$SuperUserPassword`" --serverport $Port"
             )
             $p = Start-Process -FilePath "winget" -ArgumentList $wingetArgs -Wait -PassThru -NoNewWindow
             if ($p.ExitCode -eq 0) {
@@ -574,10 +601,7 @@ function Install-PostgreSqlDependency {
         return $false
     }
 
-    $null = Ensure-PostgresDatabaseAndUser -HostName "127.0.0.1" -Port $Port -DatabaseName $DatabaseName -SnoompUser $SnoompUser -SnoompPassword $SnoompPassword -SuperUserPassword $SuperUserPassword
-    return $true
-
-    return $true
+    return (Ensure-PostgresDatabaseAndUser -HostName "127.0.0.1" -Port $Port -DatabaseName $DatabaseName -SnoompUser $SnoompUser -SnoompPassword $SnoompPassword -SuperUserPassword $SuperUserPassword)
 }
 
 function Install-RedisDependency {
@@ -720,7 +744,11 @@ if ($DbChoice -eq "1" -and -not $Unattended) {
 
         $PgPass = Read-Host "  Password        " -AsSecureString
         $Bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($PgPass)
-        $PlainPass = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($Bstr)
+        try {
+            $PlainPass = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($Bstr)
+        } finally {
+            [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($Bstr)
+        }
 
         # Pre-flight TCP verification
         Write-Host "  Verifying TCP connection to ${PgHost}:${PgPort}..." -ForegroundColor Yellow
@@ -729,10 +757,32 @@ if ($DbChoice -eq "1" -and -not $Unattended) {
             Write-Host "  [OK] Successfully reached PostgreSQL service at ${PgHost}:${PgPort}" -ForegroundColor Green
             $isLocal = ($PgHost -eq "127.0.0.1" -or $PgHost -eq "localhost")
             if ($isLocal) {
-                $null = Ensure-PostgresDatabaseAndUser -HostName $PgHost -Port ([int]$PgPort) -DatabaseName $PgDb -SnoompUser $PgUser -SnoompPassword $PlainPass
+                $isProvisioned = Ensure-PostgresDatabaseAndUser -HostName $PgHost -Port ([int]$PgPort) -DatabaseName $PgDb -SnoompUser $PgUser -SnoompPassword $PlainPass
+                if ($isProvisioned) {
+                    $encPass = [System.Uri]::EscapeDataString($PlainPass)
+                    $DatabaseUrl = "postgresql://${PgUser}:${encPass}@${PgHost}:${PgPort}/${PgDb}"
+                    $PgVerified = $true
+                } else {
+                    Write-Host "  [WARN] PostgreSQL automated provisioning did not succeed." -ForegroundColor Red
+                    Write-Host "  [1] Re-enter PostgreSQL connection details" -ForegroundColor White
+                    Write-Host "  [2] Proceed anyway (assuming database and user will be configured manually)" -ForegroundColor White
+                    Write-Host "  [3] Fallback to Embedded SQLite" -ForegroundColor White
+                    $failChoice = Read-Host "  Selection [Default: 1]"
+                    if ($failChoice -eq "2") {
+                        $encPass = [System.Uri]::EscapeDataString($PlainPass)
+                        $DatabaseUrl = "postgresql://${PgUser}:${encPass}@${PgHost}:${PgPort}/${PgDb}"
+                        $PgVerified = $true
+                    } elseif ($failChoice -eq "3") {
+                        $DatabaseUrl = "sqlite:///snoomp.db"
+                        Write-Host "  Using Embedded SQLite as requested." -ForegroundColor Yellow
+                        $PgVerified = $true
+                    }
+                }
+            } else {
+                $encPass = [System.Uri]::EscapeDataString($PlainPass)
+                $DatabaseUrl = "postgresql://${PgUser}:${encPass}@${PgHost}:${PgPort}/${PgDb}"
+                $PgVerified = $true
             }
-            $DatabaseUrl = "postgresql://${PgUser}:${PlainPass}@${PgHost}:${PgPort}/${PgDb}"
-            $PgVerified = $true
         } else {
             Write-Host "  [WARN] Cannot connect to ${PgHost}:${PgPort}! Is PostgreSQL/TimescaleDB running?" -ForegroundColor Red
             $isLocal = ($PgHost -eq "127.0.0.1" -or $PgHost -eq "localhost")
@@ -747,13 +797,15 @@ if ($DbChoice -eq "1" -and -not $Unattended) {
                     $installPass = if (-not [string]::IsNullOrWhiteSpace($PlainPass)) { $PlainPass } else { "snoomp_secure_password" }
                     $installed = Install-PostgreSqlDependency -Port ([int]$PgPort) -SuperUserPassword $installPass -SnoompUser $PgUser -SnoompPassword $installPass -DatabaseName $PgDb
                     if ($installed) {
-                        $DatabaseUrl = "postgresql://${PgUser}:${installPass}@${PgHost}:${PgPort}/${PgDb}"
+                        $encInstallPass = [System.Uri]::EscapeDataString($installPass)
+                        $DatabaseUrl = "postgresql://${PgUser}:${encInstallPass}@${PgHost}:${PgPort}/${PgDb}"
                         $PgVerified = $true
                     } else {
                         Write-Host "  Automated installation could not complete. You may re-enter details or fallback." -ForegroundColor Yellow
                     }
                 } elseif ($warnChoice -eq "3") {
-                    $DatabaseUrl = "postgresql://${PgUser}:${PlainPass}@${PgHost}:${PgPort}/${PgDb}"
+                    $encPass = [System.Uri]::EscapeDataString($PlainPass)
+                    $DatabaseUrl = "postgresql://${PgUser}:${encPass}@${PgHost}:${PgPort}/${PgDb}"
                     $PgVerified = $true
                 } elseif ($warnChoice -eq "4") {
                     $DatabaseUrl = "sqlite:///snoomp.db"
@@ -766,7 +818,8 @@ if ($DbChoice -eq "1" -and -not $Unattended) {
                 Write-Host "  [3] Fallback to Embedded SQLite" -ForegroundColor White
                 $warnChoice = Read-Host "  Selection [Default: 1]"
                 if ($warnChoice -eq "2") {
-                    $DatabaseUrl = "postgresql://${PgUser}:${PlainPass}@${PgHost}:${PgPort}/${PgDb}"
+                    $encPass = [System.Uri]::EscapeDataString($PlainPass)
+                    $DatabaseUrl = "postgresql://${PgUser}:${encPass}@${PgHost}:${PgPort}/${PgDb}"
                     $PgVerified = $true
                 } elseif ($warnChoice -eq "3") {
                     $DatabaseUrl = "sqlite:///snoomp.db"
