@@ -5,7 +5,7 @@ import asyncio
 import time
 import secrets
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
@@ -233,18 +233,44 @@ if _frontend_dist:
     from fastapi.staticfiles import StaticFiles
     from fastapi.responses import FileResponse
     logger.info("Serving frontend static assets from %s", _frontend_dist)
+    # Asset filenames are content-hashed by Vite, so they can be cached
+    # indefinitely. index.html must NOT be — it is what maps to the current
+    # hashes, and a cached copy keeps requesting a bundle that no longer
+    # exists (or worse, a stale one that still does).
+    _IMMUTABLE = "public, max-age=31536000, immutable"
+    _NO_STORE = "no-cache, no-store, must-revalidate"
+
+    class _ImmutableStatics(StaticFiles):
+        """StaticFiles that marks content-hashed assets as immutable."""
+
+        def file_response(self, *args, **kwargs):
+            resp = super().file_response(*args, **kwargs)
+            resp.headers["Cache-Control"] = _IMMUTABLE
+            return resp
+
     _assets_path = os.path.join(_frontend_dist, "assets")
     if os.path.exists(_assets_path):
-        app.mount("/assets", StaticFiles(directory=_assets_path), name="assets")
+        app.mount("/assets", _ImmutableStatics(directory=_assets_path), name="assets")
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
         if full_path.startswith("api/") or full_path == "api" or full_path.startswith("ws"):
-            return {"error": "Not Found"}
+            raise HTTPException(status_code=404, detail="Not Found")
+
         target_file = os.path.join(_frontend_dist, full_path)
         if full_path and os.path.isfile(target_file):
-            return FileResponse(target_file)
-        return FileResponse(os.path.join(_frontend_dist, "index.html"))
+            # Hashed build assets are safe to cache forever; anything else
+            # (favicon, manifest, stray static file) revalidates.
+            immutable = full_path.startswith("assets/")
+            return FileResponse(
+                target_file,
+                headers={"Cache-Control": _IMMUTABLE if immutable else _NO_STORE},
+            )
+
+        return FileResponse(
+            os.path.join(_frontend_dist, "index.html"),
+            headers={"Cache-Control": _NO_STORE},
+        )
 else:
     @app.get("/")
     def read_root():
