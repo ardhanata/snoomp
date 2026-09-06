@@ -39,19 +39,18 @@ export default function Dialog({ isOpen, onClose, children, className, style, 'a
       if (dialog.open) {
         dialog.close();
       }
-      if (lastActiveElementRef.current && typeof lastActiveElementRef.current.focus === 'function') {
-        lastActiveElementRef.current.focus();
-        lastActiveElementRef.current = null;
+      const el = lastActiveElementRef.current;
+      lastActiveElementRef.current = null;
+      if (el && typeof el.focus === 'function' && el.isConnected) {
+        requestAnimationFrame(() => {
+          el.focus();
+        });
       }
     }
   }, [isOpen]);
 
   const handleCancel = () => {
     onClose();
-    if (lastActiveElementRef.current && typeof lastActiveElementRef.current.focus === 'function') {
-      lastActiveElementRef.current.focus();
-      lastActiveElementRef.current = null;
-    }
   };
 
   return (

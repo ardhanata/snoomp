@@ -200,13 +200,14 @@ export default function PreferencesTagsTab({
                                   }
                                 }}
                               />
-                              <button
-                                type="button"
-                                onClick={() => handleSaveRename(tagItem.name)}
-                                style={{ padding: '4px 11px', borderRadius: '6px', background: 'var(--color-up)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
-                              >
-                                Save
-                              </button>
+                                <button
+                                  type="button"
+                                  className="btn-primary"
+                                  onClick={() => handleSaveRename(tagItem.name)}
+                                  style={{ padding: '4px 11px', fontSize: '12px' }}
+                                >
+                                  Save
+                                </button>
                               <button
                                 type="button"
                                 onClick={() => setEditingTagKey(null)}

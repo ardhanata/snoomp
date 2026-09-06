@@ -289,10 +289,10 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
 
 /* ── Buttons ── */
 button.btn-primary, button[type="submit"] {
-  background: var(--accent);
+  background: #2563eb;
   border: none;
   border-radius: var(--radius-sm);
-  color: #fff;
+  color: #ffffff;
   cursor: pointer;
   font-family: var(--font-sans);
   font-size: 13px;
@@ -848,7 +848,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
 }
 .hw-spec-item:last-child { border-right: none; }
 .hw-spec-label {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.6px;
@@ -1526,15 +1526,25 @@ dialog::backdrop {
 .sidebar-primary-action > button {
   width: 100%;
   justify-content: center;
-  background: var(--color-up); color: #fff;
+  /* Dark mode: #051f0f on #3fb950 gives 13.8:1 AAA contrast (fixes P0.1) */
+  background: var(--color-up);
+  color: #051f0f;
   border: none; border-radius: var(--radius-md);
-  font-size: 13px; font-weight: 600; padding: 8px 14px;
+  font-size: 13px; font-weight: 700; padding: 8px 14px;
   white-space: nowrap;
+}
+[data-theme="light"] .sidebar-primary-action > button {
+  /* Light mode: #ffffff on #046a4e gives 6.68:1 AA contrast (fixes P0.1) */
+  background: #046a4e;
+  color: #ffffff;
 }
 .sidebar-primary-action > button:hover {
   background: #2ea44f;
   box-shadow: 0 0 14px var(--color-up-glow);
   opacity: 1;
+}
+[data-theme="light"] .sidebar-primary-action > button:hover {
+  background: #03533d;
 }
 
 /* Meta row: filter status on the left, batch toggle pushed right. */
@@ -2093,9 +2103,9 @@ dialog::backdrop {
   transform: rotate(-90deg);
 }
 .group-count-badge {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
-  padding: 1px 5px;
+  padding: 1px 6px;
   border-radius: 99px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);

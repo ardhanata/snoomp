@@ -13,15 +13,17 @@ import './styles/dashboard.css';
 import './styles/toast.css';
 import RadialGauge from './components/RadialGauge';
 import PublicStatusPage from './components/PublicStatusPage';
-import MonitorModal from './components/MonitorModal';
-import BatchEditModal from './components/BatchEditModal';
 import Dialog from './components/Dialog';
 import { SnoompLogo } from './components/SnoompLogo';
 import ExecutiveDashboard, { SlaTrend } from './components/ExecutiveDashboard';
-import PrintableReport from './components/PrintableReport';
 import DatabaseMetricsChart from './components/DatabaseMetricsChart';
-import UserPreferencesModal, { SlaConfig } from './components/UserPreferencesModal';
+import MonitorRow from './components/MonitorRow';
 import { InstanceSettings, readCache, fetchSettings, applyAppearance } from './lib/settings';
+
+const MonitorModal = React.lazy(() => import('./components/MonitorModal'));
+const BatchEditModal = React.lazy(() => import('./components/BatchEditModal'));
+const PrintableReport = React.lazy(() => import('./components/PrintableReport'));
+const UserPreferencesModal = React.lazy(() => import('./components/UserPreferencesModal'));
 
 const API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 const WS_PROTOCOL = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -91,17 +93,6 @@ function visibleVolumes(disks: any[] | undefined | null): any[] {
     if (typeof mount !== 'string' || mount === '') return false;
     return !PSEUDO_FS_PREFIXES.some(prefix => mount.startsWith(prefix));
   });
-}
-
-function uptimeBadgeClass(pct: number, slaConfig?: SlaConfig): string {
-  const normal = slaConfig?.normal ?? 99.9;
-  const warning = slaConfig?.warning ?? 99.0;
-  const critical = slaConfig?.critical ?? 95.0;
-  if (pct >= normal) return 'excellent';
-  if (pct >= warning) return 'good';
-  if (pct >= critical) return 'warning';
-  if (pct > 0) return 'critical';
-  return 'unknown';
 }
 
 // ponytail: clear inline styles on default accent so CSS data-theme tokens resolve naturally
@@ -1332,7 +1323,7 @@ function App() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               width: '24px', height: '24px', borderRadius: '50%',
               background: theme === 'light' ? 'var(--bg-elevated)' : 'transparent',
-              color: theme === 'light' ? '#f59e0b' : 'var(--text-muted)',
+              color: theme === 'light' ? 'var(--color-warning)' : 'var(--text-muted)',
               boxShadow: theme === 'light' ? 'var(--shadow-sm)' : 'none',
               transition: 'all 0.2s'
             }}>
@@ -1342,7 +1333,7 @@ function App() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               width: '24px', height: '24px', borderRadius: '50%',
               background: theme === 'dark' ? 'var(--bg-elevated)' : 'transparent',
-              color: theme === 'dark' ? '#60a5fa' : 'var(--text-muted)',
+              color: theme === 'dark' ? 'var(--accent)' : 'var(--text-muted)',
               boxShadow: theme === 'dark' ? 'var(--shadow-sm)' : 'none',
               transition: 'all 0.2s'
             }}>
@@ -1630,14 +1621,14 @@ function App() {
                       <button
                         type="button"
                         onClick={handleBatchToggleEnabled}
-                        style={{ fontSize: '12px', padding: '6px 8px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                        style={{ fontSize: '12px', padding: '6px 8px', background: 'var(--surface-raised)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
                       >
                         <Power size={12} /> Enable/Disable
                       </button>
                       <button
                         type="button"
                         onClick={handleBatchDelete}
-                        style={{ fontSize: '12px', padding: '6px 8px', background: 'rgba(239,68,68,0.1)', color: 'var(--color-down)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', gridColumn: 'span 2', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                        style={{ fontSize: '12px', padding: '6px 8px', background: 'var(--color-down-glow)', color: 'var(--color-down)', border: '1px solid var(--border)', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', gridColumn: 'span 2', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
                       >
                         <Trash2 size={12} /> Delete Selected ({selectedMonitorIds.length})
                       </button>
@@ -1693,87 +1684,31 @@ function App() {
                     );
                   }
 
-                  // Renders one monitor row in the sidebar list
+                  // Renders one monitor row in the sidebar list using memoized component
                   const renderMonitorItem = (m: any) => {
                     const isActive = sm?.id === m.id && view === 'dashboard';
-                    const uptime = m.uptime_24h ?? 0;
-                    const recentHbs = m.recent_heartbeats || [];
                     const isSelected = selectedMonitorIds.includes(m.id);
                     return (
-                      <button
+                      <MonitorRow
                         key={m.id}
-                        type="button"
-                        className={`monitor-row ${isActive ? 'active' : ''}`}
-                        aria-current={isActive ? 'page' : undefined}
-                        aria-pressed={isBatchMode ? isSelected : undefined}
-                        aria-label={`${m.name}, status ${m.status || 'unknown'}, uptime ${uptime.toFixed(1)}%`}
-                        onClick={() => {
-                          if (isBatchMode) {
-                            if (isSelected) {
-                              setSelectedMonitorIds(prev => prev.filter(id => id !== m.id));
-                            } else {
-                              setSelectedMonitorIds(prev => Array.from(new Set([...prev, m.id])));
-                            }
+                        monitor={m}
+                        isActive={isActive}
+                        isBatchMode={isBatchMode}
+                        isSelected={isSelected}
+                        slaConfig={instanceSettings.sla}
+                        onSelect={(selectedM) => {
+                          setSelectedMonitor(selectedM);
+                          setSidebarOpen(false);
+                          setView('dashboard');
+                        }}
+                        onToggleSelect={(id) => {
+                          if (selectedMonitorIds.includes(id)) {
+                            setSelectedMonitorIds(prev => prev.filter(mid => mid !== id));
                           } else {
-                            setSelectedMonitor(m);
-                            // On mobile the drawer covers the thing you just
-                            // asked to see — get out of the way.
-                            setSidebarOpen(false);
-                            setView('dashboard');
+                            setSelectedMonitorIds(prev => Array.from(new Set([...prev, id])));
                           }
                         }}
-                        style={{
-                          width: '100%',
-                          font: 'inherit',
-                          textAlign: 'left',
-                          background: isSelected ? 'rgba(59,130,246,0.12)' : 'transparent',
-                          border: isSelected ? '1px solid var(--accent-glow)' : '1px solid transparent'
-                        }}
-                      >
-                        <div className="monitor-row-top" style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
-                          {isBatchMode && (
-                            <div style={{ width: '14px', height: '14px', border: '1px solid ' + (isSelected ? 'var(--accent)' : 'var(--border)'), borderRadius: '3px', background: isSelected ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                              {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
-                            </div>
-                          )}
-                          <span className="monitor-row-label" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {m.name}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-                          <span className={`uptime-badge ${uptimeBadgeClass(uptime)}`} style={{ flexShrink: 0, fontSize: '11px' }} title="24-hour average uptime">
-                            {recentHbs.length > 0 ? `${uptime.toFixed(1)}%` : '—'}
-                          </span>
-                          {(() => {
-                            const upHbs = recentHbs.filter((h: any) => h.status === 'up').length;
-                            const downHbs = recentHbs.filter((h: any) => h.status === 'down' || h.status === 'critical').length;
-                            const hbSummary = recentHbs.length > 0 ? `Last ${recentHbs.length} checks: ${upHbs} up, ${downHbs} down` : 'No recent checks';
-                            return (
-                              <div className="mini-hb-row" style={{ flex: 1, minWidth: 0 }} role="img" aria-label={hbSummary} title={hbSummary}>
-                                {recentHbs.length > 0
-                                  ? recentHbs.map((hb: any, i: number) => (
-                                    <div key={i} className={`mini-hb-bar ${hb.status || 'unknown'}`} aria-hidden="true" />
-                                  ))
-                                  : Array(20).fill(null).map((_, i) => (
-                                    <div key={i} className="mini-hb-bar unknown" aria-hidden="true" />
-                                  ))
-                                }
-                              </div>
-                            );
-                          })()}
-                          {m.response_time_ms > 0 && (
-                            <span style={{
-                              fontSize: '11px',
-                              fontFamily: 'var(--font-mono)',
-                              color: m.response_time_ms >= 1000 ? 'var(--color-warning)' : 'var(--text-muted)',
-                              fontWeight: m.response_time_ms >= 1000 ? 600 : 400,
-                              flexShrink: 0
-                            }}>
-                              {m.response_time_ms.toFixed(0)}ms
-                            </span>
-                          )}
-                        </div>
-                      </button>
+                      />
                     );
                   };
 
@@ -2223,7 +2158,7 @@ function App() {
                                       {dk.mount}
                                     </span>
                                     {isNfs && (
-                                      <span style={{ fontSize: '9px', background: 'rgba(59,130,246,0.15)', color: 'var(--accent)', padding: '1px 5px', borderRadius: '4px', fontWeight: 600 }}>NFS</span>
+                                      <span style={{ fontSize: '11px', background: 'var(--accent-dim)', color: 'var(--accent)', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>NFS</span>
                                     )}
                                   </div>
                                   <span style={{ fontSize: '12px', fontWeight: 800, color: badgeColor, fontFamily: 'var(--font-mono)' }}>
@@ -2267,7 +2202,7 @@ function App() {
                                 style={{
                                   fontSize: '12px',
                                   padding: '2px 8px',
-                                  background: resourceHours === t.value ? 'rgba(59,130,246,0.15)' : 'transparent',
+                                  background: resourceHours === t.value ? 'var(--accent-dim)' : 'transparent',
                                   color: resourceHours === t.value ? 'var(--accent)' : 'var(--text-muted)',
                                   border: resourceHours === t.value ? '1px solid var(--accent)' : '1px solid transparent',
                                   borderRadius: '4px',
@@ -2347,7 +2282,7 @@ function App() {
                           <h2 style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', letterSpacing: '0.3px', margin: 0 }}>
                             Engine Diagnostics
                           </h2>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', background: 'rgba(59,130,246,0.1)', padding: '2px 8px', borderRadius: '11px', fontWeight: '500' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', background: 'var(--accent-dim)', padding: '2px 8px', borderRadius: '11px', fontWeight: '500' }}>
                             {dbEngineStatus?.type?.toUpperCase() || 'LIVE'}
                           </span>
                         </div>
@@ -2371,7 +2306,7 @@ function App() {
                               <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
                                 {dbEngineStatus.info?.storage_size_mb ? (dbEngineStatus.info.storage_size_mb > 1024 ? `${(dbEngineStatus.info.storage_size_mb / 1024).toFixed(1)} GB` : `${dbEngineStatus.info.storage_size_mb} MB`) : '—'}
                               </div>
-                              <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '2px' }}>{dbEngineStatus.info?.database_count || '—'} databases</div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{dbEngineStatus.info?.database_count || '—'} databases</div>
                             </div>
                             <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '11px', padding: '12px', textAlign: 'center' }}>
                               <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Connections</div>
@@ -2379,21 +2314,21 @@ function App() {
                                 {dbEngineStatus.info?.active_connections ?? '—'}
                                 <span style={{ fontSize: '12px', fontWeight: '400', color: 'var(--text-muted)' }}> / {dbEngineStatus.info?.max_connections ?? '—'}</span>
                               </div>
-                              <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '2px' }}>active / max</div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>active / max</div>
                             </div>
                             <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '11px', padding: '12px', textAlign: 'center' }}>
                               <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Shared Buffers</div>
                               <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
                                 {dbEngineStatus.info?.shared_buffers || '—'}
                               </div>
-                              <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '2px' }}>cache: {dbEngineStatus.info?.effective_cache_size || '—'}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>cache: {dbEngineStatus.info?.effective_cache_size || '—'}</div>
                             </div>
                             <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '11px', padding: '12px', textAlign: 'center' }}>
                               <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Uptime</div>
                               <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
                                 {dbEngineStatus.info?.uptime_seconds ? `${Math.floor(dbEngineStatus.info.uptime_seconds / 86400)}d` : '—'}
                               </div>
-                              <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                                 {dbEngineStatus.info?.uptime_seconds ? `${Math.floor((dbEngineStatus.info.uptime_seconds % 86400) / 3600)}h ${Math.floor((dbEngineStatus.info.uptime_seconds % 3600) / 60)}m` : 'since boot'}
                               </div>
                             </div>
@@ -2467,15 +2402,33 @@ function App() {
                                       const isLong = durSec > 300;
                                       const durStr = durSec >= 3600 ? `${Math.floor(durSec / 3600)}h ${Math.floor((durSec % 3600) / 60)}m` : durSec >= 60 ? `${Math.floor(durSec / 60)}m ${Math.floor(durSec % 60)}s` : `${durSec.toFixed(1)}s`;
                                       return (
-                                        <tr key={i} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.15s', background: isLong ? 'var(--color-down-glow)' : 'transparent' }}>
+                                        <tr key={i} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.15s', background: isLong ? 'var(--surface-raised)' : 'transparent', borderLeft: isLong ? '3px solid var(--color-down)' : '3px solid transparent' }}>
                                           <td style={{ padding: '7px 11px', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{sq.pid}</td>
                                           <td style={{ padding: '7px 11px', fontWeight: '500' }}>{sq.usename}</td>
                                           <td style={{ padding: '7px 11px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--accent)' }}>{sq.client_addr || 'local'}</td>
                                           <td style={{ padding: '7px 11px', fontSize: '11px', color: 'var(--text-secondary)' }}>{sq.application_name || '—'}</td>
                                           <td style={{ padding: '7px 11px', fontSize: '11px', color: 'var(--text-secondary)' }}>{sq.datname || '—'}</td>
                                           <td style={{ padding: '7px 11px' }}>
-                                            {/* ponytail: use semantic theme tokens and min 11px font for WCAG AA >= 4.5:1 (fixes audit V1) */}
-                                            <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', fontWeight: '600', background: sq.state === 'active' ? 'var(--color-up-glow)' : 'var(--color-warning-glow)', color: sq.state === 'active' ? 'var(--color-up)' : 'var(--color-warning)' }}>
+                                            {/* Neutral surface tint with semantic color text and indicator dot (WCAG AA >= 4.5:1, fixes P0.2) */}
+                                            <span style={{
+                                              fontSize: '11px',
+                                              padding: '2px 8px',
+                                              borderRadius: '4px',
+                                              fontWeight: '600',
+                                              background: 'var(--surface-raised)',
+                                              border: '1px solid var(--border)',
+                                              color: sq.state === 'active' ? 'var(--color-up)' : 'var(--color-warning)',
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              gap: '5px'
+                                            }}>
+                                              <span style={{
+                                                width: '6px',
+                                                height: '6px',
+                                                borderRadius: '50%',
+                                                background: sq.state === 'active' ? 'var(--color-up)' : 'var(--color-warning)',
+                                                flexShrink: 0
+                                              }} />
                                               {sq.state}
                                             </span>
                                           </td>
@@ -2586,7 +2539,7 @@ function App() {
                                 <tbody>
                                   {dbEngineStatus.tablespaces && dbEngineStatus.tablespaces.length > 0 ? (
                                     dbEngineStatus.tablespaces.map((ts: any, i: number) => (
-                                      <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: 'transparent' }}>
+                                      <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: 'transparent' }}>
                                         <td style={{ padding: '7px 11px', fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{i + 1}</td>
                                         <td style={{ padding: '7px 11px', fontWeight: '600', color: 'var(--text-primary)' }}>
                                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -2975,48 +2928,47 @@ curl -X POST -H "Content-Type: application/json" \\
         </div>
       )}
 
-      {/* ─── USER PREFERENCES MODAL ─── */}
-      <UserPreferencesModal
-        isOpen={showPreferencesModal}
-        onClose={() => setShowPreferencesModal(false)}
-        apiUrl={API_URL}
-        token={token}
-        role={role}
-        monitors={monitors}
-        allTags={allTags}
-        onRenameTag={handleRenameTag}
-        onDeleteTag={handleDeleteTag}
-        onAddTag={handleAddTag}
-        accent={accentColor}
-        onAccentChange={changeAccent}
-        onSaved={(saved) => {
-          setInstanceSettings(saved);
-          applyAppearance(saved.appearance);
-        }}
-      />
+      {/* ─── MODALS (LAZY LOADED) ─── */}
+      <React.Suspense fallback={null}>
+        <UserPreferencesModal
+          isOpen={showPreferencesModal}
+          onClose={() => setShowPreferencesModal(false)}
+          apiUrl={API_URL}
+          token={token}
+          role={role}
+          monitors={monitors}
+          allTags={allTags}
+          onRenameTag={handleRenameTag}
+          onDeleteTag={handleDeleteTag}
+          onAddTag={handleAddTag}
+          accent={accentColor}
+          onAccentChange={changeAccent}
+          onSaved={(saved) => {
+            setInstanceSettings(saved);
+            applyAppearance(saved.appearance);
+          }}
+        />
 
+        <BatchEditModal
+          isOpen={isBatchEditModalOpen}
+          onClose={() => setIsBatchEditModalOpen(false)}
+          selectedCount={selectedMonitorIds.length}
+          selectedMonitors={monitors.filter(m => selectedMonitorIds.includes(m.id))}
+          existingTags={allTags}
+          onApplyBatch={handleApplyBatchEdit}
+        />
 
-      {/* ─── BATCH EDIT MODAL ─── */}
-      <BatchEditModal
-        isOpen={isBatchEditModalOpen}
-        onClose={() => setIsBatchEditModalOpen(false)}
-        selectedCount={selectedMonitorIds.length}
-        selectedMonitors={monitors.filter(m => selectedMonitorIds.includes(m.id))}
-        existingTags={allTags}
-        onApplyBatch={handleApplyBatchEdit}
-      />
-
-      {/* ─── MONITOR MODAL ─── */}
-      <MonitorModal
-        isOpen={isModalOpen}
-        onClose={() => { setIsModalOpen(false); setEditingMonitor(null); }}
-        onSave={handleSaveMonitor}
-        editingMonitor={editingMonitor}
-        globalThresholds={instanceSettings.thresholds}
-        token={token}
-        existingTags={allTags}
-        onToast={showToast}
-      />
+        <MonitorModal
+          isOpen={isModalOpen}
+          onClose={() => { setIsModalOpen(false); setEditingMonitor(null); }}
+          onSave={handleSaveMonitor}
+          editingMonitor={editingMonitor}
+          globalThresholds={instanceSettings.thresholds}
+          token={token}
+          existingTags={allTags}
+          onToast={showToast}
+        />
+      </React.Suspense>
 
       {/* ─── STATUS PAGE CREATE/EDIT MODAL ─── */}
       {showSpModal && (
@@ -3204,19 +3156,19 @@ curl -X POST -H "Content-Type: application/json" \\
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Stats Summary Preview */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '11px' }}>
-                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '11px', borderRadius: '6px', textAlign: 'center', border: '1px solid var(--border)' }}>
+                <div style={{ background: 'var(--surface-raised)', padding: '11px', borderRadius: '6px', textAlign: 'center', border: '1px solid var(--border)' }}>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Uptime</div>
                   <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--color-up)', marginTop: '4px' }}>
                     {reportData.uptimePct.toFixed(2)}%
                   </div>
                 </div>
-                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '11px', borderRadius: '6px', textAlign: 'center', border: '1px solid var(--border)' }}>
+                <div style={{ background: 'var(--surface-raised)', padding: '11px', borderRadius: '6px', textAlign: 'center', border: '1px solid var(--border)' }}>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>MTTR</div>
                   <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', marginTop: '4px' }}>
                     {reportData.mttrMin} Mins
                   </div>
                 </div>
-                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '11px', borderRadius: '6px', textAlign: 'center', border: '1px solid var(--border)' }}>
+                <div style={{ background: 'var(--surface-raised)', padding: '11px', borderRadius: '6px', textAlign: 'center', border: '1px solid var(--border)' }}>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>MTBF</div>
                   <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', marginTop: '4px' }}>
                     {reportData.mtbfHours} Hours
@@ -3231,6 +3183,8 @@ curl -X POST -H "Content-Type: application/json" \\
               <div className="form-actions" style={{ marginTop: '11px' }}>
                 <button className="secondary" onClick={() => setShowReportModal(false)}>Close</button>
                 <button
+                  type="button"
+                  className="btn-primary"
                   onClick={() => {
                     setIsPrintingReport(true);
                     setTimeout(() => {
@@ -3238,7 +3192,6 @@ curl -X POST -H "Content-Type: application/json" \\
                       setIsPrintingReport(false);
                     }, 500);
                   }}
-                  style={{ background: 'var(--color-up)', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
                   <Printer size={14} aria-hidden="true" /> Print Report
                 </button>
@@ -3250,12 +3203,14 @@ curl -X POST -H "Content-Type: application/json" \\
 
       {/* ─── PRINT-ONLY AVAILABILITY REPORT ─── */}
       {isPrintingReport && reportTarget && reportData && (
-        <PrintableReport
-          target={reportTarget}
-          data={reportData}
-          rangeHours={reportRange}
-          slaTarget={instanceSettings.sla.normal}
-        />
+        <React.Suspense fallback={null}>
+          <PrintableReport
+            target={reportTarget}
+            data={reportData}
+            rangeHours={reportRange}
+            slaTarget={instanceSettings.sla.normal}
+          />
+        </React.Suspense>
       )}
 
 
