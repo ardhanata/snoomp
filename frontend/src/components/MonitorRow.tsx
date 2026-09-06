@@ -53,10 +53,8 @@ export const MonitorRow: React.FC<MonitorRowProps> = React.memo(({
           onSelect(m);
         }
       }}
+      /* ponytail: rely on .monitor-row CSS class for width, margin, and typography */
       style={{
-        width: '100%',
-        font: 'inherit',
-        textAlign: 'left',
         background: isSelected ? 'var(--accent-dim)' : 'transparent',
         border: isSelected ? '1px solid var(--accent-glow)' : '1px solid transparent'
       }}

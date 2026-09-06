@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Activity, CheckCircle2, Server, Database, Globe, Cpu, ChevronRight } from 'lucide-react';
+import { Activity, CheckCircle2, Server, Database, Globe, Cpu, ChevronRight, Printer } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, ReferenceLine } from 'recharts';
 
 export interface SlaTrendBucket {
@@ -26,6 +26,8 @@ interface ExecutiveDashboardProps {
   slaTrendLoading: boolean;
   /** Drill-down: jump to the dashboard filtered by a domain tag. */
   onSelectDomain?: (tag: string) => void;
+  /** Render a print action in the header. Omitted on screens that can't print. */
+  onPrint?: () => void;
 }
 
 const numberFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
@@ -38,7 +40,7 @@ function domainIcon(domain: string) {
 }
 
 const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
-  targets, slaConfig, slaTrend, slaTrendLoading, onSelectDomain,
+  targets, slaConfig, slaTrend, slaTrendLoading, onSelectDomain, onPrint,
 }) => {
   const slaNormal = slaConfig?.normal ?? 99.9;
   const slaWarning = slaConfig?.warning ?? 99.0;
@@ -116,12 +118,23 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           <h1 className="exec-title">Executive Command Center</h1>
         </div>
 
-        <div className="exec-live-badge">
-          <span
-            className="exec-live-dot"
-            style={{ background: summary.down > 0 ? 'var(--color-down)' : 'var(--color-up)' }}
-          />
-          <span>{summary.down > 0 ? `${summary.down} Active Incidents` : 'All Systems Operational'}</span>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          {onPrint && (
+            <button
+              className="secondary"
+              onClick={onPrint}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Printer size={14} aria-hidden="true" /> Print Report
+            </button>
+          )}
+          <div className="exec-live-badge">
+            <span
+              className="exec-live-dot"
+              style={{ background: summary.down > 0 ? 'var(--color-down)' : 'var(--color-up)' }}
+            />
+            <span>{summary.down > 0 ? `${summary.down} Active Incidents` : 'All Systems Operational'}</span>
+          </div>
         </div>
       </div>
 

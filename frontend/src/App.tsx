@@ -23,6 +23,9 @@ import { InstanceSettings, readCache, fetchSettings, applyAppearance } from './l
 const MonitorModal = React.lazy(() => import('./components/MonitorModal'));
 const BatchEditModal = React.lazy(() => import('./components/BatchEditModal'));
 const PrintableReport = React.lazy(() => import('./components/PrintableReport'));
+const PrintFleetReport = React.lazy(() => import('./components/PrintFleetReport'));
+const PrintExecutiveReport = React.lazy(() => import('./components/print/PrintExecutiveReport'));
+const PrintStatusPagesReport = React.lazy(() => import('./components/print/PrintStatusPagesReport'));
 const UserPreferencesModal = React.lazy(() => import('./components/UserPreferencesModal'));
 
 const API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
@@ -119,6 +122,47 @@ function applyAccent(color: string, currentTheme?: string) {
   document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
   document.documentElement.style.setProperty('--accent-glow', `rgba(${r},${g},${b},0.2)`);
   document.documentElement.style.setProperty('--accent-dim', `rgba(${r},${g},${b},0.1)`);
+}
+
+/**
+ * Strip the inline theme colours off <html> for the duration of printing.
+ *
+ * index.html sets `documentElement.style.backgroundColor` before React boots to
+ * avoid a flash of the wrong theme. That inline value paints the page *canvas*,
+ * which in print covers the entire sheet rather than just the content box — so
+ * in dark theme the PDF came out with a black frame around the report.
+ *
+ * The print stylesheet already overrides it, but an inline style is exactly the
+ * kind of thing that wins by accident (a future `!important` on the inline set,
+ * a UA quirk, a browser that resolves the canvas before author styles). Removing
+ * it outright for the print job removes the dependency on cascade order, and it
+ * is restored immediately afterwards so the on-screen anti-flash still works.
+ */
+function usePrintSurface() {
+  useEffect(() => {
+    const root = document.documentElement;
+    let saved: { bg: string; color: string } | null = null;
+
+    const before = () => {
+      saved = { bg: root.style.backgroundColor, color: root.style.color };
+      root.style.removeProperty('background-color');
+      root.style.removeProperty('color');
+    };
+    const after = () => {
+      if (!saved) return;
+      if (saved.bg) root.style.backgroundColor = saved.bg;
+      if (saved.color) root.style.color = saved.color;
+      saved = null;
+    };
+
+    window.addEventListener('beforeprint', before);
+    window.addEventListener('afterprint', after);
+    return () => {
+      window.removeEventListener('beforeprint', before);
+      window.removeEventListener('afterprint', after);
+      after();
+    };
+  }, []);
 }
 
 /** Hoisted: constructing an Intl formatter per render is not free. */
@@ -438,6 +482,30 @@ function App() {
   const [reportData, setReportData] = useState<any>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [isPrintingReport, setIsPrintingReport] = useState(false);
+  const [isPrintingFleet, setIsPrintingFleet] = useState(false);
+  const [printingDoc, setPrintingDoc] = useState<null | 'executive' | 'statusPages'>(null);
+  usePrintSurface();
+
+  /**
+   * Mount a composed print document, print it, then unmount.
+   *
+   * The chunk is lazy, so it has to be awaited before print() — which is
+   * synchronous and would otherwise capture an empty Suspense fallback. Two
+   * animation frames give React a commit and the browser a paint.
+   */
+  const printDocument = React.useCallback(async (
+    which: 'executive' | 'statusPages',
+    load: () => Promise<unknown>,
+  ) => {
+    await load();
+    setPrintingDoc(which);
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    try {
+      window.print();
+    } finally {
+      setPrintingDoc(null);
+    }
+  }, []);
 
   const handleGenerateReport = async (target: any, hours: number) => {
     setReportTarget(target);
@@ -1202,7 +1270,7 @@ function App() {
   //  MAIN DASHBOARD
   // ═══════════════════════════════════════════
   return (
-    <div className={`app-root ${isPrintingReport ? 'is-printing-report' : ''}`} style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+    <div className={`app-root ${isPrintingReport || isPrintingFleet || printingDoc ? 'is-printing-report' : ''}`} style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       {/* ponytail: accessible high-contrast skip link in both dark and light themes (WCAG 1.4.3) */}
       <a href="#main-content" style={{ position: 'absolute', top: '-999px', left: '12px', background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '2px solid var(--accent)', padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontWeight: 600, fontSize: '13px', zIndex: 10000, boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }} onFocus={e => e.currentTarget.style.top = '12px'} onBlur={e => e.currentTarget.style.top = '-999px'}>Skip to main content</a>
       {toastMsg && (
@@ -1751,13 +1819,13 @@ function App() {
 
                     return (
                       <div key={groupName} style={{ marginBottom: '8px' }}>
+                        {/* ponytail: rely on .sidebar-group-header CSS for width and alignment without right-side gap */}
                         <button
                           type="button"
                           className="sidebar-group-header"
                           onClick={() => toggleGroup(groupName)}
                           aria-expanded={!isCollapsed}
                           aria-label={`Toggle ${groupName} group`}
-                          style={{ width: '100%', font: 'inherit', border: 'none', textAlign: 'left', cursor: 'pointer' }}
                         >
                           <div className={`group-header-title ${isCollapsed ? 'collapsed' : ''}`}>
                             <ChevronDown size={11} />
@@ -1820,6 +1888,7 @@ function App() {
                   setSelectedMonitor(null);
                   setView('dashboard');
                 }}
+                onPrint={() => printDocument('executive', () => import('./components/print/PrintExecutiveReport'))}
               />
             ) : view === 'status-pages' ? (
               <div className="status-pages-view anim-fade-in">
@@ -1830,11 +1899,20 @@ function App() {
                       Create public-facing status pages for your monitors
                     </p>
                   </div>
-                  {role !== 'viewer' && (
-                    <button onClick={() => openSpModal()}>
-                      <Plus size={14} /> New Status Page
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button
+                      className="secondary"
+                      onClick={() => printDocument('statusPages', () => import('./components/print/PrintStatusPagesReport'))}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Printer size={14} aria-hidden="true" /> Print Report
                     </button>
-                  )}
+                    {role !== 'viewer' && (
+                      <button onClick={() => openSpModal()}>
+                        <Plus size={14} /> New Status Page
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {statusPages.length === 0 ? (
@@ -2717,7 +2795,22 @@ curl -X POST -H "Content-Type: application/json" \\
                       All monitored services at a glance.
                     </p>
                   </div>
-                  <button className="secondary" onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button
+                    className="secondary"
+                    onClick={async () => {
+                      // Printing the live dashboard produced one clipped page with
+                      // scrollbars drawn into the PDF. Mount the composed document
+                      // instead — but the chunk is lazy, so await it before
+                      // print(), which is synchronous and would otherwise fire
+                      // against an unmounted Suspense fallback.
+                      await import('./components/PrintFleetReport');
+                      setIsPrintingFleet(true);
+                      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+                      window.print();
+                      setIsPrintingFleet(false);
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
                     <FileText size={14} /> Print Report
                   </button>
                 </div>
@@ -3209,6 +3302,39 @@ curl -X POST -H "Content-Type: application/json" \\
             data={reportData}
             rangeHours={reportRange}
             slaTarget={instanceSettings.sla.normal}
+          />
+        </React.Suspense>
+      )}
+
+      {printingDoc === 'executive' && (
+        <React.Suspense fallback={null}>
+          <PrintExecutiveReport
+            targets={monitors}
+            slaTrend={slaTrend}
+            slaConfig={instanceSettings.sla}
+          />
+        </React.Suspense>
+      )}
+
+      {printingDoc === 'statusPages' && (
+        <React.Suspense fallback={null}>
+          <PrintStatusPagesReport
+            pages={statusPages}
+            monitors={monitors}
+          />
+        </React.Suspense>
+      )}
+
+      {isPrintingFleet && (
+        <React.Suspense fallback={null}>
+          <PrintFleetReport
+            monitors={filteredMonitors}
+            incidents={incidents}
+            slaTarget={instanceSettings.sla.normal}
+            scopeLabel={
+              [selectedGroupTag, selectedEnvTag, statusFilter ? `status: ${statusFilter}` : null, searchTerm ? `search: "${searchTerm}"` : null]
+                .filter(Boolean).join(' · ') || 'All monitors'
+            }
           />
         </React.Suspense>
       )}

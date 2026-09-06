@@ -258,9 +258,8 @@ html { scrollbar-color: var(--scrollbar-thumb) transparent; }
 
 /* ── Input / Select / Textarea ── */
 /* `width: 100%` deliberately excludes checkboxes and radios — it used to hit
-   them too, which is why the checkbox rule below needed seven !important
-   overrides just to claw its own size back. */
-input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+/* ponytail: use comma list inside :not() to avoid runaway specificity (0,1,1 vs 0,3,1) */
+input:not([type="checkbox"], [type="radio"], [type="file"]),
 select, textarea {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
@@ -514,12 +513,15 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
 .search-wrapper {
   position: relative;
 }
+/* ponytail: explicit padding-left so placeholder and input text never overlap the 14px search icon */
+.sidebar-search input,
 .search-wrapper input {
-  padding-left: 32px;
+  padding-left: 34px !important;
   background: var(--bg-void);
   border-color: transparent;
   font-size: 13px;
 }
+.sidebar-search input:focus-visible,
 .search-wrapper input:focus-visible { border-color: var(--accent); }
 .search-icon {
   position: absolute;
@@ -1928,8 +1930,10 @@ dialog::backdrop {
 }
 
 /* `hidden` must win over the flex/grid display rules below it. */
+/* ponytail: add bottom breathing room so tag filter chips don't crowd the status cards below */
 #sidebar-filter-panel {
   padding-top: var(--space-2);
+  padding-bottom: var(--space-3);
 }
 #sidebar-filter-panel[hidden] {
   display: none;
@@ -2154,10 +2158,21 @@ dialog::backdrop {
   }
 
   body::after { display: none !important; }
-  body, html {
+
+  /* The page canvas takes its colour from <html>, and <html> carries an INLINE
+     background set by the anti-FOUC script in index.html. That inline value
+     paints the whole sheet — not just the content box — so in dark theme it
+     prints as a black frame around the report.
+     `background` shorthand alone is not enough here: list the longhands too so
+     nothing (image, colour) survives, and clear the inline value outright in
+     the beforeprint handler (see usePrintSurface in App.tsx). */
+  html, body {
     background: #fff !important;
+    background-color: #fff !important;
+    background-image: none !important;
     color: #000 !important;
     height: auto !important;
+    min-height: 0 !important;
     overflow: visible !important;
   }
   .app-root.is-printing-report {
@@ -2194,11 +2209,47 @@ dialog::backdrop {
   .chart-section {
     page-break-inside: avoid;
   }
+
+  /* On screen these panels are fixed-height scrollers. On paper there is no
+     scrolling, so a clipped container prints its first few rows and silently
+     drops the rest — "Infrastructure Overview" printed as an empty box and the
+     incident log stopped after two entries, both with a scrollbar rendered
+     into the PDF.
+
+     Applied to every descendant rather than a list of known selectors: the
+     heights are set inline in JSX (`style={{ maxHeight: 200, overflowY:
+     'auto' }}`), so there is no class to target, and any new panel would
+     reintroduce the problem. */
+  .main-content,
+  .main-content *,
+  .print-report-container,
+  .print-report-container * {
+    max-height: none !important;
+    overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+  }
+
+  /* Custom scrollbars are painted into the output even once the container no
+     longer scrolls. */
+  ::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+  * { scrollbar-width: none !important; }
+
+  /* Long lists should break across sheets rather than be cut at the fold. */
+  .incidents-list > *,
+  .incident-row,
+  .monitor-row { break-inside: avoid; }
+  /* `width: 100%` here was the cause of Chrome shrinking sheets to ~56%.
+     In print the containing block is not the page box, so 100% resolved
+     against a viewport-derived width (~508mm) and Chrome scaled the whole
+     sheet down to make it fit. `auto` lets the block fill the page box
+     exactly, so the report prints at its intended size. */
   .print-report-container {
     position: static !important;
     left: auto !important;
     height: auto !important;
-    width: 100% !important;
+    width: auto !important;
+    max-width: none !important;
     overflow: visible !important;
     padding: 0 !important;
   }
@@ -2222,8 +2273,11 @@ dialog::backdrop {
 /* Page geometry for the availability report. Declaring the margin here rather
    than padding the container means the browser reserves it on every sheet, not
    just the first — and it survives the container's `padding: 0` print reset. */
+/* `size: auto` adapts to whatever paper the user picks. Pinning A4 while the
+   print dialog is set to Letter makes Chrome scale the sheet to reconcile the
+   two, which is the other half of the shrinking problem. */
 @page {
-  size: A4 portrait;
+  size: auto;
   margin: 14mm 13mm;
 }
 
