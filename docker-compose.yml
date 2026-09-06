@@ -96,6 +96,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    # ponytail: the image's baked HTTP healthcheck checks port 8000 (api only); disable on worker
+    healthcheck:
+      disable: true
     logging: *logging
 
 volumes:

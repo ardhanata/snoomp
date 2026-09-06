@@ -1,6 +1,6 @@
 # Snoomp — Enterprise Infrastructure Health & Status Platform
 
-> **Version:** `v1.0.0`  
+> **Version:** `v1.1.1`  
 > **Repository Root:** `d:/Project/snoomp`
 
 ---
@@ -13,35 +13,33 @@
 ## 🏗️ 2. Architectural Overview & Domain Components
 
 ```
-                    ┌────────────────────────────────────────┐
-                    │     Snoomp React Vite Frontend (5173)   │
-                    │   Double-Bezel UI / Tabular Metrics    │
-                    └───────────────────┬────────────────────┘
-                                        │ WebSockets / REST API
-                                        ▼
-                    ┌────────────────────────────────────────┐
-                    │     FastAPI Core Backend Engine (8000) │
-                    │  - REST API & JWT Auth (routes)        │
-                    │  - Dashboard Service (services)        │
-                    │  - Realtime WebSockets (websockets)    │
-                    └───────────────────┬────────────────────┘
-                                        │
-           ┌────────────────────────────┴────────────────────────────┐
-           ▼                                                         ▼
-┌──────────────────────────────────────┐  ┌──────────────────────────────────────┐
-│  Docker Environment (Production)     │  │  Standalone Native Windows (No Docker) │
-│  - TimescaleDB / PostgreSQL (5432)   │  │  - Local SQLite Database (snoomp.db) │
-│  - Redis Queue & PubSub (6379)       │  │  - Python ThreadPool Executor        │
-│  - Celery Worker Job Pool            │  │  - start-native-windows.ps1 / .bat   │
-└──────────────────┬───────────────────┘  └──────────────────┬───────────────────┘
-                   │                                         │
-                   └────────────────────┬────────────────────┘
-                                        │ Probes
-                                        ▼
+                    ┌─────────────────────────────────────────────────────────┐
+                    │     Snoomp React Vite SPA (Baked in Image)             │
+                    │   Double-Bezel UI / Same-Origin Static Delivery         │
+                    └────────────────────────────┬────────────────────────────┘
+                                                 │ Internal / HTTP & WebSockets
+                                                 ▼
+                    ┌─────────────────────────────────────────────────────────┐
+                    │     FastAPI Core Backend Engine (8000 -> 8008)          │
+                    │  - REST API & JWT Auth (routes)                         │
+                    │  - Dashboard & Static SPA Delivery (app/main.py)        │
+                    │  - Realtime WebSockets & Pub/Sub (websockets)           │
+                    │  - APScheduler Job Dispatch to Celery Broker            │
+                    └────────────────────────────┬────────────────────────────┘
+                                                 │
+                                                 ▼
+                    ┌─────────────────────────────────────────────────────────┐
+                    │     Core Infrastructure Services (Docker Compose)       │
+                    │  - TimescaleDB / PostgreSQL 16 (timescaledb:2.17.2-pg16)│
+                    │  - Redis 7 Alpine (Queue & Pub/Sub Broker)              │
+                    │  - Celery Worker Pool (NET_RAW capability for ICMP)     │
+                    └────────────────────────────┬────────────────────────────┘
+                                                 │ Probes
+                                                 ▼
 ┌──────────────────────────────────────────────────────────────────────────────────┐
 │                             Multi-Protocol Checkers                              │
 │  - HTTP / HTTPS (Status, SSL, latency, text match)                               │
-│  - ICMP Ping (RTT & packet loss)                                                 │
+│  - ICMP Ping (RTT & packet loss via raw sockets / iputils fallback)              │
 │  - TCP & DNS (Port availability & domain resolution)                             │
 │  - SSH Infrastructure (Linux POSIX df/loadavg + Windows OpenSSH PowerShell CIM)  │
 │  - Database Engines (PostgreSQL pg_stat, MongoDB serverStatus, Redis info)       │
@@ -66,15 +64,18 @@
 
 ---
 
-## ⚙️ 4. Deployment Modes
+## ⚙️ 4. Deployment Architecture
 
-### Mode A: Production Docker Containerized
-- **Launch Commands:** [`start-windows.ps1`](file:///d:/Project/snoomp/start-windows.ps1) or `docker compose up -d`
-- **Stack:** FastAPI (`snoomp-backend-api`), React Vite (`snoomp-frontend`), TimescaleDB (`snoomp-db`), Redis (`snoomp-redis`), Celery Worker (`snoomp-celery-worker`).
-
-### Mode B: Standalone Native Windows (No Docker Required)
-- **Launch Commands:** [`start-native-windows.ps1`](file:///d:/Project/snoomp/start-native-windows.ps1) or [`start-native-windows.bat`](file:///d:/Project/snoomp/start-native-windows.bat)
-- **Stack:** Python 3 Virtual Environment + Node.js npm dev server, SQLite database engine (`sqlite:///./backend/snoomp.db`), Python threadpool background check runner.
+### Production Docker Containerized (Unified)
+- **Launch Command:** `docker compose up -d --build`
+- **Stack:**
+  - Multi-stage build image (`snoomp:local`) packaging compiled React SPA and FastAPI backend into a non-root runtime container.
+  - TimescaleDB PostgreSQL 16 (`timescale/timescaledb:2.17.2-pg16`) for relational schemas and hypertable metrics.
+  - Redis 7 (`redis:7-alpine`) for Celery broker queues and real-time WebSocket pub/sub message distribution.
+  - Celery Worker (`snoomp-worker`) equipped with `NET_RAW` capabilities for native ICMP probing.
+- **Environment & Security:**
+  - Mandatory environment variables enforced with `:?` bash parameter substitution (`JWT_SECRET`, `POSTGRES_PASSWORD`).
+  - Database port unpublished from host for internal network isolation.
 
 ---
 

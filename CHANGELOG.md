@@ -5,6 +5,31 @@ All notable changes to Snoomp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-09-06
+
+### Improved
+- **Backup Export UX (`UserPreferencesModal.tsx`):** Clearly display file save destination, exact downloaded filename, and file size upon backup generation. Added pre-export save destination notice informing users that exports are delivered directly to their local machine's `Downloads` folder, alongside a keyboard shortcut prompt (`Ctrl + J` / `Cmd + Option + L`) to view the file.
+
+---
+
+## [1.1.0] - 2026-09-06
+
+### Changed
+- **Unified Containerized Architecture:** Switched to a multi-stage Docker build packaging both the compiled React SPA and FastAPI backend into a single container (`snoomp:local`), eliminating host-level Node.js dependencies and version drift.
+- **Same-Origin Delivery:** Frontend is served directly by FastAPI from `/app/frontend_dist` with content-hashed assets marked as immutable and dynamic `index.html` cache suppression.
+- **Database Upgrade:** Upgraded default database image to TimescaleDB PostgreSQL 16 (`timescale/timescaledb:2.17.2-pg16`) with strict parameter validation guards (`:?`).
+- **Enhanced Network Capabilities:** Added `NET_RAW` capabilities to both API and worker containers for ICMP ping probing under non-root execution.
+
+### Removed
+- **Windows Host Runtime Scripts & Fallbacks:** Removed `start-windows.*`, `start-native-windows.*`, `deploy-frontend.ps1`, `scripts/{install,build-windows,update-snoomp}.ps1`, `backend/snoomp_server.py`, `backend/snoomp.spec`, and `frontend/Dockerfile`.
+- **In-Process Fallbacks:** Removed SQLite engine fallback and silent threadpool scheduler fallback; Celery broker unavailability now fails explicitly.
+- **UI Updater:** Removed `UpdateModal.tsx` and the `/api/system/check-updates` endpoint.
+
+### Preserved
+- **Windows Target Monitoring:** Retained OpenSSH PowerShell CIM queries (`Win32_Processor`, `Win32_OperatingSystem`, `Win32_LogicalDisk`) in `backend/app/checkers/ssh.py` for monitoring remote Windows target servers.
+
+---
+
 ## [1.0.0] - 2026-09-06
 
 ### Added

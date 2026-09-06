@@ -1,0 +1,39 @@
+# Virtual environments
+venv/
+.venv/
+backend/venv/
+backend/.venv/
+
+# Python cache & builds
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+backend/build/
+backend/dist/
+backend/logs/
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Database dumps and local storage
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.sql
+db_data/
+redis_data/
+
+# Git & IDE
+.git/
+.gitignore
+.vscode/
+.idea/
+docs/
+graphify-out/
+.agents/
+.codegraph/
+.superpowers/

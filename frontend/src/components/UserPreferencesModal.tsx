@@ -120,12 +120,18 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
       const a = document.createElement('a');
       a.href = url;
       const today = new Date().toISOString().slice(0, 10);
-      a.download = `snoomp-backup-${today}.json`;
+      const filename = `snoomp-backup-${today}.json`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      setBackupMsg({ type: 'success', text: 'Backup exported successfully.' });
+      // ponytail: inform user precisely where the file was saved on their local system
+      const sizeKb = (blob.size / 1024).toFixed(1);
+      setBackupMsg({
+        type: 'success',
+        text: `Export saved to your device's Downloads folder as "${filename}" (${sizeKb} KB).`,
+      });
     } catch (e: any) {
       setBackupMsg({ type: 'error', text: e.message || 'Failed to export backup.' });
     } finally {
@@ -908,18 +914,26 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                 {backupMsg && (
                   <div style={{
                     marginBottom: 'var(--space-4)',
-                    padding: '10px 14px',
+                    padding: '12px 14px',
                     borderRadius: 'var(--radius-sm)',
                     fontSize: '13px',
                     display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
+                    alignItems: 'flex-start',
+                    gap: '10px',
                     background: backupMsg.type === 'success' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
                     color: backupMsg.type === 'success' ? 'var(--color-up, #22c55e)' : 'var(--color-down, #ef4444)',
                     border: `1px solid ${backupMsg.type === 'success' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
                   }}>
-                    {backupMsg.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-                    <span>{backupMsg.text}</span>
+                    {backupMsg.type === 'success' ? <CheckCircle2 size={18} style={{ flexShrink: 0, marginTop: '1px' }} /> : <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '1px' }} />}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <span>{backupMsg.text}</span>
+                      {backupMsg.type === 'success' && (
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                          {/* ponytail: inline platform shortcut to reveal the downloaded backup without leaving the app */}
+                          Press <kbd style={{ background: 'var(--surface)', padding: '1px 5px', borderRadius: '3px', border: '1px solid var(--border)', fontSize: '10px' }}>Ctrl + J</kbd> (or <kbd style={{ background: 'var(--surface)', padding: '1px 5px', borderRadius: '3px', border: '1px solid var(--border)', fontSize: '10px' }}>Cmd + Option + L</kbd>) in your browser to view the saved file.
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -937,6 +951,24 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                     <p style={{ margin: '0 0 var(--space-3)', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                       Export all targets, notification channels, status pages, and system settings into a portable, database-agnostic JSON file.
                     </p>
+                    {/* ponytail: transparently show default download location before export */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginBottom: 'var(--space-3)',
+                      padding: '8px 12px',
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '12px',
+                      color: 'var(--text-secondary)'
+                    }}>
+                      <Info size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                      <span>
+                        <strong>Save Destination:</strong> Automatically saved to your local computer's <strong>Downloads</strong> folder as <code>snoomp-backup-YYYY-MM-DD.json</code>.
+                      </span>
+                    </div>
                     <button
                       type="button"
                       onClick={handleExportBackup}

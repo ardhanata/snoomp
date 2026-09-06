@@ -43,6 +43,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Create non-root user before copying files to eliminate slow recursive chown
+RUN useradd --system --create-home --uid 10001 snoomp
+
 WORKDIR /app
 
 COPY backend/requirements.txt .
@@ -52,15 +55,12 @@ RUN apt-get update \
     && apt-get purge -y --auto-remove build-essential libffi-dev libssl-dev libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY backend/ /app/
+COPY --chown=snoomp:snoomp backend/ /app/
 COPY VERSION /VERSION
 
 # Baked frontend. FRONTEND_DIST in app/main.py points here by default.
-COPY --from=frontend /build/dist /app/frontend_dist
+COPY --from=frontend --chown=snoomp:snoomp /build/dist /app/frontend_dist
 
-# Non-root. ICMP raw sockets come from NET_RAW in compose, not from root.
-RUN useradd --system --create-home --uid 10001 snoomp \
-    && chown -R snoomp:snoomp /app
 USER snoomp
 
 EXPOSE 8000

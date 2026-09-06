@@ -23,10 +23,12 @@ docs/
 node_modules/
 frontend/dist/
 
-# Database files (standalone mode)
+# Database files (standalone mode & backups)
 *.db
 *.sqlite
 *.sqlite3
+*.dump
+*.sql
 
 # Media & video recordings
 *.mp4
