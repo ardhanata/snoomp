@@ -26,8 +26,10 @@ interface ExecutiveDashboardProps {
   slaTrendLoading: boolean;
   /** Drill-down: jump to the dashboard filtered by a domain tag. */
   onSelectDomain?: (tag: string) => void;
-  /** Render a print action in the header. Omitted on screens that can't print. */
+  /** Render a report-download action in the header. */
   onPrint?: () => void;
+  /** True while the server is building the PDF. */
+  downloadingPdf?: boolean;
 }
 
 const numberFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
@@ -40,7 +42,7 @@ function domainIcon(domain: string) {
 }
 
 const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
-  targets, slaConfig, slaTrend, slaTrendLoading, onSelectDomain, onPrint,
+  targets, slaConfig, slaTrend, slaTrendLoading, onSelectDomain, onPrint, downloadingPdf,
 }) => {
   const slaNormal = slaConfig?.normal ?? 99.9;
   const slaWarning = slaConfig?.warning ?? 99.0;
@@ -123,9 +125,11 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
             <button
               className="secondary"
               onClick={onPrint}
+              disabled={downloadingPdf}
               style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              <Printer size={14} aria-hidden="true" /> Print Report
+              <Printer size={14} aria-hidden="true" />
+              {downloadingPdf ? 'Building PDF…' : 'Download PDF'}
             </button>
           )}
           <div className="exec-live-badge">

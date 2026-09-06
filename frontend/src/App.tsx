@@ -6,7 +6,8 @@ import {
   Zap, Globe, Copy, ExternalLink, X,
   LayoutDashboard, Pencil, Check, ChevronDown, FileText,
   Database, RefreshCw, Server, Activity, Sun, Moon, TrendingUp, Sliders,
-  CheckSquare, Share2, Printer, Menu
+  CheckSquare, Share2, Printer, Menu,
+  Download
 } from 'lucide-react';
 
 import './styles/dashboard.css';
@@ -19,13 +20,10 @@ import ExecutiveDashboard, { SlaTrend } from './components/ExecutiveDashboard';
 import DatabaseMetricsChart from './components/DatabaseMetricsChart';
 import MonitorRow from './components/MonitorRow';
 import { InstanceSettings, readCache, fetchSettings, applyAppearance } from './lib/settings';
+import { downloadPdf } from './lib/downloadPdf';
 
 const MonitorModal = React.lazy(() => import('./components/MonitorModal'));
 const BatchEditModal = React.lazy(() => import('./components/BatchEditModal'));
-const PrintableReport = React.lazy(() => import('./components/PrintableReport'));
-const PrintFleetReport = React.lazy(() => import('./components/PrintFleetReport'));
-const PrintExecutiveReport = React.lazy(() => import('./components/print/PrintExecutiveReport'));
-const PrintStatusPagesReport = React.lazy(() => import('./components/print/PrintStatusPagesReport'));
 const UserPreferencesModal = React.lazy(() => import('./components/UserPreferencesModal'));
 
 const API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
@@ -481,31 +479,23 @@ function App() {
   const [reportRange, setReportRange] = useState<number>(168); // Hours: 24, 168 (7d), 720 (30d), 2160 (90d)
   const [reportData, setReportData] = useState<any>(null);
   const [reportLoading, setReportLoading] = useState(false);
-  const [isPrintingReport, setIsPrintingReport] = useState(false);
-  const [isPrintingFleet, setIsPrintingFleet] = useState(false);
-  const [printingDoc, setPrintingDoc] = useState<null | 'executive' | 'statusPages'>(null);
-  usePrintSurface();
+  const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
 
   /**
-   * Mount a composed print document, print it, then unmount.
-   *
-   * The chunk is lazy, so it has to be awaited before print() — which is
-   * synchronous and would otherwise capture an empty Suspense fallback. Two
-   * animation frames give React a commit and the browser a paint.
+   * Fetch a server-generated PDF and hand it to the browser as a download.
+   * Replaces window.print(): the document is composed server-side, so the
+   * output no longer depends on the viewer's browser, theme or print dialog.
    */
-  const printDocument = React.useCallback(async (
-    which: 'executive' | 'statusPages',
-    load: () => Promise<unknown>,
-  ) => {
-    await load();
-    setPrintingDoc(which);
-    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-    try {
-      window.print();
-    } finally {
-      setPrintingDoc(null);
-    }
-  }, []);
+  const getPdf = React.useCallback(async (path: string, key: string) => {
+    setDownloadingPdf(key);
+    const res = await downloadPdf(`${API_URL}${path}`, token);
+    setDownloadingPdf(null);
+    if (!res.ok) showToast(res.error || 'Could not build the report.');
+    else showToast(`Downloaded ${res.filename}`);
+  }, [token]);
+
+  usePrintSurface();
+
 
   const handleGenerateReport = async (target: any, hours: number) => {
     setReportTarget(target);
@@ -1270,7 +1260,7 @@ function App() {
   //  MAIN DASHBOARD
   // ═══════════════════════════════════════════
   return (
-    <div className={`app-root ${isPrintingReport || isPrintingFleet || printingDoc ? 'is-printing-report' : ''}`} style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+    <div className="app-root" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       {/* ponytail: accessible high-contrast skip link in both dark and light themes (WCAG 1.4.3) */}
       <a href="#main-content" style={{ position: 'absolute', top: '-999px', left: '12px', background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '2px solid var(--accent)', padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontWeight: 600, fontSize: '13px', zIndex: 10000, boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }} onFocus={e => e.currentTarget.style.top = '12px'} onBlur={e => e.currentTarget.style.top = '-999px'}>Skip to main content</a>
       {toastMsg && (
@@ -1888,7 +1878,8 @@ function App() {
                   setSelectedMonitor(null);
                   setView('dashboard');
                 }}
-                onPrint={() => printDocument('executive', () => import('./components/print/PrintExecutiveReport'))}
+                onPrint={() => getPdf('/api/reports/executive.pdf', 'executive')}
+                downloadingPdf={downloadingPdf === 'executive'}
               />
             ) : view === 'status-pages' ? (
               <div className="status-pages-view anim-fade-in">
@@ -1902,10 +1893,11 @@ function App() {
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <button
                       className="secondary"
-                      onClick={() => printDocument('statusPages', () => import('./components/print/PrintStatusPagesReport'))}
+                      onClick={() => getPdf('/api/reports/fleet.pdf', 'statusPages')}
                       style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                     >
-                      <Printer size={14} aria-hidden="true" /> Print Report
+                      <Printer size={14} aria-hidden="true" />
+                      {downloadingPdf === 'statusPages' ? 'Building PDF…' : 'Download PDF'}
                     </button>
                     {role !== 'viewer' && (
                       <button onClick={() => openSpModal()}>
@@ -2797,21 +2789,11 @@ curl -X POST -H "Content-Type: application/json" \\
                   </div>
                   <button
                     className="secondary"
-                    onClick={async () => {
-                      // Printing the live dashboard produced one clipped page with
-                      // scrollbars drawn into the PDF. Mount the composed document
-                      // instead — but the chunk is lazy, so await it before
-                      // print(), which is synchronous and would otherwise fire
-                      // against an unmounted Suspense fallback.
-                      await import('./components/PrintFleetReport');
-                      setIsPrintingFleet(true);
-                      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-                      window.print();
-                      setIsPrintingFleet(false);
-                    }}
+                    disabled={downloadingPdf === 'fleet'}
+                    onClick={() => getPdf('/api/reports/fleet.pdf', 'fleet')}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                   >
-                    <FileText size={14} /> Print Report
+                    <FileText size={14} /> {downloadingPdf === 'fleet' ? 'Building PDF…' : 'Download PDF'}
                   </button>
                 </div>
 
@@ -3278,15 +3260,14 @@ curl -X POST -H "Content-Type: application/json" \\
                 <button
                   type="button"
                   className="btn-primary"
-                  onClick={() => {
-                    setIsPrintingReport(true);
-                    setTimeout(() => {
-                      window.print();
-                      setIsPrintingReport(false);
-                    }, 500);
-                  }}
+                  disabled={downloadingPdf === 'monitor'}
+                  onClick={() => reportTarget && getPdf(
+                    `/api/reports/targets/${encodeURIComponent(reportTarget.id)}.pdf?hours=${reportRange}`,
+                    'monitor',
+                  )}
                 >
-                  <Printer size={14} aria-hidden="true" /> Print Report
+                  <Download size={14} aria-hidden="true" />
+                  {downloadingPdf === 'monitor' ? 'Building PDF…' : 'Download PDF'}
                 </button>
               </div>
             </div>
@@ -3295,49 +3276,13 @@ curl -X POST -H "Content-Type: application/json" \\
       )}
 
       {/* ─── PRINT-ONLY AVAILABILITY REPORT ─── */}
-      {isPrintingReport && reportTarget && reportData && (
-        <React.Suspense fallback={null}>
-          <PrintableReport
-            target={reportTarget}
-            data={reportData}
-            rangeHours={reportRange}
-            slaTarget={instanceSettings.sla.normal}
-          />
-        </React.Suspense>
-      )}
+      
 
-      {printingDoc === 'executive' && (
-        <React.Suspense fallback={null}>
-          <PrintExecutiveReport
-            targets={monitors}
-            slaTrend={slaTrend}
-            slaConfig={instanceSettings.sla}
-          />
-        </React.Suspense>
-      )}
+      
 
-      {printingDoc === 'statusPages' && (
-        <React.Suspense fallback={null}>
-          <PrintStatusPagesReport
-            pages={statusPages}
-            monitors={monitors}
-          />
-        </React.Suspense>
-      )}
+      
 
-      {isPrintingFleet && (
-        <React.Suspense fallback={null}>
-          <PrintFleetReport
-            monitors={filteredMonitors}
-            incidents={incidents}
-            slaTarget={instanceSettings.sla.normal}
-            scopeLabel={
-              [selectedGroupTag, selectedEnvTag, statusFilter ? `status: ${statusFilter}` : null, searchTerm ? `search: "${searchTerm}"` : null]
-                .filter(Boolean).join(' · ') || 'All monitors'
-            }
-          />
-        </React.Suspense>
-      )}
+      
 
 
     </div>
