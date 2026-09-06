@@ -104,11 +104,27 @@ function uptimeBadgeClass(pct: number, slaConfig?: SlaConfig): string {
   return 'unknown';
 }
 
-function applyAccent(color: string) {
-  const r = parseInt(color.slice(1, 3), 16);
-  const g = parseInt(color.slice(3, 5), 16);
-  const b = parseInt(color.slice(5, 7), 16);
-  document.documentElement.style.setProperty('--accent', color);
+// ponytail: clear inline styles on default accent so CSS data-theme tokens resolve naturally
+function applyAccent(color: string, currentTheme?: string) {
+  const isLight = (currentTheme || document.documentElement.getAttribute('data-theme')) === 'light';
+  if (!color || color.toLowerCase() === '#3b82f6') {
+    document.documentElement.style.removeProperty('--accent');
+    document.documentElement.style.removeProperty('--accent-rgb');
+    document.documentElement.style.removeProperty('--accent-glow');
+    document.documentElement.style.removeProperty('--accent-dim');
+    return;
+  }
+  let hex = color;
+  let r = parseInt(hex.slice(1, 3), 16);
+  let g = parseInt(hex.slice(3, 5), 16);
+  let b = parseInt(hex.slice(5, 7), 16);
+  if (isLight) {
+    r = Math.round(r * 0.72);
+    g = Math.round(g * 0.72);
+    b = Math.round(b * 0.72);
+    hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  }
+  document.documentElement.style.setProperty('--accent', hex);
   document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
   document.documentElement.style.setProperty('--accent-glow', `rgba(${r},${g},${b},0.2)`);
   document.documentElement.style.setProperty('--accent-dim', `rgba(${r},${g},${b},0.1)`);
@@ -169,9 +185,9 @@ function App() {
   const changeAccent = (color: string) => {
     setAccentColor(color);
     localStorage.setItem('snoomp_accent', color);
-    applyAccent(color);
+    applyAccent(color, theme);
   };
-  useEffect(() => { applyAccent(accentColor); }, []); // eslint-disable-line
+  useEffect(() => { applyAccent(accentColor, theme); }, []); // eslint-disable-line
 
   // ── Auth ──
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('snoomp_token'));
@@ -185,7 +201,8 @@ function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('snoomp_theme', theme);
-  }, [theme]);
+    applyAccent(accentColor, theme);
+  }, [theme, accentColor]);
 
   // ── Toasts ──
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -1070,6 +1087,8 @@ function App() {
    * wrong. The sidebar uses `sidebarCounts` below instead.
    */
   const downCount = (stats.status_summary?.down || 0) + (stats.status_summary?.critical || 0);
+  // ponytail: track warnings and latency >= 1000ms for status banner and alerts
+  const warnCount = (stats.status_summary?.warning || 0);
 
   /**
    * Counts for the sidebar strip, derived from the rows actually rendered.
@@ -1099,6 +1118,7 @@ function App() {
     let uptimeCount = 0;
     let latencySum = 0;
     let latencyCount = 0;
+    let slowCount = 0;
 
     for (const m of filteredMonitors) {
       if (m.enabled) {
@@ -1106,7 +1126,12 @@ function App() {
         uptimeSum += m.uptime_24h ?? 100;
         uptimeCount++;
       }
-      if (m.status === 'down' || m.status === 'critical') outages.push(m);
+      // ponytail: include outages, warnings, and latency >= 1000ms in alerts feed
+      const isSlow = m.response_time_ms != null && m.response_time_ms >= 1000;
+      if (isSlow) slowCount++;
+      if (m.status === 'down' || m.status === 'critical' || m.status === 'warning' || isSlow) {
+        outages.push(m);
+      }
       if (m.response_time_ms > 0) {
         latencySum += m.response_time_ms;
         latencyCount++;
@@ -1119,6 +1144,7 @@ function App() {
       paused: filteredMonitors.length - enabled,
       avgUptime: uptimeCount > 0 ? uptimeSum / uptimeCount : 100,
       avgLatency: latencyCount > 0 ? latencySum / latencyCount : 0,
+      slowCount,
     };
   })();
   const sm = selectedMonitor;
@@ -1186,7 +1212,8 @@ function App() {
   // ═══════════════════════════════════════════
   return (
     <div className={`app-root ${isPrintingReport ? 'is-printing-report' : ''}`} style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-      <a href="#main-content" style={{ position: 'absolute', top: '-999px', left: '0px', background: 'var(--accent)', color: '#fff', padding: '8px', zIndex: 10000 }} onFocus={e => e.currentTarget.style.top = '0px'} onBlur={e => e.currentTarget.style.top = '-999px'}>Skip to main content</a>
+      {/* ponytail: accessible high-contrast skip link in both dark and light themes (WCAG 1.4.3) */}
+      <a href="#main-content" style={{ position: 'absolute', top: '-999px', left: '12px', background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '2px solid var(--accent)', padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontWeight: 600, fontSize: '13px', zIndex: 10000, boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }} onFocus={e => e.currentTarget.style.top = '12px'} onBlur={e => e.currentTarget.style.top = '-999px'}>Skip to main content</a>
       {toastMsg && (
         <div role="status" aria-live="polite" className="toast-notification">
           {toastMsg}
@@ -1621,8 +1648,10 @@ function App() {
 
               {/* Grouping toggle */}
               <div className="sidebar-toggle-row">
-                <span className="sidebar-toggle-label">Group by</span>
+                <label className="sidebar-toggle-label" htmlFor="monitor-group-by-select">Group by</label>
                 <select
+                  id="monitor-group-by-select"
+                  aria-label="Group monitors by"
                   value={groupBy}
                   onChange={(e) => {
                     setGroupBy(e.target.value as 'none' | 'tags' | 'type');
@@ -1715,18 +1744,31 @@ function App() {
                           <span className={`uptime-badge ${uptimeBadgeClass(uptime)}`} style={{ flexShrink: 0, fontSize: '11px' }} title="24-hour average uptime">
                             {recentHbs.length > 0 ? `${uptime.toFixed(1)}%` : '—'}
                           </span>
-                          <div className="mini-hb-row" style={{ flex: 1, minWidth: 0 }} title="Recent checks (last 30m)">
-                            {recentHbs.length > 0
-                              ? recentHbs.map((hb: any, i: number) => (
-                                <div key={i} className={`mini-hb-bar ${hb.status || 'unknown'}`} />
-                              ))
-                              : Array(20).fill(null).map((_, i) => (
-                                <div key={i} className="mini-hb-bar unknown" />
-                              ))
-                            }
-                          </div>
+                          {(() => {
+                            const upHbs = recentHbs.filter((h: any) => h.status === 'up').length;
+                            const downHbs = recentHbs.filter((h: any) => h.status === 'down' || h.status === 'critical').length;
+                            const hbSummary = recentHbs.length > 0 ? `Last ${recentHbs.length} checks: ${upHbs} up, ${downHbs} down` : 'No recent checks';
+                            return (
+                              <div className="mini-hb-row" style={{ flex: 1, minWidth: 0 }} role="img" aria-label={hbSummary} title={hbSummary}>
+                                {recentHbs.length > 0
+                                  ? recentHbs.map((hb: any, i: number) => (
+                                    <div key={i} className={`mini-hb-bar ${hb.status || 'unknown'}`} aria-hidden="true" />
+                                  ))
+                                  : Array(20).fill(null).map((_, i) => (
+                                    <div key={i} className="mini-hb-bar unknown" aria-hidden="true" />
+                                  ))
+                                }
+                              </div>
+                            );
+                          })()}
                           {m.response_time_ms > 0 && (
-                            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', flexShrink: 0 }}>
+                            <span style={{
+                              fontSize: '11px',
+                              fontFamily: 'var(--font-mono)',
+                              color: m.response_time_ms >= 1000 ? 'var(--color-warning)' : 'var(--text-muted)',
+                              fontWeight: m.response_time_ms >= 1000 ? 600 : 400,
+                              flexShrink: 0
+                            }}>
                               {m.response_time_ms.toFixed(0)}ms
                             </span>
                           )}
@@ -2121,6 +2163,37 @@ function App() {
                       </div>
                     )}
 
+                    {/* ponytail: cold connection latency phase diagnostics */}
+                    {sm.metrics.timing && (
+                      <div style={{ marginTop: '16px', background: 'var(--bg-elevated)', border: '1px solid ' + (sm.response_time_ms >= 1000 ? 'var(--color-warning)' : 'var(--border)'), borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                          <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Activity size={13} style={{ color: sm.response_time_ms >= 1000 ? 'var(--color-warning)' : 'var(--accent)' }} />
+                            Cold Connection Phase Diagnostics
+                          </span>
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: sm.response_time_ms >= 1000 ? 'var(--color-warning)' : 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                            Bottleneck: {sm.metrics.timing.bottleneck}
+                          </span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+                          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 12px' }}>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Phase 1: TCP Handshake &amp; SSH Auth</div>
+                            <div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: sm.metrics.timing.connect_ms >= 500 ? 'var(--color-warning)' : 'var(--text-primary)' }}>
+                              {sm.metrics.timing.connect_ms} ms
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Diffie-Hellman KEX, cipher negotiation &amp; credential verify</div>
+                          </div>
+                          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 12px' }}>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Phase 2: Remote Shell &amp; Process Execution</div>
+                            <div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: sm.metrics.timing.exec_ms >= 500 ? 'var(--color-warning)' : 'var(--text-primary)' }}>
+                              {sm.metrics.timing.exec_ms} ms
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>uptime, free, df, /proc/stat, loadavg process forks</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Attached Storage & Filesystem Utilization Breakdown Panel */}
                     {(() => {
                       const visibleDisks = visibleVolumes(sm.metrics.disks);
@@ -2336,7 +2409,7 @@ function App() {
                           </div>
 
                           {/* Tab selector */}
-                          <div style={{ display: 'flex', gap: '4px', marginBottom: '14px', background: 'var(--bg-secondary)', borderRadius: '8px', padding: '3px', border: '1px solid var(--border)' }}>
+                          <div role="tablist" aria-label="Engine diagnostics tabs" style={{ display: 'flex', gap: '4px', marginBottom: '14px', background: 'var(--bg-secondary)', borderRadius: '8px', padding: '3px', border: '1px solid var(--border)' }}>
                             {[
                               { key: 'slow_queries', label: 'Active & Slow Queries', count: dbEngineStatus.slow_queries?.length },
                               { key: 'tables', label: sm.type.toLowerCase() === 'db' ? 'Databases' : 'Collections', count: dbEngineStatus.tables?.length },
@@ -2344,8 +2417,11 @@ function App() {
                             ].map(tab => (
                               <button
                                 key={tab.key}
+                                id={`tab-${tab.key}`}
+                                role="tab"
+                                aria-selected={dbActiveTab === tab.key}
+                                aria-controls={`tabpanel-${tab.key}`}
                                 type="button"
-                                aria-pressed={dbActiveTab === tab.key}
                                 style={{
                                   flex: 1, padding: '7px 12px', fontSize: '12px', fontWeight: '600', cursor: 'pointer',
                                   background: dbActiveTab === tab.key ? 'var(--bg-elevated)' : 'transparent',
@@ -2363,7 +2439,7 @@ function App() {
 
                           {/* Tab Content: Active / Slow & Idle Queries */}
                           {dbActiveTab === 'slow_queries' && (
-                            <div style={{ maxHeight: '280px', overflow: 'auto', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                            <div role="tabpanel" id="tabpanel-slow_queries" aria-labelledby="tab-slow_queries" style={{ maxHeight: '280px', overflow: 'auto', borderRadius: '8px', border: '1px solid var(--border)' }}>
                               {dbEngineStatus.slow_queries?.length === 0 ? (
                                 <div style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
                                   <Activity size={20} style={{ opacity: 0.3, marginBottom: '8px' }} />
@@ -2372,6 +2448,7 @@ function App() {
                                 </div>
                               ) : (
                                 <table style={{ width: '100%', minWidth: '940px', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+                                  <caption className="sr-only">Active database connections and slow queries</caption>
                                   <thead>
                                     <tr style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 1 }}>
                                       <th scope="col" style={{ padding: '8px 11px', color: 'var(--text-muted)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PID</th>
@@ -2390,18 +2467,19 @@ function App() {
                                       const isLong = durSec > 300;
                                       const durStr = durSec >= 3600 ? `${Math.floor(durSec / 3600)}h ${Math.floor((durSec % 3600) / 60)}m` : durSec >= 60 ? `${Math.floor(durSec / 60)}m ${Math.floor(durSec % 60)}s` : `${durSec.toFixed(1)}s`;
                                       return (
-                                        <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', transition: 'background 0.15s', background: isLong ? 'rgba(239,68,68,0.04)' : 'transparent' }}>
+                                        <tr key={i} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.15s', background: isLong ? 'var(--color-down-glow)' : 'transparent' }}>
                                           <td style={{ padding: '7px 11px', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{sq.pid}</td>
                                           <td style={{ padding: '7px 11px', fontWeight: '500' }}>{sq.usename}</td>
                                           <td style={{ padding: '7px 11px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--accent)' }}>{sq.client_addr || 'local'}</td>
                                           <td style={{ padding: '7px 11px', fontSize: '11px', color: 'var(--text-secondary)' }}>{sq.application_name || '—'}</td>
                                           <td style={{ padding: '7px 11px', fontSize: '11px', color: 'var(--text-secondary)' }}>{sq.datname || '—'}</td>
                                           <td style={{ padding: '7px 11px' }}>
-                                            <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', fontWeight: '600', background: sq.state === 'active' ? 'rgba(34,197,94,0.15)' : 'rgba(250,168,26,0.15)', color: sq.state === 'active' ? '#22c55e' : '#faa81a' }}>
+                                            {/* ponytail: use semantic theme tokens and min 11px font for WCAG AA >= 4.5:1 (fixes audit V1) */}
+                                            <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', fontWeight: '600', background: sq.state === 'active' ? 'var(--color-up-glow)' : 'var(--color-warning-glow)', color: sq.state === 'active' ? 'var(--color-up)' : 'var(--color-warning)' }}>
                                               {sq.state}
                                             </span>
                                           </td>
-                                          <td style={{ padding: '7px 11px', fontWeight: '600', fontFamily: 'var(--font-mono)', fontSize: '11px', color: isLong ? '#ef4444' : durSec > 30 ? '#faa81a' : '#22c55e' }}>
+                                          <td style={{ padding: '7px 11px', fontWeight: '600', fontFamily: 'var(--font-mono)', fontSize: '11px', color: isLong ? 'var(--color-down)' : durSec > 30 ? 'var(--color-warning)' : 'var(--color-up)' }}>
                                             {durStr}
                                           </td>
                                           <td style={{ padding: '7px 11px', minWidth: '320px' }}>
@@ -2416,7 +2494,7 @@ function App() {
                                                   overflowX: 'auto',
                                                   maxWidth: '460px',
                                                   display: 'block',
-                                                  background: 'rgba(0,0,0,0.3)',
+                                                  background: 'var(--bg-secondary)',
                                                   padding: '4px 8px',
                                                   borderRadius: '4px',
                                                   border: '1px solid var(--border)'
@@ -2436,7 +2514,7 @@ function App() {
                                                   setTimeout(() => { btn.innerText = 'Copy'; }, 1500);
                                                 }}
                                                 style={{
-                                                  fontSize: '9px',
+                                                  fontSize: '11px',
                                                   padding: '3px 8px',
                                                   background: 'var(--bg-elevated)',
                                                   border: '1px solid var(--border)',
@@ -2462,8 +2540,9 @@ function App() {
 
                           {/* Tab Content: Databases */}
                           {dbActiveTab === 'tables' && (
-                            <div style={{ maxHeight: '340px', overflowY: 'auto', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                            <div role="tabpanel" id="tabpanel-tables" aria-labelledby="tab-tables" style={{ maxHeight: '340px', overflowY: 'auto', borderRadius: '8px', border: '1px solid var(--border)' }}>
                               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+                                <caption className="sr-only">Database and collection sizes</caption>
                                 <thead>
                                   <tr style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 1 }}>
                                     <th scope="col" style={{ padding: '8px 11px', color: 'var(--text-muted)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>#</th>
@@ -2474,7 +2553,7 @@ function App() {
                                 <tbody>
                                   {dbEngineStatus.tables?.map((tbl: any, i: number) => {
                                     return (
-                                      <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: 'transparent', transition: 'background 0.15s' }}>
+                                      <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: 'transparent', transition: 'background 0.15s' }}>
                                         <td style={{ padding: '7px 11px', fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{i + 1}</td>
                                         <td style={{ padding: '7px 11px', fontWeight: '400', color: 'var(--text-primary)' }}>
                                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -2493,8 +2572,9 @@ function App() {
 
                           {/* Tab Content: Tablespaces */}
                           {dbActiveTab === 'tablespaces' && (
-                            <div style={{ maxHeight: '340px', overflowY: 'auto', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                            <div role="tabpanel" id="tabpanel-tablespaces" aria-labelledby="tab-tablespaces" style={{ maxHeight: '340px', overflowY: 'auto', borderRadius: '8px', border: '1px solid var(--border)' }}>
                               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+                                <caption className="sr-only">Storage tablespace allocations</caption>
                                 <thead>
                                   <tr style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 1 }}>
                                     <th scope="col" style={{ padding: '8px 11px', color: 'var(--text-muted)', fontWeight: '600', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>#</th>
@@ -2690,34 +2770,50 @@ curl -X POST -H "Content-Type: application/json" \\
                 </div>
 
                 {/* Status Alert Banner */}
-                <div style={{
-                  background: downCount > 0 ? 'rgba(237, 66, 69, 0.1)' : 'rgba(59, 165, 92, 0.1)',
-                  border: downCount > 0 ? '1px solid rgba(237, 66, 69, 0.25)' : '1px solid rgba(59, 165, 92, 0.25)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '16px 20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  marginBottom: '20px'
-                }}>
-                  <div style={{
-                    width: '12px', height: '12px', borderRadius: '50%',
-                    background: downCount > 0 ? 'var(--color-down)' : 'var(--color-up)',
-                    boxShadow: downCount > 0 ? '0 0 8px var(--color-down)' : '0 0 8px var(--color-up-glow)',
-                    animation: 'ripple 2s infinite'
-                  }} />
-                  <div>
-                    <h2 style={{ margin: 0, fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)' }}>
-                      {downCount > 0 ? `${downCount} Active Incident(s) Detected` : 'All Systems Operational'}
-                    </h2>
-                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      {downCount > 0
-                        ? 'Some infrastructure components are experiencing connectivity issues or degraded performance.'
-                        : 'All monitored endpoints and resources are responding normally.'
-                      }
-                    </p>
-                  </div>
-                </div>
+                {(() => {
+                  const hasDown = downCount > 0;
+                  const hasWarn = !hasDown && (warnCount > 0 || homeStats.slowCount > 0);
+                  const bannerBg = hasDown ? 'rgba(237, 66, 69, 0.1)' : (hasWarn ? 'var(--color-warning-glow)' : 'rgba(59, 165, 92, 0.1)');
+                  const bannerBorder = hasDown ? '1px solid rgba(237, 66, 69, 0.25)' : (hasWarn ? '1px solid var(--color-warning)' : '1px solid rgba(59, 165, 92, 0.25)');
+                  const dotColor = hasDown ? 'var(--color-down)' : (hasWarn ? 'var(--color-warning)' : 'var(--color-up)');
+                  const dotGlow = hasDown ? '0 0 8px var(--color-down)' : (hasWarn ? '0 0 8px var(--color-warning)' : '0 0 8px var(--color-up-glow)');
+                  const title = hasDown
+                    ? `${downCount} Active Incident(s) Detected`
+                    : (hasWarn ? `${warnCount || homeStats.slowCount} Latency / Performance Warning(s) Detected` : 'All Systems Operational');
+                  const desc = hasDown
+                    ? 'Some infrastructure components are experiencing connectivity issues or degraded performance.'
+                    : (hasWarn
+                      ? 'One or more monitors exceeded latency threshold (>= 1000ms) or resource limits.'
+                      : 'All monitored endpoints and resources are responding normally.');
+
+                  return (
+                    <div style={{
+                      background: bannerBg,
+                      border: bannerBorder,
+                      borderRadius: 'var(--radius-md)',
+                      padding: '16px 20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      marginBottom: '20px'
+                    }}>
+                      <div style={{
+                        width: '12px', height: '12px', borderRadius: '50%',
+                        background: dotColor,
+                        boxShadow: dotGlow,
+                        animation: 'ripple 2s infinite'
+                      }} />
+                      <div>
+                        <h2 style={{ margin: 0, fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)' }}>
+                          {title}
+                        </h2>
+                        <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                          {desc}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* KPI cards grid */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
@@ -2745,13 +2841,24 @@ curl -X POST -H "Content-Type: application/json" \\
 
                   <div className="metric-card" style={{ padding: '16px 20px' }}>
                     <span className="metric-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: downCount > 0 ? 'var(--color-down)' : 'var(--text-muted)' }} />
-                      Active Incidents
+                      <div style={{
+                        width: 6, height: 6, borderRadius: '50%',
+                        background: downCount > 0 ? 'var(--color-down)' : ((warnCount > 0 || homeStats.slowCount > 0) ? 'var(--color-warning)' : 'var(--text-muted)')
+                      }} />
+                      Active Incidents &amp; Alerts
                     </span>
-                    <div style={{ fontSize: '28px', fontWeight: 600, color: downCount > 0 ? 'var(--color-down)' : 'var(--text-primary)', marginTop: '8px', fontFamily: 'var(--font-mono)', letterSpacing: '-0.5px' }}>
-                      {downCount}
+                    <div style={{
+                      fontSize: '28px', fontWeight: 600,
+                      color: downCount > 0 ? 'var(--color-down)' : ((warnCount > 0 || homeStats.slowCount > 0) ? 'var(--color-warning)' : 'var(--text-primary)'),
+                      marginTop: '8px', fontFamily: 'var(--font-mono)', letterSpacing: '-0.5px'
+                    }}>
+                      {downCount > 0 ? downCount : (warnCount || homeStats.slowCount)}
                     </div>
-                    <span className="radial-sub">Currently failing healthchecks</span>
+                    <span className="radial-sub">
+                      {downCount > 0
+                        ? 'Currently failing healthchecks'
+                        : ((warnCount > 0 || homeStats.slowCount > 0) ? 'Monitors exceeding latency or threshold limits' : 'No service disruptions')}
+                    </span>
                   </div>
 
                   <div className="metric-card" style={{ padding: '16px 20px' }}>
@@ -2770,28 +2877,41 @@ curl -X POST -H "Content-Type: application/json" \\
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px', marginBottom: '24px' }}>
                   {/* Active Incidents / Outages */}
                   <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '20px' }}>
-                    <h3 style={{ margin: '0 0 14px', fontSize: '15px', fontWeight: 700 }}>Outages & Alerts</h3>
+                    <h3 style={{ margin: '0 0 14px', fontSize: '15px', fontWeight: 700 }}>Outages &amp; Alerts</h3>
                     {homeStats.outages.length === 0 ? (
                       <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                        No active outages detected.
+                        No active outages or alerts detected.
                       </div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {homeStats.outages.map(m => (
-                          <button
-                            key={m.id}
-                            type="button"
-                            className="outage-row"
-                            onClick={() => { setSelectedMonitor(m); setView('dashboard'); }}
-                            aria-label={`Open ${m.name}, currently down`}
-                          >
-                            <span className="outage-row-main">
-                              <span className="outage-row-name">{m.name}</span>
-                              <span className="outage-row-host">{m.host} ({m.type.toUpperCase()})</span>
-                            </span>
-                            <span className="outage-row-err">{m.error || 'Connection Failed'}</span>
-                          </button>
-                        ))}
+                        {homeStats.outages.map(m => {
+                          const isWarn = m.status === 'warning' || (m.status !== 'down' && m.status !== 'critical' && m.response_time_ms >= 1000);
+                          const errText = m.error || (m.response_time_ms >= 1000 ? `High Latency (${numberFmt.format(m.response_time_ms)} ms)` : 'Threshold Exceeded');
+                          const timing = m.metrics?.timing;
+                          return (
+                            <button
+                              key={m.id}
+                              type="button"
+                              className={`outage-row ${isWarn ? 'warning' : ''}`}
+                              onClick={() => { setSelectedMonitor(m); setView('dashboard'); }}
+                              aria-label={`Open ${m.name}, status ${m.status || 'alert'}`}
+                              title={errText}
+                            >
+                              <span className="outage-row-main">
+                                <span className="outage-row-name">{m.name}</span>
+                                <span className="outage-row-host">
+                                  {m.host} ({m.type.toUpperCase()})
+                                  {timing && (
+                                    <span style={{ marginLeft: '6px', color: 'var(--color-warning)', fontWeight: 500 }}>
+                                      · Connect: {timing.connect_ms}ms, Exec: {timing.exec_ms}ms ({timing.bottleneck})
+                                    </span>
+                                  )}
+                                </span>
+                              </span>
+                              <span className="outage-row-err">{errText}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -2813,7 +2933,10 @@ curl -X POST -H "Content-Type: application/json" \\
                             <span className="infra-row-name">{m.name}</span>
                           </span>
                           <span className="infra-row-stats">
-                            <span className="infra-row-ms">
+                            <span
+                              className="infra-row-ms"
+                              style={m.response_time_ms >= 1000 ? { color: 'var(--color-warning)', fontWeight: 600 } : undefined}
+                            >
                               {m.response_time_ms > 0 ? `${numberFmt.format(m.response_time_ms)} ms` : '—'}
                             </span>
                             <span

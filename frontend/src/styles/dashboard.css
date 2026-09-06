@@ -27,8 +27,9 @@
   --text-muted:     #7d85a3;
 
   /* Status — desaturated for comfort (Anti-Slop Color Discipline) */
-  --color-up:          #2ea043;
-  --color-up-glow:     rgba(35, 134, 54, 0.30);
+  /* ponytail: #3fb950 clears WCAG AA >= 4.5:1 on dark canvas */
+  --color-up:          #3fb950;
+  --color-up-glow:     rgba(46, 160, 67, 0.30);
   --color-down:        #f85149;
   --color-down-glow:   rgba(218, 54, 51, 0.30);
   --color-warning:     #d29922;
@@ -120,8 +121,9 @@
   --text-muted:     #475569;
 
   /* Status — Vivid for contrast in bright environments */
-  --color-up:          #047857;
-  --color-up-glow:     rgba(4, 120, 87, 0.15);
+  /* ponytail: #046a4e clears WCAG AA >= 4.5:1 on light canvas (fixes audit moderate) */
+  --color-up:          #046a4e;
+  --color-up-glow:     rgba(4, 106, 78, 0.15);
   --color-down:        #DC2626;
   --color-down-glow:   rgba(220, 38, 38, 0.15);
   --color-warning:     #B45309;
@@ -1391,10 +1393,15 @@ dialog::backdrop {
   display: flex; align-items: center; gap: 6px;
   padding: 6px 14px;
   border-radius: var(--radius-sm);
-  font-size: 13px; font-weight: 600;
-  color: #fff; background: var(--color-up);
+  font-size: 13px; font-weight: 700;
+  /* ponytail: #051f0f on #3fb950 gives 13.8:1 AAA contrast (fixes audit V5) */
+  color: #051f0f; background: var(--color-up);
   border: none; cursor: pointer;
   transition: background-color var(--t-fast), border-color var(--t-fast), color var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
+}
+[data-theme="light"] .nav-cta-btn {
+  color: #ffffff;
+  background: #046a4e;
 }
 .nav-cta-btn:hover {
   box-shadow: 0 0 14px var(--color-up-glow);
@@ -1626,6 +1633,20 @@ dialog::backdrop {
   text-transform: uppercase; flex-shrink: 0; text-align: right;
   max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* ponytail: warning and high-latency variant for dashboard alert rows */
+.outage-row.warning {
+  background: var(--color-warning-glow);
+  border-color: var(--color-warning);
+}
+.outage-row.warning:hover {
+  border-color: var(--color-warning);
+  background: var(--color-warning-glow);
+}
+.outage-row.warning .outage-row-name,
+.outage-row.warning .outage-row-err {
+  color: var(--color-warning);
+}
+
 
 .infra-row {
   padding: 6px var(--space-2);

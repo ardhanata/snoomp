@@ -79,9 +79,7 @@ services:
         max-file: "5"
 
   worker:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
+    # ponytail: reuse image built by api service to avoid duplicate multi-stage build overhead
     image: snoomp:${SNOOMP_VERSION:-local}
     container_name: snoomp-worker
     restart: unless-stopped
@@ -92,6 +90,8 @@ services:
     cap_add:
       - NET_RAW
     depends_on:
+      api:
+        condition: service_started
       db:
         condition: service_healthy
       redis:

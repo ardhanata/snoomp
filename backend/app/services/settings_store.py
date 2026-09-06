@@ -51,7 +51,8 @@ DEFAULTS: dict[str, Any] = {
         "disk_warn": 85.0,
         "disk_crit": 95.0,
         # Latency ceilings in milliseconds. null disables the check.
-        "latency_warn": None,
+        # ponytail: 1000ms latency warning threshold for automated self-check
+        "latency_warn": 1000.0,
         "latency_crit": None,
     },
     "discord": {

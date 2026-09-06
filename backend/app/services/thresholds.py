@@ -137,7 +137,28 @@ def evaluate(
         check("Memory", details.get("mem_percent"), "mem_warn", "mem_crit", "%")
         check("Disk", details.get("disk_percent"), "disk_warn", "disk_crit", "%")
 
-    check("Latency", response_time_ms, "latency_warn", "latency_crit", "ms")
+    latency_breached = False
+    v_lat = _num(response_time_ms)
+    if v_lat is not None:
+        crit_lat = thresholds.get("latency_crit")
+        warn_lat = thresholds.get("latency_warn")
+        if crit_lat is not None and v_lat >= crit_lat:
+            result = _worst(result, "critical")
+            breaches.append(f"Latency {v_lat:.1f}ms ≥ {crit_lat:g}ms")
+            latency_breached = True
+        elif warn_lat is not None and v_lat >= warn_lat:
+            result = _worst(result, "warning")
+            breaches.append(f"Latency {v_lat:.1f}ms ≥ {warn_lat:g}ms")
+            latency_breached = True
+
+    # ponytail: if latency exceeded and cold-connection phase timings exist, append phase root cause
+    timing = details.get("timing") if isinstance(details, dict) else None
+    if latency_breached and isinstance(timing, dict) and "bottleneck" in timing:
+        c_ms = timing.get("connect_ms")
+        e_ms = timing.get("exec_ms")
+        b_label = timing.get("bottleneck")
+        if c_ms is not None and e_ms is not None:
+            breaches.append(f"Phase Root Cause: {b_label} (connect: {c_ms}ms, exec: {e_ms}ms)")
 
     reason = "Threshold exceeded: " + ", ".join(breaches) if breaches else None
 

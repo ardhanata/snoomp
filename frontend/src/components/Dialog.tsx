@@ -11,12 +11,15 @@ export interface DialogProps {
 
 export default function Dialog({ isOpen, onClose, children, className, style, 'aria-labelledby': ariaLabelledBy }: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  // ponytail: capture trigger element before open and restore focus upon close (WCAG 2.4.3)
+  const lastActiveElementRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
 
     if (isOpen) {
+      lastActiveElementRef.current = document.activeElement as HTMLElement | null;
       if (!dialog.open) {
         dialog.showModal();
         // Focus the first input or heading, avoiding the close button
@@ -36,12 +39,19 @@ export default function Dialog({ isOpen, onClose, children, className, style, 'a
       if (dialog.open) {
         dialog.close();
       }
+      if (lastActiveElementRef.current && typeof lastActiveElementRef.current.focus === 'function') {
+        lastActiveElementRef.current.focus();
+        lastActiveElementRef.current = null;
+      }
     }
   }, [isOpen]);
 
   const handleCancel = () => {
-    // Let the native dialog close happen to restore focus, just sync state
     onClose();
+    if (lastActiveElementRef.current && typeof lastActiveElementRef.current.focus === 'function') {
+      lastActiveElementRef.current.focus();
+      lastActiveElementRef.current = null;
+    }
   };
 
   return (

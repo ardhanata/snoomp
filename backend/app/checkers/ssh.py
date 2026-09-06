@@ -383,6 +383,8 @@ async def check_ssh(
     last_err = None
     for attempt in range(2):
         try:
+            # ponytail: track cold connection phases (Phase 1: TCP/KEX/auth vs Phase 2: shell/forks)
+            t_conn_start = time.monotonic()
             async with asyncssh.connect(
                 host,
                 port=port,
@@ -394,12 +396,26 @@ async def check_ssh(
                 agent_path=None,
                 login_timeout=login_timeout
             ) as conn:
+                t_conn_end = time.monotonic()
+                connect_ms = round((t_conn_end - t_conn_start) * 1000, 1)
+
                 # First try Linux command
+                t_exec_start = time.monotonic()
                 result = await conn.run(command, timeout=timeout)
-                elapsed = (time.monotonic() - start) * 1000
-                
+                t_exec_end = time.monotonic()
+                exec_ms = round((t_exec_end - t_exec_start) * 1000, 1)
+                elapsed = (t_exec_end - start) * 1000
+
+                timing = {
+                    "connect_ms": connect_ms,
+                    "exec_ms": exec_ms,
+                    "total_ms": round(elapsed, 1),
+                    "bottleneck": "SSH Handshake & Auth" if connect_ms >= exec_ms else "Remote Process Execution"
+                }
+
                 if result.exit_status == 0:
                     metrics = parse_metrics_output(result.stdout, target_id=target_id or host, redis_conn=redis_conn)
+                    metrics["timing"] = timing
                     status, err = evaluate_resource_status(metrics["cpu_percent"], metrics["mem_percent"], metrics["disk_percent"])
                     return CheckerResult(
                         status=status,
@@ -409,9 +425,20 @@ async def check_ssh(
                     )
                 else:
                     # Fallback to Windows PowerShell query
+                    t_win_start = time.monotonic()
                     win_result = await conn.run(win_command, timeout=timeout)
+                    t_win_end = time.monotonic()
+                    win_exec_ms = round((t_win_end - t_win_start) * 1000, 1)
+                    elapsed = (t_win_end - start) * 1000
+                    timing = {
+                        "connect_ms": connect_ms,
+                        "exec_ms": win_exec_ms,
+                        "total_ms": round(elapsed, 1),
+                        "bottleneck": "SSH Handshake & Auth" if connect_ms >= win_exec_ms else "PowerShell CIM Query"
+                    }
                     if win_result.exit_status == 0:
                         metrics = parse_windows_metrics_output(win_result.stdout)
+                        metrics["timing"] = timing
                         status, err = evaluate_resource_status(metrics["cpu_percent"], metrics["mem_percent"], metrics["disk_percent"])
                         return CheckerResult(
                             status=status,
@@ -424,7 +451,7 @@ async def check_ssh(
                         status="down",
                         response_time_ms=round(elapsed, 2),
                         error=f"SSH check failed (Linux exit code {result.exit_status}, Windows exit code {win_result.exit_status})",
-                        details={"exit_status": result.exit_status, "stderr": result.stderr[:200]}
+                        details={"exit_status": result.exit_status, "stderr": result.stderr[:200], "timing": timing}
                     )
         except asyncssh.PermissionDenied as e:
             elapsed = (time.monotonic() - start) * 1000
