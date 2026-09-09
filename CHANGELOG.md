@@ -5,6 +5,21 @@ All notable changes to Snoomp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-09-07
+
+### Added
+- **Turnkey Linux Installer (`install.sh`):** Interactive and unattended automated installer with GitHub auto-bootstrap capability (`curl -fsSL https://raw.githubusercontent.com/ardhanata/snoomp/main/install.sh | sudo bash`). Automatically clones the repository if run standalone, validates Docker Engine and Compose v2, auto-generates 48-byte cryptographic `JWT_SECRET` and `POSTGRES_PASSWORD`, configures network interfaces and `ALLOWED_ORIGINS`, launches the stack, and outputs initial admin credentials.
+- **Remote Push Deployment (`scripts/deploy-remote.sh`):** Single-command deployment from administrator workstation directly to remote servers over SSH.
+- **Self-Contained Deployment Packager (`scripts/package.sh`):** Builds standalone release bundles (`snoomp-deploy.tar.gz`) for offline and air-gapped environments.
+- **Instance Migration Suite (`scripts/backup.sh` & `scripts/restore.sh`):** Automates full database dumps (including TimescaleDB hypertables) and configuration migration between servers.
+- **Production Hardening (`deploy/`):** Added systemd unit file (`deploy/systemd/snoomp.service`), production Nginx reverse proxy template with WebSocket support (`deploy/nginx/snoomp.conf`), and Caddy configuration (`deploy/caddy/Caddyfile`).
+- **Production Deployment Guide (`docs/DEPLOYMENT.md`):** Complete operations guide covering fresh installs, remote deployments, server migrations, SSL setups, and maintenance.
+
+### Changed
+- **Network Interface Binding (`docker-compose.yml` & `.env.example`):** Added `SNOOMP_BIND_IP` to support binding to `127.0.0.1` when operating behind reverse proxies.
+
+---
+
 ## [1.1.1] - 2026-09-06
 
 ### Improved

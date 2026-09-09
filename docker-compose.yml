@@ -62,7 +62,7 @@ services:
       ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-http://localhost:8008}"
       SNOOMP_ADMIN_PASSWORD: "${SNOOMP_ADMIN_PASSWORD:-}"
     ports:
-      - "${SNOOMP_PORT:-8008}:8000"
+      - "${SNOOMP_BIND_IP:-0.0.0.0}:${SNOOMP_PORT:-8008}:8000"
     # ICMP raw sockets. The container still runs as non-root; this grants the
     # one capability the ping checker needs rather than the whole root set.
     cap_add:

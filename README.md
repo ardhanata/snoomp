@@ -51,12 +51,42 @@ artifact — the UI and API cannot drift apart, and the host needs no Node.
 
 **Requirements:** Linux host with Docker Engine 24+ and the Compose plugin.
 
-```bash
-git clone https://github.com/ardhanata/snoomp.git
-cd snoomp
+### Method 1: One-Liner Install (Curl & Bash from GitHub)
 
+On any clean Linux server with Docker installed:
+```bash
+curl -fsSL https://raw.githubusercontent.com/ardhanata/snoomp/main/install.sh | sudo bash
+```
+
+Or non-interactively for automated deployments:
+```bash
+curl -fsSL https://raw.githubusercontent.com/ardhanata/snoomp/main/install.sh | sudo bash -s -- --unattended --domain monitor.yourdomain.com
+```
+
+### Method 2: Git Clone
+
+```bash
+git clone https://github.com/ardhanata/snoomp.git /opt/snoomp
+cd /opt/snoomp
+sudo ./install.sh
+```
+
+`install.sh` validates host prerequisites, auto-generates 48-byte cryptographic keys (`JWT_SECRET`, `POSTGRES_PASSWORD`), configures ports/origins, builds and launches the containers, and outputs your initial administrator credentials.
+
+> 📖 **Deploying to a remote server, setting up SSL with Nginx/Caddy, or migrating data?**  
+> See the complete [**Production Deployment Guide**](docs/DEPLOYMENT.md).
+
+### Remote Push (from Workstation to Server)
+
+```bash
+./scripts/deploy-remote.sh user@your-server-ip /opt/snoomp --install
+```
+
+### Manual Docker Compose Start
+
+```bash
 cp .env.example .env
-# Set JWT_SECRET and POSTGRES_PASSWORD — the stack refuses to start without them.
+# Set JWT_SECRET and POSTGRES_PASSWORD in .env
 #   openssl rand -base64 48   # JWT_SECRET
 #   openssl rand -base64 32   # POSTGRES_PASSWORD
 
