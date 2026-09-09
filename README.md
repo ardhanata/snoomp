@@ -1,6 +1,6 @@
 # Snoomp 🛰️
 
-[![Version](https://img.shields.io/badge/version-1.1.1-blue.svg)](https://github.com/ardhanata/snoomp)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/ardhanata/snoomp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/frontend-React%2018%20%2B%20Vite-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)

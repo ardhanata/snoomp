@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Pencil, Check, ChevronDown, FileText,
   Database, RefreshCw, Server, Activity, Sun, Moon, TrendingUp, Sliders,
   CheckSquare, Share2, Printer, Menu,
-  Download
+  Download, ArrowUpCircle
 } from 'lucide-react';
 
 import './styles/dashboard.css';
@@ -25,6 +25,7 @@ import { downloadPdf } from './lib/downloadPdf';
 const MonitorModal = React.lazy(() => import('./components/MonitorModal'));
 const BatchEditModal = React.lazy(() => import('./components/BatchEditModal'));
 const UserPreferencesModal = React.lazy(() => import('./components/UserPreferencesModal'));
+const UpdateModal = React.lazy(() => import('./components/UpdateModal'));
 
 const API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 const WS_PROTOCOL = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -254,6 +255,9 @@ function App() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showPreferencesModal, setShowPreferencesModal] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [hasUpdate, setHasUpdate] = useState(false);
+  const [latestVersion, setLatestVersion] = useState('');
   const [appVersion, setAppVersion] = useState('v1.0.0');
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
@@ -267,8 +271,22 @@ function App() {
     } catch { }
   };
 
+  const checkForUpdatesSilently = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/system/check-updates`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.has_update) {
+          setHasUpdate(true);
+          if (data.latest_version) setLatestVersion(data.latest_version);
+        }
+      }
+    } catch { }
+  };
+
   useEffect(() => {
     fetchVersion();
+    checkForUpdatesSilently();
   }, []);
 
   useEffect(() => {
@@ -1437,6 +1455,20 @@ function App() {
                 >
                   <Sliders size={14} /> User Preferences
                 </button>
+                <button
+                  onClick={() => { setShowProfileMenu(false); setShowUpdateModal(true); }}
+                  style={{ background: 'transparent', border: 'none', padding: '8px 12px', textAlign: 'left', cursor: 'pointer', borderRadius: '4px', fontSize: '13px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <ArrowUpCircle size={14} style={{ color: hasUpdate ? 'var(--accent)' : 'inherit' }} />
+                  <span>Check for Updates</span>
+                  {hasUpdate && (
+                    <span style={{ marginLeft: 'auto', background: 'var(--accent)', color: '#0c0d12', fontSize: '10px', fontWeight: 700, padding: '1px 5px', borderRadius: '8px' }}>
+                      NEW
+                    </span>
+                  )}
+                </button>
                 <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />
                 <button
                   onClick={() => { setShowProfileMenu(false); handleLogout(); }}
@@ -1839,18 +1871,40 @@ function App() {
               {/* Version Footer Badge */}
               <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
                 <span>Snoomp Enterprise</span>
-                <span
+                <button
+                  type="button"
+                  onClick={() => setShowUpdateModal(true)}
+                  title={hasUpdate ? `Update available: v${latestVersion} (Click to inspect)` : 'Click to check for updates'}
                   style={{
-                    background: 'var(--bg-elevated)',
-                    border: '1px solid var(--border)',
+                    background: hasUpdate ? 'rgba(56, 189, 248, 0.15)' : 'var(--bg-elevated)',
+                    border: `1px solid ${hasUpdate ? 'var(--accent)' : 'var(--border)'}`,
                     padding: '2px 8px',
                     borderRadius: '11px',
                     fontWeight: 600,
                     color: 'var(--accent)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    transition: 'all 0.15s ease'
                   }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = hasUpdate ? 'var(--accent)' : 'var(--border)'; }}
                 >
-                  {appVersion}
-                </span>
+                  {hasUpdate && (
+                    <span
+                      style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        background: 'var(--accent)',
+                        boxShadow: '0 0 6px var(--accent)'
+                      }}
+                    />
+                  )}
+                  <span>{appVersion}</span>
+                  {hasUpdate && <span style={{ fontSize: '10px', opacity: 0.9 }}>• Update</span>}
+                </button>
               </div>
             </aside>
           )}
@@ -3042,6 +3096,17 @@ curl -X POST -H "Content-Type: application/json" \\
           token={token}
           existingTags={allTags}
           onToast={showToast}
+        />
+
+        <UpdateModal
+          isOpen={showUpdateModal}
+          onClose={() => setShowUpdateModal(false)}
+          apiUrl={API_URL}
+          currentAppVersion={appVersion}
+          onUpdateDetected={(info) => {
+            setHasUpdate(info.has_update);
+            if (info.latest_version) setLatestVersion(info.latest_version);
+          }}
         />
       </React.Suspense>
 

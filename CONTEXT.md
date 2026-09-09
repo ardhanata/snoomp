@@ -1,6 +1,6 @@
 # Snoomp — Enterprise Infrastructure Health & Status Platform
 
-> **Version:** `v1.1.1`  
+> **Version:** `v1.3.0`  
 > **Repository Root:** `d:/Project/snoomp`
 
 ---

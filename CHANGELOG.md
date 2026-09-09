@@ -5,6 +5,17 @@ All notable changes to Snoomp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-09-09
+
+### Added
+- **Check for Update Feature:**
+  - **Backend Release Checking (`backend/app/routes/system.py`):** Added `GET /api/system/check-updates` endpoint querying official GitHub releases (`ardhanata/snoomp`) with in-memory 15-minute TTL caching to respect rate limits, semver comparison logic, and custom upgrade instructions for Docker Compose and the Turnkey Linux installer.
+  - **Interactive Software Updates Modal (`UpdateModal.tsx`):** Dedicated double-bezel modal displaying current version, latest version, update availability indicators, formatted release notes, and one-click copyable upgrade commands.
+  - **Dashboard & Navigation Integration:** Added clickable interactive version badge in the sidebar footer with update indicator dots, a "Check for Updates" shortcut in the user profile avatar menu, and a dedicated "Updates" tab in User Preferences (`UserPreferencesModal.tsx`).
+  - **Silent Background Detection:** Automatically inspects update status on dashboard load and signals when newer releases are published.
+
+---
+
 ## [1.2.0] - 2026-09-07
 
 ### Added

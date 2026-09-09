@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   X, Sliders, Shield, Palette, Bell, Settings, Tag,
   CheckCircle2, AlertTriangle, AlertCircle, Save, Info, Send, Loader2,
-  Plus, Edit3, Database, Download, Upload
+  Plus, Edit3, Database, Download, Upload, ArrowUpCircle, ExternalLink,
+  Terminal, Copy, Check, RefreshCw
 } from 'lucide-react';
 import Dialog from './Dialog';
 import PreferencesTagsTab from './PreferencesTagsTab';
@@ -37,7 +38,7 @@ interface UserPreferencesModalProps {
   onAddTag?: (newTag: string) => void;
 }
 
-type TabId = 'sla' | 'appearance' | 'notifications' | 'defaults' | 'tags' | 'backup';
+type TabId = 'sla' | 'appearance' | 'notifications' | 'defaults' | 'tags' | 'backup' | 'updates';
 
 const TABS: { id: TabId; label: string; icon: typeof Shield }[] = [
   { id: 'sla', label: 'SLA', icon: Shield },
@@ -46,6 +47,7 @@ const TABS: { id: TabId; label: string; icon: typeof Shield }[] = [
   { id: 'defaults', label: 'Defaults', icon: Settings },
   { id: 'tags', label: 'Tags', icon: Tag },
   { id: 'backup', label: 'Backup & Restore', icon: Database },
+  { id: 'updates', label: 'Updates', icon: ArrowUpCircle },
 ];
 
 /** Percentages are entered as text so a half-typed "99." isn't clobbered. */
@@ -89,6 +91,35 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
   const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
   const [importFile, setImportFile] = useState<File | null>(null);
   const [backupMsg, setBackupMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Updates state
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [updateData, setUpdateData] = useState<any | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [copiedDockerCmd, setCopiedDockerCmd] = useState(false);
+  const [copiedInstallerCmd, setCopiedInstallerCmd] = useState(false);
+
+  const fetchUpdatesTab = async (force: boolean = false) => {
+    setCheckingUpdates(true);
+    setUpdateError(null);
+    try {
+      const res = await fetch(`${apiUrl}/api/system/check-updates${force ? '?force=true' : ''}`);
+      if (!res.ok) throw new Error(`Server returned HTTP ${res.status}`);
+      const data = await res.json();
+      setUpdateData(data);
+      if (data.error) setUpdateError(data.error);
+    } catch (e: any) {
+      setUpdateError(e.message || 'Failed to check for updates.');
+    } finally {
+      setCheckingUpdates(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen && activeTab === 'updates' && !updateData && !checkingUpdates) {
+      fetchUpdatesTab(false);
+    }
+  }, [isOpen, activeTab]);
 
   const loadNotifications = async () => {
     try {
@@ -1094,6 +1125,279 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
               </div>
             )}
 
+            {/* ── Updates Tab ── */}
+            {activeTab === 'updates' && (
+              <div id="pref-panel-updates" role="tabpanel" aria-labelledby="pref-tab-updates" style={{ marginBottom: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                      Software & Release Status
+                    </h3>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '4px 0 0' }}>
+                      Monitor available updates and upgrade your Snoomp instance.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fetchUpdatesTab(true)}
+                    disabled={checkingUpdates}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '12px',
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: '7px 14px',
+                      cursor: checkingUpdates ? 'not-allowed' : 'pointer',
+                      fontWeight: 600
+                    }}
+                  >
+                    <RefreshCw size={13} className={checkingUpdates ? 'spin' : ''} />
+                    {checkingUpdates ? 'Checking...' : 'Check for Updates'}
+                  </button>
+                </div>
+
+                {checkingUpdates && !updateData ? (
+                  <div style={{
+                    padding: '36px 20px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '12px',
+                    color: 'var(--text-muted)',
+                    border: '1px dashed var(--border)',
+                    borderRadius: 'var(--radius-md)'
+                  }}>
+                    <Loader2 size={24} className="spin" style={{ color: 'var(--accent)' }} />
+                    <div style={{ fontSize: '13px' }}>Checking GitHub releases repository...</div>
+                  </div>
+                ) : updateError && !updateData ? (
+                  <div style={{
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '16px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '12px'
+                  }}>
+                    <AlertTriangle size={20} style={{ color: '#ef4444', flexShrink: 0, marginTop: '2px' }} />
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '14px', color: '#ef4444' }}>Unable to verify updates</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{updateError}</div>
+                    </div>
+                  </div>
+                ) : updateData ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    {updateData.has_update ? (
+                      <div style={{
+                        background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(99, 102, 241, 0.08))',
+                        border: '1px solid rgba(56, 189, 248, 0.3)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '16px',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '14px'
+                      }}>
+                        <ArrowUpCircle size={24} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: '2px' }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)' }}>
+                              Update Available: v{updateData.latest_version}
+                            </span>
+                            <span style={{
+                              fontSize: '11px',
+                              background: 'rgba(56, 189, 248, 0.2)',
+                              color: 'var(--accent)',
+                              padding: '2px 8px',
+                              borderRadius: '10px',
+                              fontWeight: 600
+                            }}>
+                              Current: v{updateData.current_version}
+                            </span>
+                          </div>
+                          {updateData.release_name && (
+                            <div style={{ fontSize: '13px', color: 'var(--text-primary)', marginTop: '6px', fontWeight: 500 }}>
+                              {updateData.release_name}
+                            </div>
+                          )}
+                          {updateData.release_notes && (
+                            <div style={{
+                              marginTop: '10px',
+                              fontSize: '12px',
+                              color: 'var(--text-muted)',
+                              maxHeight: '120px',
+                              overflowY: 'auto',
+                              whiteSpace: 'pre-wrap',
+                              background: 'rgba(0, 0, 0, 0.25)',
+                              padding: '10px 12px',
+                              borderRadius: 'var(--radius-sm)',
+                              lineHeight: '1.45',
+                              border: '1px solid var(--border)'
+                            }}>
+                              {updateData.release_notes}
+                            </div>
+                          )}
+                          {updateData.html_url && (
+                            <div style={{ marginTop: '10px' }}>
+                              <a
+                                href={updateData.html_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '12px',
+                                  color: 'var(--accent)',
+                                  textDecoration: 'none'
+                                }}
+                              >
+                                View full release notes on GitHub <ExternalLink size={12} />
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{
+                        background: 'rgba(34, 197, 94, 0.08)',
+                        border: '1px solid rgba(34, 197, 94, 0.25)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '14px'
+                      }}>
+                        <CheckCircle2 size={24} style={{ color: '#22c55e', flexShrink: 0 }} />
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '15px', color: '#22c55e' }}>
+                            Snoomp is up to date
+                          </div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            You are running the latest version (v{updateData.current_version}).
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Upgrade Instructions Box */}
+                    <div style={{
+                      background: 'var(--bg-elevated, rgba(255, 255, 255, 0.02))',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px'
+                    }}>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        Instance Upgrade Commands
+                      </div>
+
+                      {/* Docker Command */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <Terminal size={12} /> Standard Docker Stack:
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const cmd = updateData.upgrade_command_docker || 'cd /opt/snoomp && git pull && docker compose up -d --build';
+                              navigator.clipboard.writeText(cmd);
+                              setCopiedDockerCmd(true);
+                              setTimeout(() => setCopiedDockerCmd(false), 2000);
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '11px',
+                              background: copiedDockerCmd ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255, 255, 255, 0.06)',
+                              color: copiedDockerCmd ? '#22c55e' : 'var(--text-primary)',
+                              border: '1px solid',
+                              borderColor: copiedDockerCmd ? 'rgba(34, 197, 94, 0.4)' : 'var(--border)',
+                              borderRadius: '4px',
+                              padding: '2px 8px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {copiedDockerCmd ? <Check size={11} /> : <Copy size={11} />}
+                            {copiedDockerCmd ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
+                        <code style={{
+                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                          fontSize: '11px',
+                          color: 'var(--accent)',
+                          background: 'rgba(0, 0, 0, 0.3)',
+                          padding: '6px 8px',
+                          borderRadius: '4px',
+                          userSelect: 'all',
+                          overflowX: 'auto',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {updateData.upgrade_command_docker || 'cd /opt/snoomp && git pull && docker compose up -d --build'}
+                        </code>
+                      </div>
+
+                      {/* Turnkey Installer Command */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <Terminal size={12} /> Turnkey Linux Bootstrap:
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const cmd = updateData.upgrade_command_installer || 'curl -fsSL https://raw.githubusercontent.com/ardhanata/snoomp/main/install.sh | sudo bash';
+                              navigator.clipboard.writeText(cmd);
+                              setCopiedInstallerCmd(true);
+                              setTimeout(() => setCopiedInstallerCmd(false), 2000);
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '11px',
+                              background: copiedInstallerCmd ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255, 255, 255, 0.06)',
+                              color: copiedInstallerCmd ? '#22c55e' : 'var(--text-primary)',
+                              border: '1px solid',
+                              borderColor: copiedInstallerCmd ? 'rgba(34, 197, 94, 0.4)' : 'var(--border)',
+                              borderRadius: '4px',
+                              padding: '2px 8px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {copiedInstallerCmd ? <Check size={11} /> : <Copy size={11} />}
+                            {copiedInstallerCmd ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
+                        <code style={{
+                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                          fontSize: '11px',
+                          color: 'var(--accent)',
+                          background: 'rgba(0, 0, 0, 0.3)',
+                          padding: '6px 8px',
+                          borderRadius: '4px',
+                          userSelect: 'all',
+                          overflowX: 'auto',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {updateData.upgrade_command_installer || 'curl -fsSL https://raw.githubusercontent.com/ardhanata/snoomp/main/install.sh | sudo bash'}
+                        </code>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            )}
+
             {/* Footer */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)', alignItems: 'center' }}>
               {loading && <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginRight: 'auto' }}>Loading…</span>}
@@ -1101,7 +1405,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                 style={{ padding: '11px 18px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
                 {canEdit ? 'Cancel' : 'Close'}
               </button>
-              {canEdit && activeTab !== 'tags' && activeTab !== 'backup' && (
+              {canEdit && activeTab !== 'tags' && activeTab !== 'backup' && activeTab !== 'updates' && (
                 <button
                   type="submit"
                   /* Stays enabled while invalid so the message is reachable —
