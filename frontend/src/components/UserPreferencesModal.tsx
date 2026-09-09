@@ -164,9 +164,13 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
       if (!res.ok) {
         throw new Error(data.detail || `Import failed with status ${res.status}`);
       }
+      const targetCount = data.stats?.targets ?? data.imported?.targets ?? 0;
+      const channelCount = data.stats?.notification_channels ?? data.imported?.notifications ?? 0;
+      const pageCount = data.stats?.status_pages ?? data.imported?.status_pages ?? 0;
+      const restoreMode = data.mode || importMode;
       setBackupMsg({
         type: 'success',
-        text: `Backup restored successfully (${data.mode} mode): ${data.stats.targets} targets, ${data.stats.notification_channels} channels, ${data.stats.status_pages} status pages imported. Reloading...`,
+        text: `Backup restored successfully (${restoreMode} mode): ${targetCount} targets, ${channelCount} channels, ${pageCount} status pages imported. Reloading...`,
       });
       loadNotifications();
       fetchSettings(apiUrl, token).then(s => hydrate(s)).catch(() => {});

@@ -249,6 +249,12 @@ async def import_backup(
             "success": True,
             "mode": mode,
             "imported": imported_counts,
+            "stats": {
+                "targets": imported_counts["targets"],
+                "notification_channels": imported_counts["notifications"],
+                "status_pages": imported_counts["status_pages"],
+                "settings": imported_counts["settings"],
+            },
             "message": f"Successfully restored {imported_counts['targets']} target(s), {imported_counts['notifications']} notification(s), and {imported_counts['status_pages']} status page(s)."
         }
 
