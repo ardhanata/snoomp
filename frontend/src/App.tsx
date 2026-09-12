@@ -19,6 +19,7 @@ import { SnoompLogo } from './components/SnoompLogo';
 import ExecutiveDashboard, { SlaTrend } from './components/ExecutiveDashboard';
 import DatabaseMetricsChart from './components/DatabaseMetricsChart';
 import MonitorRow from './components/MonitorRow';
+import { HttpLatencyProfiler } from './components/HttpLatencyProfiler';
 import { InstanceSettings, readCache, fetchSettings, applyAppearance } from './lib/settings';
 import { downloadPdf } from './lib/downloadPdf';
 
@@ -2222,8 +2223,13 @@ function App() {
                       </div>
                     )}
 
-                    {/* ponytail: cold connection latency phase diagnostics */}
-                    {sm.metrics.timing && (
+                    {/* HTTP/S Connection Phase Profiler & Measurement Infographic */}
+                    {sm.type === 'http' && (
+                      <HttpLatencyProfiler monitor={sm} />
+                    )}
+
+                    {/* ponytail: cold connection latency phase diagnostics (SSH) */}
+                    {sm.type === 'ssh' && sm.metrics?.timing?.connect_ms != null && (
                       <div style={{ marginTop: '16px', background: 'var(--bg-elevated)', border: '1px solid ' + (sm.response_time_ms >= 1000 ? 'var(--color-warning)' : 'var(--border)'), borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                           <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>

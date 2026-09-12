@@ -15,9 +15,9 @@ def compile_initial_data(db: Session) -> list:
             .first()
         )
         
-        # Get latest metrics for SNMP/SSH & DBs
+        # Get latest metrics for SNMP/SSH/DBs/HTTP
         metrics = None
-        if t.type.lower() in ["snmp", "ssh", "db", "mongodb", "redis"]:
+        if t.type.lower() in ["snmp", "ssh", "db", "mongodb", "redis", "http"]:
             latest_metric = (
                 db.query(SystemMetrics)
                 .filter_by(target_id=t.id)

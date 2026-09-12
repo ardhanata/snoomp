@@ -353,8 +353,8 @@ def run_check_task(target_id: str):
         db.add(hb)
         db.flush()
         
-        # 4. Handle time-series Metrics for SNMP, SSH, & Databases
-        if target.type.lower() in ["snmp", "ssh", "db", "mongodb", "redis"] and status in ["up", "warning", "critical"]:
+        # 4. Handle time-series Metrics for SNMP, SSH, Databases, & HTTP
+        if target.type.lower() in ["snmp", "ssh", "db", "mongodb", "redis", "http"] and status in ["up", "warning", "critical", "degraded"]:
             # Extract CPU/RAM/Disk & DB details
             cpu = details.get("cpu_percent")
             if cpu is None:
