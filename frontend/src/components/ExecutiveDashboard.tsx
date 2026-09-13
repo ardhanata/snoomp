@@ -267,6 +267,7 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                       fillOpacity={1}
                       fill="url(#slaGradient)"
                       connectNulls={false}
+                      isAnimationActive={false}
                     />
                   </AreaChart>
                 </ResponsiveContainer>

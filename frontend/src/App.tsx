@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import {
   Shield, Power, Trash2, Edit3, Plus,
@@ -714,10 +714,20 @@ function App() {
 
   const [wsStatus, setWsStatus] = useState<'connected' | 'reconnecting' | 'disconnected'>('disconnected');
   const statsDebounceRef = useRef<any>(null);
+  const lastStatsFetchRef = useRef<number>(0);
 
+  // Coalesce stats/incident refreshes. The previous version reset a 1.5s timer on
+  // every packet, so every lull in checks fired another pair of HTTP requests.
+  // This keeps at most one refresh pending and no more than one per 15s.
   const debouncedFetchStatsAndIncidents = () => {
-    clearTimeout(statsDebounceRef.current);
-    statsDebounceRef.current = setTimeout(fetchStatsAndIncidents, 1500);
+    if (statsDebounceRef.current) return;
+    const sinceLast = Date.now() - lastStatsFetchRef.current;
+    const wait = Math.max(1500, 15000 - sinceLast);
+    statsDebounceRef.current = setTimeout(() => {
+      statsDebounceRef.current = null;
+      lastStatsFetchRef.current = Date.now();
+      fetchStatsAndIncidents();
+    }, wait);
   };
 
   // ── WebSocket & Data Fetching ──
@@ -731,6 +741,61 @@ function App() {
     let isMounted = true;
     let retryDelay = 1000;
     let reconnectTimeout: any = null;
+    let pingInterval: any = null;
+
+    // Buffered target updates: targetId -> its updates in arrival order. A 50-target
+    // fleet delivers several packets a second and each one used to re-render the
+    // whole app; flushing on a fixed tick caps that regardless of fleet size.
+    const UPDATE_FLUSH_MS = 2000;
+    const pendingUpdates = new Map<string, any[]>();
+    let flushTimer: any = null;
+
+    const flushUpdates = () => {
+      flushTimer = null;
+      if (!isMounted || pendingUpdates.size === 0) return;
+      const batch = new Map(pendingUpdates);
+      pendingUpdates.clear();
+
+      setMonitors(prev => {
+        let changed = false;
+        const next = prev.map(m => {
+          const ups = batch.get(m.id);
+          if (!ups || ups.length === 0) return m;
+          changed = true;
+          // Replay every buffered status so coalescing never drops a heartbeat.
+          let heartbeats = m.recent_heartbeats || [];
+          for (const u of ups) {
+            if (u.status) heartbeats = [{ status: u.status }, ...heartbeats].slice(0, 30);
+          }
+          const last = ups[ups.length - 1];
+          return {
+            ...m,
+            status: last.status ?? m.status,
+            response_time_ms: last.response_time_ms ?? m.response_time_ms,
+            error: last.error ?? m.error,
+            metrics: last.metrics ?? m.metrics,
+            recent_heartbeats: heartbeats,
+          };
+        });
+        return changed ? next : prev;
+      });
+
+      setSelectedMonitor((prev: any) => {
+        if (!prev) return prev;
+        const ups = batch.get(prev.id);
+        if (!ups || ups.length === 0) return prev;
+        const last = ups[ups.length - 1];
+        return {
+          ...prev,
+          status: last.status ?? prev.status,
+          response_time_ms: last.response_time_ms ?? prev.response_time_ms,
+          error: last.error ?? prev.error,
+          metrics: last.metrics ?? prev.metrics,
+        };
+      });
+
+      debouncedFetchStatsAndIncidents();
+    };
 
     const connectWebSocket = () => {
       if (!isMounted) return;
@@ -744,9 +809,17 @@ function App() {
         if (!isMounted) return;
         setWsStatus('connected');
         retryDelay = 1000;
+        // Reverse proxies drop a WebSocket that sees no client-to-server traffic
+        // for 60-120s. Without this the tab churns through reconnects all day,
+        // each one replaying the full initial_state payload.
+        if (pingInterval) clearInterval(pingInterval);
+        pingInterval = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) ws.send('ping');
+        }, 30000);
       };
 
       ws.onmessage = (event) => {
+        if (event.data === 'pong') return;
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === 'initial_state') {
@@ -757,26 +830,17 @@ function App() {
             const u = msg.data || msg.target;
             if (!u) return;
             const targetId = u.target_id || u.id;
-            setMonitors(prev => prev.map(m => m.id === targetId
-              ? {
-                ...m,
-                status: u.status ?? m.status,
-                response_time_ms: u.response_time_ms ?? m.response_time_ms,
-                error: u.error ?? m.error,
-                metrics: u.metrics ?? m.metrics,
-                recent_heartbeats: u.status
-                  ? [{ status: u.status }, ...(m.recent_heartbeats || [])].slice(0, 30)
-                  : m.recent_heartbeats,
-              }
-              : m
-            ));
-            setSelectedMonitor((prev: any) => (prev && prev.id === targetId ? { ...prev, status: u.status ?? prev.status, response_time_ms: u.response_time_ms ?? prev.response_time_ms, error: u.error ?? prev.error, metrics: u.metrics ?? prev.metrics } : prev));
-            debouncedFetchStatsAndIncidents();
+            if (!targetId) return;
+            const queue = pendingUpdates.get(targetId);
+            if (queue) queue.push(u);
+            else pendingUpdates.set(targetId, [u]);
+            if (!flushTimer) flushTimer = setTimeout(flushUpdates, UPDATE_FLUSH_MS);
           }
         } catch { }
       };
 
       ws.onclose = () => {
+        if (pingInterval) { clearInterval(pingInterval); pingInterval = null; }
         if (!isMounted) return;
         setWsStatus('reconnecting');
         reconnectTimeout = setTimeout(() => {
@@ -795,6 +859,10 @@ function App() {
     return () => {
       isMounted = false;
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+      if (pingInterval) { clearInterval(pingInterval); pingInterval = null; }
+      if (statsDebounceRef.current) { clearTimeout(statsDebounceRef.current); statsDebounceRef.current = null; }
+      pendingUpdates.clear();
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.close();
       }
@@ -806,6 +874,21 @@ function App() {
     if (!selectedMonitor?.id) return;
     fetchMonitorDetails(selectedMonitor.id, selectedMonitor.type, resourceHours);
   }, [selectedMonitor?.id]); // eslint-disable-line
+
+  // Stable identities so React.memo(MonitorRow) can actually bail out. Inline
+  // arrow props changed on every render, which re-rendered every row and its
+  // 30 heartbeat nodes on each incoming update.
+  const handleSelectMonitorRow = useCallback((selectedM: any) => {
+    setSelectedMonitor(selectedM);
+    setSidebarOpen(false);
+    setView('dashboard');
+  }, []);
+
+  const handleToggleSelectMonitorRow = useCallback((id: string) => {
+    setSelectedMonitorIds(prev => (
+      prev.includes(id) ? prev.filter(mid => mid !== id) : Array.from(new Set([...prev, id]))
+    ));
+  }, []);
 
   // ── CRUD monitors ──
   const handleSaveMonitor = async (data: any) => {
@@ -1787,18 +1870,8 @@ function App() {
                         isBatchMode={isBatchMode}
                         isSelected={isSelected}
                         slaConfig={instanceSettings.sla}
-                        onSelect={(selectedM) => {
-                          setSelectedMonitor(selectedM);
-                          setSidebarOpen(false);
-                          setView('dashboard');
-                        }}
-                        onToggleSelect={(id) => {
-                          if (selectedMonitorIds.includes(id)) {
-                            setSelectedMonitorIds(prev => prev.filter(mid => mid !== id));
-                          } else {
-                            setSelectedMonitorIds(prev => Array.from(new Set([...prev, id])));
-                          }
-                        }}
+                        onSelect={handleSelectMonitorRow}
+                        onToggleSelect={handleToggleSelectMonitorRow}
                       />
                     );
                   };
@@ -2386,9 +2459,9 @@ function App() {
                                   labelFormatter={(ts: any) => new Date(Number(ts)).toLocaleString()}
                                   contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '12px' }}
                                 />
-                                <Area type="monotone" dataKey="cpu" name="CPU" stroke="var(--chart-1)" fill="url(#gCpu)" strokeWidth={1.5} dot={false} />
-                                <Area type="monotone" dataKey="mem" name="Memory" stroke="var(--chart-2)" fill="url(#gMem)" strokeWidth={1.5} dot={false} />
-                                <Area type="monotone" dataKey="disk" name="Disk" stroke="var(--chart-3)" fill="url(#gDisk)" strokeWidth={1.5} dot={false} />
+                                <Area type="monotone" dataKey="cpu" name="CPU" stroke="var(--chart-1)" fill="url(#gCpu)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+                                <Area type="monotone" dataKey="mem" name="Memory" stroke="var(--chart-2)" fill="url(#gMem)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+                                <Area type="monotone" dataKey="disk" name="Disk" stroke="var(--chart-3)" fill="url(#gDisk)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
                               </AreaChart>
                             </ResponsiveContainer>
                           </>
@@ -2764,7 +2837,7 @@ function App() {
                             <XAxis dataKey="time" stroke="var(--text-muted)" fontSize={10} tick={{ fill: 'var(--text-muted)' }} interval="preserveStartEnd" minTickGap={40} />
                             <YAxis stroke="var(--text-muted)" fontSize={10} unit="ms" domain={[0, 'auto']} tick={{ fill: 'var(--text-muted)' }} />
                             <Tooltip contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '12px' }} />
-                            <Area type="monotone" dataKey="latency" name="Latency" stroke="var(--accent)" fill="url(#gLatency)" strokeWidth={1.5} dot={false} />
+                            <Area type="monotone" dataKey="latency" name="Latency" stroke="var(--accent)" fill="url(#gLatency)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
                           </AreaChart>
                         </ResponsiveContainer>
                       </div>
@@ -2795,7 +2868,7 @@ function App() {
                             <XAxis dataKey="time" stroke="var(--text-muted)" fontSize={10} tick={{ fill: 'var(--text-muted)' }} interval="preserveStartEnd" minTickGap={40} />
                             <YAxis stroke="var(--text-muted)" fontSize={10} unit="ms" tick={{ fill: 'var(--text-muted)' }} />
                             <Tooltip contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '12px' }} />
-                            <Area type="monotone" dataKey="latency" name="Latency" stroke="var(--accent)" fill="url(#gLat)" strokeWidth={2} dot={false} />
+                            <Area type="monotone" dataKey="latency" name="Latency" stroke="var(--accent)" fill="url(#gLat)" strokeWidth={2} dot={false} isAnimationActive={false} />
                           </AreaChart>
                         </ResponsiveContainer>
                       </div>

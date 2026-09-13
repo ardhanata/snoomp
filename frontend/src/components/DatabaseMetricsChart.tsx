@@ -185,7 +185,8 @@ export default function DatabaseMetricsChart({ engine, metrics, rangeHours }: Da
                     contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '12px' }} />
                   {present.map(s => (
                     <Line key={s.key} type="monotone" dataKey={s.key} name={s.label}
-                      stroke={s.color} strokeWidth={1.6} dot={false} connectNulls />
+                      stroke={s.color} strokeWidth={1.6} dot={false} connectNulls
+                      isAnimationActive={false} />
                   ))}
                 </LineChart>
               ) : (
@@ -216,10 +217,12 @@ export default function DatabaseMetricsChart({ engine, metrics, rangeHours }: Da
                   {present.map(s => (
                     s.line
                       ? <Line key={s.key} type="monotone" dataKey={s.key} name={s.label}
-                          stroke={s.color} strokeWidth={1.6} dot={false} connectNulls />
+                          stroke={s.color} strokeWidth={1.6} dot={false} connectNulls
+                          isAnimationActive={false} />
                       : <Area key={s.key} type="monotone" dataKey={s.key} name={s.label}
                           stroke={s.color} fill={`url(#grad-${engine}-${s.key})`}
-                          strokeWidth={1.5} dot={false} connectNulls />
+                          strokeWidth={1.5} dot={false} connectNulls
+                          isAnimationActive={false} />
                   ))}
                 </AreaChart>
               )}

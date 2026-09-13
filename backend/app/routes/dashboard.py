@@ -72,6 +72,10 @@ def get_stats(db: Session = Depends(get_db)):
 
 #: Hard ceiling on rows returned in one call, whatever the caller asks for.
 _MAX_HEARTBEAT_ROWS = 5000
+# A chart is an SVG path with one coordinate pair per point; past a few hundred
+# points the browser pays far more than the extra detail is worth. A 24h window
+# at a 10s check interval is 8,640 rows.
+_MAX_METRIC_POINTS = 500
 
 
 @router.get("/targets/{target_id}/heartbeats", dependencies=[Depends(require_viewer)])
@@ -115,11 +119,18 @@ def get_target_metrics(target_id: str, hours: int = 24, db: Session = Depends(ge
         .order_by(SystemMetrics.checked_at.asc())
         .all()
     )
-    if not raw_metrics or hours <= 24:
-        return [m.to_dict() for m in raw_metrics]
+    if not raw_metrics:
+        return []
 
-    # ponytail: downsample metrics for multi-day timeframes (1h buckets for 7d, 6h buckets for 30d)
-    bucket_seconds = 3600 if hours <= 168 else 21600
+    if hours <= 24:
+        # Short windows stay raw while they are small enough to render cheaply;
+        # only a dense series gets bucketed, sized so the result lands near the cap.
+        if len(raw_metrics) <= _MAX_METRIC_POINTS:
+            return [m.to_dict() for m in raw_metrics]
+        bucket_seconds = max(60, (hours * 3600) // _MAX_METRIC_POINTS)
+    else:
+        # ponytail: downsample metrics for multi-day timeframes (1h buckets for 7d, 6h buckets for 30d)
+        bucket_seconds = 3600 if hours <= 168 else 21600
     buckets: Dict[int, Dict[str, List[float]]] = {}
     for m in raw_metrics:
         if not m.checked_at:
