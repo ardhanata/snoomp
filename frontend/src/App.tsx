@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import React, { useState, useEffect, useRef, useCallback, startTransition } from 'react';
 import {
   Shield, Power, Trash2, Edit3, Plus,
   Search, Cpu, HardDrive, MemoryStick, Clock,
@@ -16,8 +15,7 @@ import RadialGauge from './components/RadialGauge';
 import PublicStatusPage from './components/PublicStatusPage';
 import Dialog from './components/Dialog';
 import { SnoompLogo } from './components/SnoompLogo';
-import ExecutiveDashboard, { SlaTrend } from './components/ExecutiveDashboard';
-import DatabaseMetricsChart from './components/DatabaseMetricsChart';
+import type { SlaTrend } from './components/ExecutiveDashboard';
 import MonitorRow from './components/MonitorRow';
 import { HttpLatencyProfiler } from './components/HttpLatencyProfiler';
 import { InstanceSettings, readCache, fetchSettings, applyAppearance } from './lib/settings';
@@ -27,6 +25,23 @@ const MonitorModal = React.lazy(() => import('./components/MonitorModal'));
 const BatchEditModal = React.lazy(() => import('./components/BatchEditModal'));
 const UserPreferencesModal = React.lazy(() => import('./components/UserPreferencesModal'));
 const UpdateModal = React.lazy(() => import('./components/UpdateModal'));
+
+/* Every recharts consumer is lazy so the library (~110KB gzipped) stays out of
+   the entry chunk. Adding a top-level recharts import to this file would undo
+   the split for all four of them. */
+const ExecutiveDashboard = React.lazy(() => import('./components/ExecutiveDashboard'));
+const DatabaseMetricsChart = React.lazy(() => import('./components/DatabaseMetricsChart'));
+const ResourceHistoryChart = React.lazy(() =>
+  import('./components/MetricsCharts').then(m => ({ default: m.ResourceHistoryChart })));
+const LatencyChart = React.lazy(() =>
+  import('./components/MetricsCharts').then(m => ({ default: m.LatencyChart })));
+
+/* Reserves the chart's height so the detail pane doesn't jump while the chunk loads. */
+const ChartSkeleton = ({ height = 190 }: { height?: number }) => (
+  <div style={{ height, display: 'grid', placeItems: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
+    Loading chart…
+  </div>
+);
 
 const API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 const WS_PROTOCOL = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -747,6 +762,10 @@ function App() {
     // fleet delivers several packets a second and each one used to re-render the
     // whole app; flushing on a fixed tick caps that regardless of fleet size.
     const UPDATE_FLUSH_MS = 2000;
+    // recent_heartbeats keeps 30 entries, so nothing older than the newest 30
+    // queued statuses can survive a flush. The cap matters because a backgrounded
+    // tab throttles timers to roughly once a minute and the queue keeps filling.
+    const MAX_QUEUED_PER_TARGET = 30;
     const pendingUpdates = new Map<string, any[]>();
     let flushTimer: any = null;
 
@@ -756,42 +775,46 @@ function App() {
       const batch = new Map(pendingUpdates);
       pendingUpdates.clear();
 
-      setMonitors(prev => {
-        let changed = false;
-        const next = prev.map(m => {
-          const ups = batch.get(m.id);
-          if (!ups || ups.length === 0) return m;
-          changed = true;
-          // Replay every buffered status so coalescing never drops a heartbeat.
-          let heartbeats = m.recent_heartbeats || [];
-          for (const u of ups) {
-            if (u.status) heartbeats = [{ status: u.status }, ...heartbeats].slice(0, 30);
-          }
+      // Non-urgent: a batched status refresh must never block typing in the
+      // monitor filter or a click on a row.
+      startTransition(() => {
+        setMonitors(prev => {
+          let changed = false;
+          const next = prev.map(m => {
+            const ups = batch.get(m.id);
+            if (!ups || ups.length === 0) return m;
+            changed = true;
+            // Replay every buffered status so coalescing never drops a heartbeat.
+            let heartbeats = m.recent_heartbeats || [];
+            for (const u of ups) {
+              if (u.status) heartbeats = [{ status: u.status }, ...heartbeats].slice(0, 30);
+            }
+            const last = ups[ups.length - 1];
+            return {
+              ...m,
+              status: last.status ?? m.status,
+              response_time_ms: last.response_time_ms ?? m.response_time_ms,
+              error: last.error ?? m.error,
+              metrics: last.metrics ?? m.metrics,
+              recent_heartbeats: heartbeats,
+            };
+          });
+          return changed ? next : prev;
+        });
+
+        setSelectedMonitor((prev: any) => {
+          if (!prev) return prev;
+          const ups = batch.get(prev.id);
+          if (!ups || ups.length === 0) return prev;
           const last = ups[ups.length - 1];
           return {
-            ...m,
-            status: last.status ?? m.status,
-            response_time_ms: last.response_time_ms ?? m.response_time_ms,
-            error: last.error ?? m.error,
-            metrics: last.metrics ?? m.metrics,
-            recent_heartbeats: heartbeats,
+            ...prev,
+            status: last.status ?? prev.status,
+            response_time_ms: last.response_time_ms ?? prev.response_time_ms,
+            error: last.error ?? prev.error,
+            metrics: last.metrics ?? prev.metrics,
           };
         });
-        return changed ? next : prev;
-      });
-
-      setSelectedMonitor((prev: any) => {
-        if (!prev) return prev;
-        const ups = batch.get(prev.id);
-        if (!ups || ups.length === 0) return prev;
-        const last = ups[ups.length - 1];
-        return {
-          ...prev,
-          status: last.status ?? prev.status,
-          response_time_ms: last.response_time_ms ?? prev.response_time_ms,
-          error: last.error ?? prev.error,
-          metrics: last.metrics ?? prev.metrics,
-        };
       });
 
       debouncedFetchStatsAndIncidents();
@@ -832,8 +855,14 @@ function App() {
             const targetId = u.target_id || u.id;
             if (!targetId) return;
             const queue = pendingUpdates.get(targetId);
-            if (queue) queue.push(u);
-            else pendingUpdates.set(targetId, [u]);
+            if (queue) {
+              queue.push(u);
+              if (queue.length > MAX_QUEUED_PER_TARGET) {
+                queue.splice(0, queue.length - MAX_QUEUED_PER_TARGET);
+              }
+            } else {
+              pendingUpdates.set(targetId, [u]);
+            }
             if (!flushTimer) flushTimer = setTimeout(flushUpdates, UPDATE_FLUSH_MS);
           }
         } catch { }
@@ -1996,19 +2025,21 @@ function App() {
 
             {/* ═══ EXECUTIVE DASHBOARD VIEW ═══ */}
             {view === 'executive' ? (
-              <ExecutiveDashboard
-                targets={monitors}
-                slaConfig={instanceSettings.sla}
-                slaTrend={slaTrend}
-                slaTrendLoading={slaTrendLoading}
-                onSelectDomain={tag => {
-                  setSelectedGroupTag(tag);
-                  setSelectedMonitor(null);
-                  setView('dashboard');
-                }}
-                onPrint={() => getPdf('/api/reports/executive.pdf', 'executive')}
-                downloadingPdf={downloadingPdf === 'executive'}
-              />
+              <React.Suspense fallback={<ChartSkeleton height={360} />}>
+                <ExecutiveDashboard
+                  targets={monitors}
+                  slaConfig={instanceSettings.sla}
+                  slaTrend={slaTrend}
+                  slaTrendLoading={slaTrendLoading}
+                  onSelectDomain={tag => {
+                    setSelectedGroupTag(tag);
+                    setSelectedMonitor(null);
+                    setView('dashboard');
+                  }}
+                  onPrint={() => getPdf('/api/reports/executive.pdf', 'executive')}
+                  downloadingPdf={downloadingPdf === 'executive'}
+                />
+              </React.Suspense>
             ) : view === 'status-pages' ? (
               <div className="status-pages-view anim-fade-in">
                 <div className="status-pages-header">
@@ -2421,50 +2452,9 @@ function App() {
                           </div>
                         </div>
                         {metricsHistory.length > 0 ? (
-                          <>
-                            <div className="chart-legend">
-                              <span className="legend-item"><span className="legend-dot" style={{ background: 'var(--chart-1)' }} />CPU</span>
-                              <span className="legend-item"><span className="legend-dot" style={{ background: 'var(--chart-2)' }} />Memory</span>
-                              <span className="legend-item"><span className="legend-dot" style={{ background: 'var(--chart-3)' }} />Disk</span>
-                            </div>
-                            <ResponsiveContainer width="100%" height={190}>
-                              <AreaChart data={metricsHistory.map((m: any) => ({
-                                timestamp: new Date(m.checked_at).getTime(),
-                                cpu: m.cpu_percent, mem: m.mem_percent, disk: m.disk_percent,
-                              }))}>
-                                <defs>
-                                  <linearGradient id="gCpu" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.25} /><stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} /></linearGradient>
-                                  <linearGradient id="gMem" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--chart-2)" stopOpacity={0.25} /><stop offset="95%" stopColor="var(--chart-2)" stopOpacity={0} /></linearGradient>
-                                  <linearGradient id="gDisk" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--chart-3)" stopOpacity={0.25} /><stop offset="95%" stopColor="var(--chart-3)" stopOpacity={0} /></linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                                <XAxis
-                                  dataKey="timestamp"
-                                  type="number"
-                                  domain={[Date.now() - resourceHours * 3600 * 1000, Date.now()]}
-                                  stroke="var(--text-muted)"
-                                  fontSize={10}
-                                  tick={{ fill: 'var(--text-muted)' }}
-                                  interval="preserveStartEnd"
-                                  minTickGap={45}
-                                  tickFormatter={(ts: number) => {
-                                    const d = new Date(ts);
-                                    return resourceHours > 24
-                                      ? d.toLocaleDateString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                                      : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                  }}
-                                />
-                                <YAxis stroke="var(--text-muted)" fontSize={10} unit="%" domain={[0, 100]} tick={{ fill: 'var(--text-muted)' }} />
-                                <Tooltip
-                                  labelFormatter={(ts: any) => new Date(Number(ts)).toLocaleString()}
-                                  contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '12px' }}
-                                />
-                                <Area type="monotone" dataKey="cpu" name="CPU" stroke="var(--chart-1)" fill="url(#gCpu)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
-                                <Area type="monotone" dataKey="mem" name="Memory" stroke="var(--chart-2)" fill="url(#gMem)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
-                                <Area type="monotone" dataKey="disk" name="Disk" stroke="var(--chart-3)" fill="url(#gDisk)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
-                              </AreaChart>
-                            </ResponsiveContainer>
-                          </>
+                          <React.Suspense fallback={<ChartSkeleton />}>
+                            <ResourceHistoryChart metricsHistory={metricsHistory} resourceHours={resourceHours} />
+                          </React.Suspense>
                         ) : (
                           <div style={{ color: 'var(--text-muted)', fontSize: '12px', padding: '24px 0', textAlign: 'center' }}>
                             No metric history data available for this timeframe ({resourceHours === 24 ? '24 hours' : resourceHours === 168 ? '7 days' : '30 days'}).
@@ -2812,11 +2802,13 @@ function App() {
                           ))}
                         </div>
                       </div>
-                      <DatabaseMetricsChart
-                        engine={sm.type?.toLowerCase() as 'db' | 'mongodb' | 'redis'}
-                        metrics={metricsHistory}
-                        rangeHours={resourceHours}
-                      />
+                      <React.Suspense fallback={<ChartSkeleton />}>
+                        <DatabaseMetricsChart
+                          engine={sm.type?.toLowerCase() as 'db' | 'mongodb' | 'redis'}
+                          metrics={metricsHistory}
+                          rangeHours={resourceHours}
+                        />
+                      </React.Suspense>
                     </div>
 
                     {/* Latency History Chart for Database Monitors */}
@@ -2825,21 +2817,9 @@ function App() {
                         <div className="section-title" style={{ marginBottom: '8px' }}>
                           <h2 style={{ fontSize: 'inherit', margin: 0, fontWeight: 'inherit' }}>Database Query Latency (24h)</h2>
                         </div>
-                        <ResponsiveContainer width="100%" height={190}>
-                          <AreaChart data={heartbeats.map((h: any) => ({
-                            time: new Date(h.checked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                            latency: h.response_time_ms || 0,
-                          }))}>
-                            <defs>
-                              <linearGradient id="gLatency" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--accent)" stopOpacity={0.25} /><stop offset="95%" stopColor="var(--accent)" stopOpacity={0} /></linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                            <XAxis dataKey="time" stroke="var(--text-muted)" fontSize={10} tick={{ fill: 'var(--text-muted)' }} interval="preserveStartEnd" minTickGap={40} />
-                            <YAxis stroke="var(--text-muted)" fontSize={10} unit="ms" domain={[0, 'auto']} tick={{ fill: 'var(--text-muted)' }} />
-                            <Tooltip contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '12px' }} />
-                            <Area type="monotone" dataKey="latency" name="Latency" stroke="var(--accent)" fill="url(#gLatency)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
-                          </AreaChart>
-                        </ResponsiveContainer>
+                        <React.Suspense fallback={<ChartSkeleton />}>
+                          <LatencyChart heartbeats={heartbeats} variant="database" />
+                        </React.Suspense>
                       </div>
                     )}
                   </div>
@@ -2853,24 +2833,9 @@ function App() {
                     </div>
                     {heartbeats.length > 0 ? (
                       <div className="chart-section">
-                        <ResponsiveContainer width="100%" height={190}>
-                          <AreaChart data={heartbeats.map((h: any) => ({
-                            time: new Date(h.checked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-                            latency: h.response_time_ms,
-                          }))}>
-                            <defs>
-                              <linearGradient id="gLat" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                            <XAxis dataKey="time" stroke="var(--text-muted)" fontSize={10} tick={{ fill: 'var(--text-muted)' }} interval="preserveStartEnd" minTickGap={40} />
-                            <YAxis stroke="var(--text-muted)" fontSize={10} unit="ms" tick={{ fill: 'var(--text-muted)' }} />
-                            <Tooltip contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '12px' }} />
-                            <Area type="monotone" dataKey="latency" name="Latency" stroke="var(--accent)" fill="url(#gLat)" strokeWidth={2} dot={false} isAnimationActive={false} />
-                          </AreaChart>
-                        </ResponsiveContainer>
+                        <React.Suspense fallback={<ChartSkeleton />}>
+                          <LatencyChart heartbeats={heartbeats} variant="standard" />
+                        </React.Suspense>
                       </div>
                     ) : (
                       <div style={{ color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center', padding: '20px' }}>No chart data.</div>
