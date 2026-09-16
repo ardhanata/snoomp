@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Shield, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import { SnoompLogo } from './SnoompLogo';
+import { normalizeTags } from '../utils/tags';
 
 const API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
@@ -28,7 +29,8 @@ const PublicStatusPage: React.FC<PublicStatusPageProps> = ({ slug }) => {
         if (Object.keys(prev).length > 0) return prev;
         const groups: Record<string, boolean> = {};
         d.monitors.forEach((m: any) => {
-          const tag = (m.tags && m.tags.length > 0) ? m.tags[0] : 'Other Services';
+          const norm = normalizeTags(m.tags);
+          const tag = norm.length > 0 ? norm[0] : 'Other Services';
           groups[tag] = true;
         });
         return groups;
@@ -84,7 +86,8 @@ const PublicStatusPage: React.FC<PublicStatusPageProps> = ({ slug }) => {
   // Group monitors by first tag
   const groupedMonitors: Record<string, any[]> = {};
   monitorsList.forEach((m: any) => {
-    const tag = (m.tags && m.tags.length > 0) ? m.tags[0] : 'Other Services';
+    const norm = normalizeTags(m.tags);
+    const tag = norm.length > 0 ? norm[0] : 'Other Services';
     if (!groupedMonitors[tag]) {
       groupedMonitors[tag] = [];
     }

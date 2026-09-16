@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Tag, Plus, Edit2, Trash2 } from 'lucide-react';
+import { normalizeTags, normalizeTag, tagEquals, tagIncludes } from '../utils/tags';
 
 interface PreferencesTagsTabProps {
   monitors: any[];
@@ -31,64 +32,44 @@ export default function PreferencesTagsTab({
 
   /* handleAddTagSubmit / handleSaveRename are defined in the body below,
      carried over unchanged from the original inline implementation. */
-          const ENV_KEYWORDS = ['prod', 'production', 'staging', 'stag', 'dev', 'development', 'test', 'uat'];
-          const isEnvTagHelper = (t: string) => ENV_KEYWORDS.includes(t.toLowerCase());
-          
-          // ponytail: safe flatMap-free tag normalizer
-          const normalizeTags = (tags: any): string[] => {
-            if (!tags) return [];
-            const list = Array.isArray(tags) ? tags : [tags];
-            const out: string[] = [];
-            for (const item of list) {
-              if (typeof item === 'string') {
-                for (const part of item.split(',')) {
-                  const trimmed = part.trim();
-                  if (trimmed) out.push(trimmed);
-                }
-              }
-            }
-            return out;
-          };
+  const ENV_KEYWORDS = ['prod', 'production', 'staging', 'stag', 'dev', 'development', 'test', 'uat'];
+  const isEnvTagHelper = (t: string) => ENV_KEYWORDS.includes(t.toLowerCase());
 
-          const safeMonitors = Array.isArray(monitors) ? monitors : [];
-          const allTagNames = Array.from(
-            new Set([
-              ...(allTags || []),
-              ...safeMonitors.map(m => normalizeTags(m?.tags)).flat(),
-              ...customTags
-            ])
-          ) as string[];
+  const safeMonitors = Array.isArray(monitors) ? monitors : [];
+  const allTagNames = normalizeTags([
+    ...(allTags || []),
+    ...safeMonitors.map(m => normalizeTags(m?.tags)).flat(),
+    ...customTags
+  ]);
 
-          const tagSummaryList = allTagNames.map(tagName => {
-            const count = monitors.filter(m => {
-              const targetTags = normalizeTags(m.tags);
-              return targetTags.some((t: string) => t.toLowerCase() === tagName.toLowerCase());
-            }).length;
-            return { name: tagName, count, isEnv: isEnvTagHelper(tagName) };
-          }).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  const tagSummaryList = allTagNames.map(tagName => {
+    const count = safeMonitors.filter(m => tagIncludes(m?.tags, tagName)).length;
+    return { name: tagName, count, isEnv: isEnvTagHelper(tagName) };
+  }).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
-          const handleAddTagSubmit = () => {
-            if (!newTagName.trim()) return;
-            const tagToAdd = newTagName.trim();
-            setCustomTags(prev => Array.from(new Set([...prev, tagToAdd])));
-            if (onAddTag) onAddTag(tagToAdd);
-            setNewTagName('');
-          };
+  const handleAddTagSubmit = () => {
+    if (!newTagName.trim()) return;
+    const tagToAdd = normalizeTag(newTagName);
+    setCustomTags(prev => normalizeTags([...prev, tagToAdd]));
+    if (onAddTag) onAddTag(tagToAdd);
+    setNewTagName('');
+  };
 
-          const handleSaveRename = (oldName: string) => {
-            if (!editingTagValue.trim() || editingTagValue.trim() === oldName) {
-              setEditingTagKey(null);
-              return;
-            }
-            if (onRenameTag) onRenameTag(oldName, editingTagValue.trim());
-            setEditingTagKey(null);
-          };
+  const handleSaveRename = (oldName: string) => {
+    const trimmed = normalizeTag(editingTagValue);
+    if (!trimmed || tagEquals(trimmed, oldName)) {
+      setEditingTagKey(null);
+      return;
+    }
+    if (onRenameTag) onRenameTag(oldName, trimmed);
+    setEditingTagKey(null);
+  };
 
-          const handleDeleteClick = (tagName: string, count: number) => {
-            if (window.confirm(`Delete tag "${tagName}" from all ${count} associated monitor(s)?`)) {
-              if (onDeleteTag) onDeleteTag(tagName);
-            }
-          };
+  const handleDeleteClick = (tagName: string, count: number) => {
+    if (window.confirm(`Delete tag "${tagName}" from all ${count} associated monitor(s)?`)) {
+      if (onDeleteTag) onDeleteTag(tagName);
+    }
+  };
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>

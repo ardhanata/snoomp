@@ -20,6 +20,7 @@ import MonitorRow from './components/MonitorRow';
 import { HttpLatencyProfiler } from './components/HttpLatencyProfiler';
 import { InstanceSettings, readCache, fetchSettings, applyAppearance } from './lib/settings';
 import { downloadPdf } from './lib/downloadPdf';
+import { normalizeTags, normalizeTag, tagEquals, tagIncludes, mergeTags, removeTags } from './utils/tags';
 
 const MonitorModal = React.lazy(() => import('./components/MonitorModal'));
 const BatchEditModal = React.lazy(() => import('./components/BatchEditModal'));
@@ -1033,13 +1034,15 @@ function App() {
 
   // ── Tag Management Handlers ──
   const handleRenameTag = async (oldTag: string, newTag: string) => {
-    if (!oldTag || !newTag || oldTag.trim() === newTag.trim()) return;
-    const trimmedNew = newTag.trim();
-    const affected = monitors.filter(m => m.tags && m.tags.includes(oldTag));
+    if (!oldTag || !newTag || tagEquals(oldTag, newTag)) return;
+    const trimmedNew = normalizeTag(newTag);
+    const oldNorm = normalizeTag(oldTag);
+    const affected = monitors.filter(m => tagIncludes(m.tags, oldNorm));
 
     setMonitors(prev => prev.map(m => {
-      if (m.tags && m.tags.includes(oldTag)) {
-        const updatedTags = Array.from(new Set(m.tags.map((t: string) => t === oldTag ? trimmedNew : t)));
+      if (tagIncludes(m.tags, oldNorm)) {
+        const current = normalizeTags(m.tags);
+        const updatedTags = normalizeTags(current.map((t: string) => tagEquals(t, oldNorm) ? trimmedNew : t));
         return { ...m, tags: updatedTags };
       }
       return m;
@@ -1047,7 +1050,8 @@ function App() {
 
     try {
       await Promise.all(affected.map(m => {
-        const updatedTags = Array.from(new Set((m.tags || []).map((t: string) => t === oldTag ? trimmedNew : t)));
+        const current = normalizeTags(m.tags);
+        const updatedTags = normalizeTags(current.map((t: string) => tagEquals(t, oldNorm) ? trimmedNew : t));
         return fetch(`${API_URL}/api/targets/${encodeURIComponent(m.id)}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -1060,11 +1064,12 @@ function App() {
   };
 
   const handleDeleteTag = async (tagToDelete: string) => {
-    const affected = monitors.filter(m => m.tags && m.tags.includes(tagToDelete));
+    const target = normalizeTag(tagToDelete);
+    const affected = monitors.filter(m => tagIncludes(m.tags, target));
 
     setMonitors(prev => prev.map(m => {
-      if (m.tags && m.tags.includes(tagToDelete)) {
-        const updatedTags = m.tags.filter((t: string) => t !== tagToDelete);
+      if (tagIncludes(m.tags, target)) {
+        const updatedTags = removeTags(m.tags, [target]);
         return { ...m, tags: updatedTags };
       }
       return m;
@@ -1072,7 +1077,7 @@ function App() {
 
     try {
       await Promise.all(affected.map(m => {
-        const updatedTags = (m.tags || []).filter((t: string) => t !== tagToDelete);
+        const updatedTags = removeTags(m.tags, [target]);
         return fetch(`${API_URL}/api/targets/${encodeURIComponent(m.id)}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -1095,18 +1100,18 @@ function App() {
   }) => {
     if (selectedMonitorIds.length === 0) return;
 
-    const parsedInputTags = data.tagsStr.split(',').map(t => t.trim()).filter(Boolean);
+    const parsedInputTags = normalizeTags(data.tagsStr);
     const affected = monitors.filter(m => selectedMonitorIds.includes(m.id));
 
     setMonitors(prev => prev.map(m => {
       if (!selectedMonitorIds.includes(m.id)) return m;
       let newTags = normalizeTags(m.tags);
       if (data.tagAction === 'add') {
-        newTags = Array.from(new Set([...newTags, ...parsedInputTags]));
+        newTags = mergeTags(newTags, parsedInputTags);
       } else if (data.tagAction === 'replace') {
         newTags = parsedInputTags;
       } else if (data.tagAction === 'remove') {
-        newTags = newTags.filter(t => !parsedInputTags.some(p => p.toLowerCase() === t.toLowerCase()));
+        newTags = removeTags(newTags, parsedInputTags);
       }
       return {
         ...m,
@@ -1120,11 +1125,11 @@ function App() {
       await Promise.all(affected.map(m => {
         let newTags = normalizeTags(m.tags);
         if (data.tagAction === 'add') {
-          newTags = Array.from(new Set([...newTags, ...parsedInputTags]));
+          newTags = mergeTags(newTags, parsedInputTags);
         } else if (data.tagAction === 'replace') {
           newTags = parsedInputTags;
         } else if (data.tagAction === 'remove') {
-          newTags = newTags.filter(t => !parsedInputTags.some(p => p.toLowerCase() === t.toLowerCase()));
+          newTags = removeTags(newTags, parsedInputTags);
         }
         const updatedTarget = {
           ...m,
@@ -1181,33 +1186,16 @@ function App() {
     }
   };
 
-  // ── Tag Normalization Helper ──
-  // ponytail: robust flatMap-free tag normalizer, zero dependencies, zero crashes
-  const normalizeTags = (tags: any): string[] => {
-    if (!tags) return [];
-    const list = Array.isArray(tags) ? tags : [tags];
-    const out: string[] = [];
-    for (const item of list) {
-      if (typeof item === 'string') {
-        for (const part of item.split(',')) {
-          const trimmed = part.trim();
-          if (trimmed) out.push(trimmed);
-        }
-      }
-    }
-    return out;
-  };
-
   // ── Derived state ──
   const ENV_KEYWORDS = ['prod', 'production', 'staging', 'stag', 'dev', 'development', 'test', 'uat'];
   const isEnvTagHelper = (tag: string) => ENV_KEYWORDS.includes(tag.toLowerCase());
 
   // ponytail: safe list to ensure no non-array can crash the dashboard
   const safeMonitors = Array.isArray(monitors) ? monitors : [];
-  const allTags = Array.from(new Set(safeMonitors.map(m => normalizeTags(m?.tags)).flat().filter(Boolean))) as string[];
-  const groupTags = Array.from(new Set(allTags.filter(t => !isEnvTagHelper(t)))) as string[];
+  const allTags = normalizeTags(safeMonitors.map(m => normalizeTags(m?.tags)).flat());
+  const groupTags = allTags.filter(t => !isEnvTagHelper(t));
   const presentEnvTags = allTags.filter(t => isEnvTagHelper(t));
-  const envTags = Array.from(new Set(['prod', 'staging', 'dev', ...presentEnvTags])) as string[];
+  const envTags = normalizeTags(['prod', 'staging', 'dev', ...presentEnvTags]);
 
   /**
    * Search + tag filters only — deliberately excludes the status filter.
@@ -1222,11 +1210,11 @@ function App() {
 
     const targetTags = normalizeTags(m.tags);
     const matchGroup = selectedGroupTag
-      ? targetTags.some((t: string) => t.toLowerCase() === selectedGroupTag.toLowerCase())
+      ? targetTags.some((t: string) => tagEquals(t, selectedGroupTag))
       : true;
 
     const matchEnv = selectedEnvTag
-      ? (m.tags && m.tags.some((t: string) => {
+      ? targetTags.some((t: string) => {
         const tLower = t.toLowerCase();
         const selLower = selectedEnvTag.toLowerCase();
         if (tLower === selLower) return true;
@@ -1234,7 +1222,7 @@ function App() {
         if ((selLower === 'prod' || selLower === 'production') && (tLower === 'prod' || tLower === 'production')) return true;
         if ((selLower === 'dev' || selLower === 'development') && (tLower === 'dev' || tLower === 'development')) return true;
         return false;
-      }))
+      })
       : true;
 
     return matchSearch && matchGroup && matchEnv;
@@ -1914,7 +1902,8 @@ function App() {
                   filteredMonitors.forEach(m => {
                     let groupKey = 'UNGROUPED';
                     if (groupBy === 'tags') {
-                      groupKey = m.tags && m.tags.length > 0 ? m.tags[0] : 'UNGROUPED';
+                      const norm = normalizeTags(m.tags);
+                      groupKey = norm.length > 0 ? norm[0] : 'UNGROUPED';
                     } else if (groupBy === 'type') {
                       groupKey = m.type ? m.type.toUpperCase() : 'UNKNOWN';
                     }
@@ -2173,7 +2162,7 @@ function App() {
                     </div>
                     {sm.tags?.length > 0 && (
                       <div className="tag-container">
-                        {sm.tags.map((t: string) => <span key={t} className="tag-badge">{t}</span>)}
+                        {normalizeTags(sm.tags).map((t: string) => <span key={t} className="tag-badge">{t}</span>)}
                       </div>
                     )}
                   </div>

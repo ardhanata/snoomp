@@ -1,7 +1,31 @@
 import datetime
 import uuid
+from typing import Any, List
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, JSON
+from sqlalchemy.orm import validates
 from app.database import Base
+
+
+def normalize_tags(raw_tags: Any) -> List[str]:
+    """
+    Normalizes tags: converts to lowercase, strips whitespace,
+    removes empty entries, and deduplicates while preserving order.
+    Accepts list of strings or comma-separated string.
+    """
+    if not raw_tags:
+        return []
+    if isinstance(raw_tags, str):
+        raw_tags = raw_tags.split(",")
+    seen = set()
+    result = []
+    for t in raw_tags:
+        if isinstance(t, str):
+            clean = t.strip().lower()
+            if clean and clean not in seen:
+                seen.add(clean)
+                result.append(clean)
+    return result
+
 
 class Target(Base):
     __tablename__ = "targets"
@@ -15,10 +39,14 @@ class Target(Base):
     path = Column(String, nullable=True)
     check_interval = Column(Integer, default=60, nullable=False)  # seconds
     enabled = Column(Boolean, default=True, nullable=False)
-    tags = Column(JSON, nullable=True)  # List of string tags e.g. ["Prod", "Web"]
+    tags = Column(JSON, nullable=True)  # List of string tags e.g. ["prod", "web"]
     config_json = Column(JSON, nullable=True)  # custom configuration options
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow, nullable=False)
+
+    @validates("tags")
+    def validate_tags(self, key, value):
+        return normalize_tags(value)
 
     # Keys in config_json that hold infrastructure credentials — never expose via API
     _SECRET_KEYS = frozenset({
@@ -46,7 +74,7 @@ class Target(Base):
             "path": self.path,
             "check_interval": self.check_interval,
             "enabled": self.enabled,
-            "tags": self.tags or [],
+            "tags": normalize_tags(self.tags),
             "config_json": safe_cfg,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None

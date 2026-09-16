@@ -16,21 +16,7 @@ interface BatchEditModalProps {
   }) => void | Promise<void>;
 }
 
-// ponytail: safe flatMap-free tag normalizer
-const normalizeTags = (tags: any): string[] => {
-  if (!tags) return [];
-  const list = Array.isArray(tags) ? tags : [tags];
-  const out: string[] = [];
-  for (const item of list) {
-    if (typeof item === 'string') {
-      for (const part of item.split(',')) {
-        const trimmed = part.trim();
-        if (trimmed) out.push(trimmed);
-      }
-    }
-  }
-  return out;
-};
+import { normalizeTags, normalizeTag, tagEquals, tagIncludes } from '../utils/tags';
 
 const ENV_KEYWORDS = ['prod', 'production', 'staging', 'stag', 'dev', 'development', 'test', 'uat'];
 const isEnvTag = (t: string) => ENV_KEYWORDS.includes(t.toLowerCase());
@@ -58,34 +44,36 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
   }, [selectedMonitors]);
 
   const envTagOptions = ['prod', 'staging', 'dev'];
-  const groupTagOptions = Array.from(new Set(existingTags.filter(t => !isEnvTag(t))));
+  const groupTagOptions = normalizeTags(existingTags.filter(t => !isEnvTag(t)));
 
   const toggleTagInInput = (tag: string) => {
     if (tagAction === 'keep') setTagAction('add');
-    const currentTags = tagsStr.split(',').map(t => t.trim()).filter(Boolean);
-    const exists = currentTags.some(t => t.toLowerCase() === tag.toLowerCase());
+    const norm = normalizeTag(tag);
+    const currentTags = normalizeTags(tagsStr);
+    const exists = currentTags.some(t => tagEquals(t, norm));
     let nextTags: string[];
     if (exists) {
-      nextTags = currentTags.filter(t => t.toLowerCase() !== tag.toLowerCase());
+      nextTags = currentTags.filter(t => !tagEquals(t, norm));
     } else {
-      nextTags = [...currentTags, tag];
+      nextTags = [...currentTags, norm];
     }
     setTagsStr(nextTags.join(', '));
   };
 
   const toggleRemoveTag = (tagName: string) => {
+    const norm = normalizeTag(tagName);
     if (tagAction !== 'remove') {
       setTagAction('remove');
-      setTagsStr(tagName);
+      setTagsStr(norm);
     } else {
-      const currentTags = tagsStr.split(',').map(t => t.trim()).filter(Boolean);
-      const exists = currentTags.some(t => t.toLowerCase() === tagName.toLowerCase());
+      const currentTags = normalizeTags(tagsStr);
+      const exists = currentTags.some(t => tagEquals(t, norm));
       let nextTags: string[];
       if (exists) {
-        nextTags = currentTags.filter(t => t.toLowerCase() !== tagName.toLowerCase());
+        nextTags = currentTags.filter(t => !tagEquals(t, norm));
         if (nextTags.length === 0) setTagAction('keep');
       } else {
-        nextTags = [...currentTags, tagName];
+        nextTags = [...currentTags, norm];
       }
       setTagsStr(nextTags.join(', '));
     }
@@ -160,7 +148,7 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {assignedTagsList.map(({ name, count }) => {
-                    const isMarkedForRemove = tagAction === 'remove' && tagsStr.split(',').map(t => t.trim().toLowerCase()).includes(name.toLowerCase());
+                    const isMarkedForRemove = tagAction === 'remove' && tagIncludes(normalizeTags(tagsStr), name);
                     return (
                       <span
                         key={name}
@@ -250,7 +238,7 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
                     </div>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                       {envTagOptions.map(env => {
-                        const isSelected = tagsStr.split(',').map(t => t.trim().toLowerCase()).includes(env.toLowerCase());
+                        const isSelected = tagIncludes(normalizeTags(tagsStr), env);
                         return (
                           <button
                             key={env}
@@ -282,7 +270,7 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
                       </div>
                       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', maxHeight: '80px', overflowY: 'auto' }}>
                         {groupTagOptions.map(grp => {
-                          const isSelected = tagsStr.split(',').map(t => t.trim().toLowerCase()).includes(grp.toLowerCase());
+                          const isSelected = tagIncludes(normalizeTags(tagsStr), grp);
                           return (
                             <button
                               key={grp}

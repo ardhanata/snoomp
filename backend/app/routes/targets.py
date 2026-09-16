@@ -4,11 +4,11 @@ import redis
 import os
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any
 
 from app.database import get_db
-from app.models.target import Target
+from app.models.target import Target, normalize_tags
 from app.auth.security import require_editor, require_viewer
 from app.scheduler.runner import add_target_job, remove_target_job
 from worker.tasks import execute_checker
@@ -25,6 +25,11 @@ class TargetCreateUpdate(BaseModel):
     enabled: bool = True
     tags: List[str] = []
     config_json: Dict[str, Any] = {}
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def validate_tags(cls, v):
+        return normalize_tags(v)
 
 
 
@@ -62,7 +67,7 @@ def create_target(target_in: TargetCreateUpdate, request: Request, db: Session =
         path=target_in.path,
         check_interval=target_in.check_interval,
         enabled=target_in.enabled,
-        tags=target_in.tags,
+        tags=normalize_tags(target_in.tags),
         config_json=cfg
     )
     db.add(target)
@@ -93,7 +98,7 @@ def update_target(target_id: str, target_in: TargetCreateUpdate, request: Reques
     target.path = target_in.path
     target.check_interval = target_in.check_interval
     target.enabled = target_in.enabled
-    target.tags = target_in.tags
+    target.tags = normalize_tags(target_in.tags)
 
     # F3: merge — if frontend sends the redaction sentinel, keep the old secret
     REDACT_SENTINEL = "••••••••"

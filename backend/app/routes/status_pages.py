@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from app.database import get_db
 from app.models.status_page import StatusPage
-from app.models.target import Target
+from app.models.target import Target, normalize_tags
 from app.models.heartbeat import Heartbeat
 from app.auth.security import require_viewer, require_editor, get_current_user
 
@@ -144,7 +144,7 @@ def get_public_status_page(slug: str, db: Session = Depends(get_db)):
             "id": target.id,
             "name": target.name,
             "type": target.type,
-            "tags": target.tags,
+            "tags": normalize_tags(target.tags),
             # F10: host intentionally omitted — internal IPs must not leak to public pages
             "status": latest_hb.status if latest_hb else "unknown",
             "response_time_ms": latest_hb.response_time_ms if latest_hb else 0,

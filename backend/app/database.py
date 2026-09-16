@@ -58,6 +58,28 @@ def _ensure_indexes():
         db.close()
 
 
+def _migrate_lowercase_tags():
+    """Ensure any existing targets have normalized lowercase tags in DB."""
+    db = SessionLocal()
+    try:
+        from app.models.target import Target, normalize_tags
+        targets = db.query(Target).filter(Target.tags.isnot(None)).all()
+        changed = False
+        for t in targets:
+            cleaned = normalize_tags(t.tags)
+            if t.tags != cleaned:
+                t.tags = cleaned
+                changed = True
+        if changed:
+            db.commit()
+            logger.info("Migrated existing monitor tags to normalized lowercase in DB.")
+    except Exception as e:
+        db.rollback()
+        logger.warning(f"Tag migration skipped: {e}")
+    finally:
+        db.close()
+
+
 def init_db():
     # Import models to ensure they are registered on Base
     from app.models.user import User
@@ -75,6 +97,7 @@ def init_db():
     # indexes — so a declarative Index() never reaches a live deployment.
     # These are issued explicitly and are safe to re-run.
     _ensure_indexes()
+    _migrate_lowercase_tags()
 
     # ponytail: TimescaleDB extension/hypertable queries are Postgres-only
     if engine.dialect.name == "postgresql":

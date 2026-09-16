@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Activity, CheckCircle2, Server, Database, Globe, Cpu, ChevronRight, Printer } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, ReferenceLine } from 'recharts';
+import { normalizeTags } from '../utils/tags';
 
 export interface SlaTrendBucket {
   period: string;
@@ -60,7 +61,8 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
       if (isUp) up++;
       else if (t.status === 'down') down++;
 
-      const rawTag = t.tags?.length ? t.tags[0] : 'core';
+      const norm = normalizeTags(t.tags);
+      const rawTag = norm.length ? norm[0] : 'core';
       const key = rawTag.toUpperCase();
       const bucket = domains[key] ?? (domains[key] = { total: 0, up: 0, tag: rawTag });
       bucket.total++;

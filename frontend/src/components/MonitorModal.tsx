@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Bell, Plus } from 'lucide-react';
 import Dialog from './Dialog';
 import NotificationDialog, { NotificationItem } from './NotificationDialog';
+import { normalizeTags, normalizeTag, tagEquals, tagIncludes } from '../utils/tags';
 
 interface MonitorModalProps {
   isOpen: boolean;
@@ -326,26 +327,28 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
   const ENV_TAG_KEYWORDS = ['prod', 'production', 'staging', 'stag', 'dev', 'development', 'test', 'uat'];
   const isEnvTag = (t: string) => ENV_TAG_KEYWORDS.includes(t.toLowerCase());
 
-  const getCurrentTagsList = () => tagsStr.split(',').map(t => t.trim()).filter(Boolean);
+  const getCurrentTagsList = () => normalizeTags(tagsStr);
 
   const handleToggleEnvTag = (envName: string) => {
+    const normEnv = normalizeTag(envName);
     let list = getCurrentTagsList();
-    const existingIdx = list.findIndex(t => t.toLowerCase() === envName.toLowerCase() || (envName === 'staging' && t.toLowerCase() === 'stag'));
+    const existingIdx = list.findIndex(t => tagEquals(t, normEnv) || (normEnv === 'staging' && t === 'stag'));
     if (existingIdx >= 0) {
       list.splice(existingIdx, 1);
     } else {
-      list.push(envName);
+      list.push(normEnv);
     }
     setTagsStr(list.join(', '));
   };
 
   const handleToggleGroupTag = (groupTag: string) => {
+    const normGrp = normalizeTag(groupTag);
     let list = getCurrentTagsList();
-    const existingIdx = list.findIndex(t => t.toLowerCase() === groupTag.toLowerCase());
+    const existingIdx = list.findIndex(t => tagEquals(t, normGrp));
     if (existingIdx >= 0) {
       list.splice(existingIdx, 1);
     } else {
-      list.push(groupTag);
+      list.push(normGrp);
     }
     setTagsStr(list.join(', '));
   };
@@ -385,7 +388,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
       path: path.trim() || null,
       check_interval: Number(checkInterval),
       enabled,
-      tags: tagsStr.split(',').map((t: string) => t.trim()).filter(Boolean),
+      tags: normalizeTags(tagsStr),
       config_json
     };
     try {
@@ -449,7 +452,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
       base_config_json.connection_string = dbConnStr;
       if (type === 'db') base_config_json.query = dbQuery;
     }
-    const sharedTags = tagsStr.split(',').map(t => t.trim()).filter(Boolean);
+    const sharedTags = normalizeTags(tagsStr);
     if (csvMonitors.length > 0) {
       const apiOrigin = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
       Promise.all(csvMonitors.map(m => {
@@ -935,7 +938,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {['prod', 'staging', 'dev'].map(env => {
                     const currentList = getCurrentTagsList();
-                    const isActive = currentList.some(t => t.toLowerCase() === env.toLowerCase() || (env === 'staging' && t.toLowerCase() === 'stag'));
+                    const isActive = tagIncludes(currentList, env) || (env === 'staging' && tagIncludes(currentList, 'stag'));
                     return (
                       <button
                         type="button"
@@ -962,15 +965,15 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
               </div>
 
               {/* System / Application Group Tags */}
-              {((existingTags && existingTags.length > 0) ? Array.from(new Set(existingTags.filter(t => !isEnvTag(t)))) : ['SOA', 'MIS', 'DB', 'HTTP', 'Server']).length > 0 && (
+              {((existingTags && existingTags.length > 0) ? normalizeTags(existingTags.filter(t => !isEnvTag(t))) : ['soa', 'mis', 'db', 'http', 'server']).length > 0 && (
                 <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>
                     Suggested System / Application Group Tags:
                   </span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {((existingTags && existingTags.length > 0) ? Array.from(new Set(existingTags.filter(t => !isEnvTag(t)))) : ['SOA', 'MIS', 'DB', 'HTTP', 'Server']).map(tag => {
+                    {((existingTags && existingTags.length > 0) ? normalizeTags(existingTags.filter(t => !isEnvTag(t))) : ['soa', 'mis', 'db', 'http', 'server']).map(tag => {
                       const currentList = getCurrentTagsList();
-                      const isActive = currentList.some(t => t.toLowerCase() === tag.toLowerCase());
+                      const isActive = tagIncludes(currentList, tag);
                       return (
                         <button
                           type="button"
