@@ -14,6 +14,7 @@ from app.models.metrics import SystemMetrics
 from app.models.incident import Incident
 from app.auth.security import require_viewer, require_editor
 from app.checkers.base import evaluate_resource_status
+from app.services.utilization_report import get_target_utilization_report
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
@@ -418,6 +419,15 @@ def get_target_report(target_id: str, hours: int = 168, db: Session = Depends(ge
             for o in reversed(outages)
         ],
     }
+
+
+@router.get("/targets/{target_id}/utilization-report", dependencies=[Depends(require_viewer)])
+def get_target_utilization_report_endpoint(target_id: str, hours: int = 168, db: Session = Depends(get_db)):
+    """
+    Metric utilization report for one monitor, aggregated server-side.
+    Provides CPU, Memory, Disk, Database, and saturation statistics.
+    """
+    return get_target_utilization_report(target_id=target_id, hours=hours, db=db)
 
 
 @router.get("/incidents", dependencies=[Depends(require_viewer)])

@@ -354,6 +354,146 @@ class DistBar(Flowable):
         return self.width, self.height
 
 
+class UtilizationVerdictBand(Flowable):
+    """
+    The hero band for utilization reports. Displays capacity verdict, peak resource levels,
+    and operational headroom.
+    """
+
+    def __init__(self, verdict: str, verdict_level: str, period: str, width: float,
+                 peak_cpu: Optional[float] = None, peak_mem: Optional[float] = None, peak_disk: Optional[float] = None):
+        super().__init__()
+        self.verdict = verdict.upper()
+        self.verdict_level = verdict_level
+        self.period = period
+        self.width = width
+        self.peak_cpu = peak_cpu
+        self.peak_mem = peak_mem
+        self.peak_disk = peak_disk
+        self.height = 26 * mm
+
+    def draw(self):
+        c = self.canv
+        if self.verdict_level == "optimal":
+            col = GREEN
+            tag = "OPTIMAL"
+        elif self.verdict_level == "warning":
+            col = AMBER
+            tag = "ELEVATED"
+        elif self.verdict_level == "critical":
+            col = RED
+            tag = "SATURATED"
+        else:
+            col = OFF
+            tag = "NO DATA"
+
+        # Accent bar
+        c.setFillColor(col)
+        c.rect(0, 0, 1.6 * mm, self.height, stroke=0, fill=1)
+
+        c.setFillColor(INK)
+        c.setFont(FONT_B, 22)
+        c.drawString(6 * mm, self.height - 9.5 * mm, self.verdict)
+
+        c.setFont(FONT, 8)
+        c.setFillColor(MUTED)
+        peaks = []
+        if self.peak_cpu is not None:
+            peaks.append(f"CPU peak {self.peak_cpu:.1f}%")
+        if self.peak_mem is not None:
+            peaks.append(f"RAM peak {self.peak_mem:.1f}%")
+        if self.peak_disk is not None:
+            peaks.append(f"Disk peak {self.peak_disk:.1f}%")
+        peaks_str = " · ".join(peaks) if peaks else "Resource metrics tracked across period"
+
+        c.drawString(6 * mm, self.height - 15.5 * mm, f"System capacity assessment over {self.period}")
+        c.drawString(6 * mm, self.height - 20.5 * mm, peaks_str)
+
+        # Verdict capsule
+        label_w = c.stringWidth(tag, FONT_B, 9) + 8 * mm
+        x = self.width - label_w
+        y = self.height - 11 * mm
+        c.setStrokeColor(col)
+        c.setLineWidth(1.1)
+        c.roundRect(x, y, label_w, 7 * mm, 3.5 * mm, stroke=1, fill=0)
+        c.setFillColor(col)
+        c.setFont(FONT_B, 9)
+        c.drawCentredString(x + label_w / 2, y + 2.4 * mm, tag)
+
+    def wrap(self, *_):
+        return self.width, self.height
+
+
+class ResourceSparkline(Flowable):
+    """
+    Resource percentage trend with 80% threshold line and peak indicator.
+    """
+
+    def __init__(self, values: Sequence[Optional[float]], width: float, label: str,
+                 height: float = 16 * mm, color=INK, fill_hex="#e8ebee"):
+        super().__init__()
+        self.values = list(values)
+        self.width = width
+        self.height = height
+        self.label = label
+        self.color = color
+        self.fill_color = colors.HexColor(fill_hex)
+
+    def draw(self):
+        pts = [(i, v) for i, v in enumerate(self.values) if v is not None]
+        c = self.canv
+        if len(pts) < 2:
+            c.setFont(FONT, 7.5)
+            c.setFillColor(MUTED)
+            c.drawString(0, self.height / 2, f"Insufficient {self.label} data in this window.")
+            return
+
+        n = max(1, len(self.values) - 1)
+        hi = max(v for _, v in pts)
+        ceiling = 100.0
+
+        def X(i): return (i / n) * self.width
+        def Y(v): return (min(100.0, max(0.0, v)) / ceiling) * (self.height - 4)
+
+        # 80% warning threshold line
+        y80 = (80.0 / ceiling) * (self.height - 4)
+        c.setStrokeColor(colors.HexColor("#eec4c4"))
+        c.setLineWidth(0.5)
+        c.setDash(2, 2)
+        c.line(0, y80, self.width, y80)
+        c.setDash()
+
+        # Shaded area
+        path = c.beginPath()
+        path.moveTo(X(pts[0][0]), 0)
+        for i, v in pts:
+            path.lineTo(X(i), Y(v))
+        path.lineTo(X(pts[-1][0]), 0)
+        path.close()
+        c.setFillColor(self.fill_color)
+        c.drawPath(path, stroke=0, fill=1)
+
+        # Line stroke
+        c.setStrokeColor(self.color)
+        c.setLineWidth(0.9)
+        line = c.beginPath()
+        line.moveTo(X(pts[0][0]), Y(pts[0][1]))
+        for i, v in pts[1:]:
+            line.lineTo(X(i), Y(v))
+        c.drawPath(line, stroke=1, fill=0)
+
+        # Top label: Name and Peak
+        c.setFont(FONT_B, 7.2)
+        c.setFillColor(INK)
+        c.drawString(0, self.height - 2, self.label)
+        c.setFont(FONT, 6.8)
+        c.setFillColor(MUTED)
+        c.drawRightString(self.width, self.height - 2, f"Peak {hi:,.1f}% (80% threshold line)")
+
+    def wrap(self, *_):
+        return self.width, self.height
+
+
 # ── Document shell ────────────────────────────────────────────────────────
 
 class _Doc(BaseDocTemplate):
@@ -570,6 +710,243 @@ def build_monitor_report(target: Any, report: Dict[str, Any], sla_target: float 
         )]
 
     return _render(story, "Availability Report", getattr(target, "name", "Monitor"))
+
+
+def build_utilization_report(target: Any, report: Dict[str, Any]) -> bytes:
+    """Metric utilization report for one monitor."""
+    hours = report.get("range_hours", 168)
+    period = ("last 24 hours" if hours <= 24 else
+              f"last {round(hours / 24)} days" if hours < 24 * 45 else
+              f"last {round(hours / 720)} months")
+    has_metrics = report.get("has_metrics", False)
+    cpu = report.get("cpu") or {}
+    mem = report.get("memory") or {}
+    disk = report.get("disk") or {}
+    host_info = report.get("host_info") or {}
+    partitions = report.get("partitions") or []
+    database = report.get("database")
+    spikes = report.get("spikes") or []
+    timeline = report.get("timeline") or []
+    verdict = report.get("verdict", "Optimal Headroom")
+    verdict_level = report.get("verdict_level", "optimal")
+
+    target_name = getattr(target, "name", None) or report.get("target_name") or "Monitor"
+    target_host = getattr(target, "host", None) or report.get("target_host") or ""
+    target_port = getattr(target, "port", None)
+    target_type = str(getattr(target, "type", None) or report.get("target_type") or "").upper()
+
+    host_label = f"{target_host}{':' + str(target_port) if target_port else ''} · {target_type}"
+
+    story: List = []
+    story += _masthead(
+        "Metric Utilization Report",
+        target_name,
+        host_label,
+        [f"{period.title()}", f"Generated {datetime.datetime.now():%d %b %Y, %H:%M}"],
+    )
+
+    if not has_metrics:
+        story += [
+            Spacer(1, 10),
+            Paragraph("No system resource telemetry has been recorded for this monitor.", S_BODY),
+            Spacer(1, 4),
+            Paragraph(
+                report.get("message") or
+                "Metric utilization reports require telemetry from SSH, SNMP, Push, or Database monitoring probes.",
+                S_SMALL,
+            ),
+        ]
+        return _render(story, "Metric Utilization Report", target_name)
+
+    # Verdict Band
+    story += [
+        UtilizationVerdictBand(
+            verdict, verdict_level, period, CONTENT_W,
+            peak_cpu=cpu.get("max"), peak_mem=mem.get("max"), peak_disk=disk.get("max"),
+        ),
+        Spacer(1, 12),
+    ]
+
+    # Executive KPI Tiles
+    cpu_peak_str = f"peak {cpu.get('max', 0):.1f}%" if cpu else "no data"
+    cpu_col = RED if (cpu.get("max") or 0) >= 90 else (AMBER if (cpu.get("max") or 0) >= 80 else None)
+    mem_peak_str = f"peak {mem.get('max', 0):.1f}%" if mem else "no data"
+    mem_col = RED if (mem.get("max") or 0) >= 95 else (AMBER if (mem.get("max") or 0) >= 85 else None)
+    disk_peak_str = f"peak {disk.get('max', 0):.1f}%" if disk else "no data"
+    disk_col = RED if (disk.get("max") or 0) >= 90 else (AMBER if (disk.get("max") or 0) >= 85 else None)
+    spike_cnt = len(spikes)
+
+    kpi_items = [
+        ("Avg CPU", f"{cpu.get('avg', 0):.1f}%" if cpu else "—", cpu_peak_str, cpu_col),
+        ("Avg Memory", f"{mem.get('avg', 0):.1f}%" if mem else "—", mem_peak_str, mem_col),
+        ("Avg Disk", f"{disk.get('avg', 0):.1f}%" if disk else "—", disk_peak_str, disk_col),
+        ("Saturation Spikes", str(spike_cnt),
+         f"{report.get('saturation', {}).get('total_spikes', 0)} threshold breaches",
+         RED if spike_cnt > 0 else GREEN),
+        ("Host Uptime", str(host_info.get("uptime") or "Active"),
+         f"{host_info.get('cpu_cores', 1)} cores · {host_info.get('os_type', 'OS')}", None),
+    ]
+    story += [_kpis(kpi_items), Spacer(1, 14)]
+
+    # Resource trends sparklines
+    if timeline:
+        story += _section("Resource trends", f"{len(timeline)} intervals · earliest to latest")
+        cpu_series = [b.get("avg_cpu") for b in timeline]
+        mem_series = [b.get("avg_mem") for b in timeline]
+        disk_series = [b.get("avg_disk") for b in timeline]
+
+        if any(v is not None for v in cpu_series):
+            story += [ResourceSparkline(cpu_series, CONTENT_W, "CPU Utilization (%)", height=15 * mm, color=INK, fill_hex="#e8edf5"), Spacer(1, 6)]
+        if any(v is not None for v in mem_series):
+            story += [ResourceSparkline(mem_series, CONTENT_W, "Memory Utilization (%)", height=15 * mm, color=colors.HexColor("#2f6f44"), fill_hex="#e9f3ec"), Spacer(1, 6)]
+        if any(v is not None for v in disk_series):
+            story += [ResourceSparkline(disk_series, CONTENT_W, "Storage Utilization (%)", height=15 * mm, color=colors.HexColor("#7a5214"), fill_hex="#f6efe5"), Spacer(1, 6)]
+
+        story += [
+            RibbonAxis(timeline, CONTENT_W, hours),
+            Spacer(1, 4),
+            Paragraph("Each chart displays average utilization per interval with dashed lines representing the 80% saturation threshold.", S_SMALL),
+            Spacer(1, 12),
+        ]
+
+    # Metrics statistical breakdown table
+    story += _section("Metrics breakdown", "statistical summary")
+    table_rows = []
+
+    def _status_badge(max_val: Optional[float], warn: float = 80.0, crit: float = 90.0) -> tuple[str, Any]:
+        if max_val is None:
+            return ("No data", MUTED)
+        if max_val >= crit:
+            return ("CRITICAL", RED)
+        if max_val >= warn:
+            return ("ELEVATED", AMBER)
+        return ("OPTIMAL", GREEN)
+
+    if cpu:
+        s_text, s_col = _status_badge(cpu.get("max"), 80.0, 90.0)
+        table_rows.append([
+            _cell("CPU Utilization", bold=True),
+            _cell(f"{cpu.get('current', 0):.1f}%"),
+            _cell(f"{cpu.get('avg', 0):.1f}%"),
+            _cell(f"{cpu.get('p95', 0):.1f}%"),
+            _cell(f"{cpu.get('max', 0):.1f}%", bold=True, colour=s_col),
+            _cell(s_text, bold=True, colour=s_col),
+        ])
+
+    if mem:
+        s_text, s_col = _status_badge(mem.get("max"), 85.0, 95.0)
+        table_rows.append([
+            _cell("Memory (RAM)", bold=True),
+            _cell(f"{mem.get('current', 0):.1f}%"),
+            _cell(f"{mem.get('avg', 0):.1f}%"),
+            _cell(f"{mem.get('p95', 0):.1f}%"),
+            _cell(f"{mem.get('max', 0):.1f}%", bold=True, colour=s_col),
+            _cell(s_text, bold=True, colour=s_col),
+        ])
+
+    if disk:
+        s_text, s_col = _status_badge(disk.get("max"), 85.0, 90.0)
+        table_rows.append([
+            _cell("Storage (Max Volume)", bold=True),
+            _cell(f"{disk.get('current', 0):.1f}%"),
+            _cell(f"{disk.get('avg', 0):.1f}%"),
+            _cell(f"{disk.get('p95', 0):.1f}%"),
+            _cell(f"{disk.get('max', 0):.1f}%", bold=True, colour=s_col),
+            _cell(s_text, bold=True, colour=s_col),
+        ])
+
+    if host_info.get("load_percent") is not None:
+        table_rows.append([
+            _cell("Normalized Load Avg", bold=True),
+            _cell(f"{host_info.get('load_percent', 0):.1f}%"),
+            _cell("—"),
+            _cell("—"),
+            _cell(f"1m: {host_info.get('load_1min', 0):.2f}"),
+            _cell(f"{host_info.get('cpu_cores', 1)} Cores", colour=MUTED),
+        ])
+
+    if database:
+        db_conns = database.get("connections")
+        if db_conns:
+            table_rows.append([
+                _cell("DB Active Connections", bold=True),
+                _cell(str(int(db_conns.get("current", 0)))),
+                _cell(f"{db_conns.get('avg', 0):.1f}"),
+                _cell(f"{db_conns.get('p95', 0):.1f}"),
+                _cell(str(int(db_conns.get("max", 0))), bold=True),
+                _cell("Active", colour=GREEN),
+            ])
+        db_cache = database.get("cache_hit_ratio")
+        if db_cache:
+            c_min = db_cache.get("min", 100)
+            c_col = RED if c_min < 90 else (AMBER if c_min < 95 else GREEN)
+            table_rows.append([
+                _cell("Buffer Cache Hit Ratio", bold=True),
+                _cell(f"{db_cache.get('current', 0):.2f}%"),
+                _cell(f"{db_cache.get('avg', 0):.2f}%"),
+                _cell(f"{db_cache.get('p95', 0):.2f}%"),
+                _cell(f"Min: {c_min:.2f}%", colour=c_col),
+                _cell("HEALTHY" if c_min >= 95 else "DEGRADED", colour=c_col),
+            ])
+
+    if table_rows:
+        story += [_table(
+            ["Resource", "Current", "Average", "p95", "Peak (Max)", "Status"],
+            table_rows,
+            [CONTENT_W * 0.28, CONTENT_W * 0.14, CONTENT_W * 0.14, CONTENT_W * 0.14, CONTENT_W * 0.16, CONTENT_W * 0.14],
+            {1: "RIGHT", 2: "RIGHT", 3: "RIGHT", 4: "RIGHT", 5: "RIGHT"},
+        ), Spacer(1, 12)]
+
+    # Storage volumes breakdown
+    if partitions:
+        story += _section("Storage partitions", f"{len(partitions)} filesystem mounts")
+        p_rows = []
+        for p in partitions:
+            pct = float(p.get("use_pct") or 0.0)
+            col = RED if pct >= 90 else (AMBER if pct >= 80 else INK)
+            sz_str = f"{p.get('size_gb'):.1f} GB" if p.get("size_gb") is not None else "—"
+            used_str = f"{p.get('used_gb'):.1f} GB" if p.get("used_gb") is not None else "—"
+            p_rows.append([
+                _cell(str(p.get("mount") or "/"), bold=True),
+                _cell(str(p.get("fstype") or "local"), 7.5, MUTED),
+                _cell(sz_str),
+                _cell(used_str),
+                _cell(f"{pct:.1f}%", bold=True, colour=col),
+            ])
+        story += [_table(
+            ["Mount Point", "Type", "Total Size", "Used Space", "Utilization"],
+            p_rows,
+            [CONTENT_W * 0.30, CONTENT_W * 0.18, CONTENT_W * 0.18, CONTENT_W * 0.18, CONTENT_W * 0.16],
+            {2: "RIGHT", 3: "RIGHT", 4: "RIGHT"},
+        ), Spacer(1, 12)]
+
+    # Saturation / Spikes Log
+    story += _section("Saturation incidents", f"{len(spikes)} spikes recorded" if spikes else "")
+    if not spikes:
+        story += [Paragraph("No resource saturation incidents recorded during this period (all metrics remained within safe operating limits).", S_BODY)]
+    else:
+        s_rows = []
+        for sp in spikes[:15]:
+            ts = _parse(sp.get("timestamp"))
+            ts_str = ts.strftime("%d %b %Y, %H:%M:%S") if ts else "—"
+            sev = str(sp.get("severity", "warning")).upper()
+            sev_col = RED if sev == "CRITICAL" else AMBER
+            s_rows.append([
+                _cell(ts_str),
+                _cell(str(sp.get("metric")), bold=True),
+                _cell(f"{sp.get('value'):.1f}%", bold=True, colour=sev_col),
+                _cell(f"{sp.get('threshold'):.0f}%", 7.5, MUTED),
+                _cell(sev, bold=True, colour=sev_col),
+                _cell(str(sp.get("note") or ""), 7.5, MUTED),
+            ])
+        story += [_table(
+            ["Timestamp", "Resource", "Peak Value", "Threshold", "Severity", "Incident Note"],
+            s_rows,
+            [CONTENT_W * 0.22, CONTENT_W * 0.14, CONTENT_W * 0.14, CONTENT_W * 0.12, CONTENT_W * 0.14, CONTENT_W * 0.24],
+            {2: "RIGHT", 3: "RIGHT"},
+        )]
+
+    return _render(story, "Metric Utilization Report", target_name)
 
 
 def build_fleet_report(monitors: List[Dict[str, Any]], incidents: List[Dict[str, Any]],

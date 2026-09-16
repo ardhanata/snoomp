@@ -5,6 +5,16 @@ All notable changes to Snoomp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-09-16
+
+### Added
+- **Metric Utilization Report Feature:**
+  - **Server-Side Metrics Aggregation (`backend/app/services/utilization_report.py` & `backend/app/routes/dashboard.py`):** Added `GET /api/dashboard/targets/{target_id}/utilization-report` endpoint aggregating telemetry from `SystemMetrics`. Computes statistical figures (Current, Average, Minimum, Peak/Max, 95th Percentile) for CPU, Memory, and Disk volumes, evaluates storage partition allocations, tracks peak occurrence timestamps, downsamples trend intervals, and diagnoses capacity saturation thresholds (> 80% warning, > 90% critical).
+  - **Server-Side PDF Utilization Report Generator (`backend/app/reports/pdf.py` & `backend/app/routes/reports.py`):** Added `GET /api/reports/targets/{target_id}/utilization.pdf` endpoint generating print-ready ReportLab documents featuring a capacity verdict banner (Optimal Headroom, Elevated Load, Critical Saturation), executive KPI summary blocks, multi-resource sparkline trends with 80% threshold markers, detailed statistical metrics breakdown, filesystem volume tables, and high-utilization incident logs.
+  - **Enhanced Multi-Tab Report Modal (`frontend/src/App.tsx` & `frontend/src/styles/dashboard.css`):** Upgraded the monitor report modal with a segmented tab switcher between "Availability & SLA" and "Metric Utilization". Provides an interactive preview of capacity status, resource metrics (Avg & Peak), volume breakdown, saturation counts, and direct one-click PDF downloads.
+  - **Dedicated Toolbar Shortcut:** Added `<Activity />` quick-action button on monitor detail headers for instant 1-click access to the Metric Utilization Report.
+  - **Anti-Slop & UI Invariant Compliance:** Designed with AAA light/dark theme contrast, tabular numerical alignment, zero emojis in source code, and full keyboard navigation (Escape modal dismissal, tab key focus indicators).
+
 ## [1.3.0] - 2026-09-09
 
 ### Added

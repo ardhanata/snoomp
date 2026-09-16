@@ -508,12 +508,15 @@ function App() {
     return () => clearTimeout(timer);
   }, [initialLoading, searchTerm, selectedGroupTag, selectedEnvTag, statusFilter, groupBy, dbActiveTab, view, selectedMonitor]);
 
-  // ── Availability Reports ──
+  // ── Availability & Utilization Reports ──
   const [showReportModal, setShowReportModal] = useState(false);
+  const [reportTab, setReportTab] = useState<'availability' | 'utilization'>('availability');
   const [reportTarget, setReportTarget] = useState<any>(null);
   const [reportRange, setReportRange] = useState<number>(168); // Hours: 24, 168 (7d), 720 (30d), 2160 (90d)
   const [reportData, setReportData] = useState<any>(null);
   const [reportLoading, setReportLoading] = useState(false);
+  const [utilizationData, setUtilizationData] = useState<any>(null);
+  const [utilizationLoading, setUtilizationLoading] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
 
   /**
@@ -535,13 +538,12 @@ function App() {
   const handleGenerateReport = async (target: any, hours: number) => {
     setReportTarget(target);
     setReportRange(hours);
+    setReportTab('availability');
     setReportLoading(true);
     setShowReportModal(true);
 
     try {
-      // The server aggregates this. It used to be computed here by deriving a
-      // row limit from the check interval, fetching that many heartbeats, then
-      // reducing them in the browser — ~130k rows for a 90-day report.
+      // The server aggregates this server-side.
       const res = await fetch(
         `${API_URL}/api/dashboard/targets/${encodeURIComponent(target.id)}/report?hours=${hours}`,
         { headers: authHeaders() }
@@ -556,8 +558,6 @@ function App() {
 
       const d = await res.json();
 
-      // Dates are revived here rather than in PrintableReport so the component
-      // stays a pure renderer over already-typed values.
       setReportData({
         uptimePct: d.uptime_pct,
         downtimePct: d.downtime_pct,
@@ -584,8 +584,39 @@ function App() {
     } catch {
       setReportData(null);
       showToast('Could not reach the server to generate the report.');
+    } finally {
+      setReportLoading(false);
     }
-    setReportLoading(false);
+  };
+
+  const handleGenerateUtilizationReport = async (target: any, hours: number) => {
+    setReportTarget(target);
+    setReportRange(hours);
+    setReportTab('utilization');
+    setUtilizationLoading(true);
+    setShowReportModal(true);
+
+    try {
+      const res = await fetch(
+        `${API_URL}/api/dashboard/targets/${encodeURIComponent(target.id)}/utilization-report?hours=${hours}`,
+        { headers: authHeaders() }
+      );
+
+      if (res.status === 401) { handleLogout(); return; }
+      if (!res.ok) {
+        setUtilizationData(null);
+        showToast('Could not generate the utilization report. Try again.');
+        return;
+      }
+
+      const d = await res.json();
+      setUtilizationData(d);
+    } catch {
+      setUtilizationData(null);
+      showToast('Could not reach the server to generate the utilization report.');
+    } finally {
+      setUtilizationLoading(false);
+    }
   };
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -2208,8 +2239,11 @@ function App() {
                         : shareState === 'failed' ? 'Could not copy the link. Select the address bar and copy it manually.'
                           : ''}
                     </span>
-                    <button className="secondary" onClick={() => handleGenerateReport(sm, 168)} title="Generate PDF Availability Report" aria-label="Generate PDF Availability Report">
+                    <button className="secondary" onClick={() => handleGenerateReport(sm, 168)} title="Generate Availability Report" aria-label="Generate Availability Report">
                       <FileText size={14} />
+                    </button>
+                    <button className="secondary" onClick={() => handleGenerateUtilizationReport(sm, 168)} title="Generate Metric Utilization Report" aria-label="Generate Metric Utilization Report">
+                      <Activity size={14} />
                     </button>
                     {role !== 'viewer' && (
                       <>
@@ -3293,26 +3327,66 @@ curl -X POST -H "Content-Type: application/json" \\
 
       {/* ─── PDF REPORT GENERATION MODAL ─── */}
       {showReportModal && reportTarget && (
-        <Dialog isOpen={showReportModal} onClose={() => setShowReportModal(false)} aria-labelledby="report-modal-title" className="modal-content" style={{ width: '600px', background: 'var(--bg-elevated)' }}>
+        <Dialog isOpen={showReportModal} onClose={() => setShowReportModal(false)} aria-labelledby="report-modal-title" className="modal-content" style={{ width: '640px', maxWidth: '95vw', background: 'var(--bg-elevated)' }}>
           <div className="modal-header">
-            <h3 id="report-modal-title">Generate Availability Report</h3>
+            <h3 id="report-modal-title">
+              {reportTab === 'availability' ? 'Availability Report' : 'Metric Utilization Report'}
+            </h3>
             <button type="button" aria-label="Close modal" className="secondary" style={{ padding: '6px' }} onClick={() => setShowReportModal(false)}>
               <X size={16} />
             </button>
           </div>
 
-          <div style={{ marginBottom: '20px' }}>
+          {/* Segmented Tab Switcher */}
+          <div className="report-tab-switcher" role="tablist" aria-label="Report type">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={reportTab === 'availability'}
+              className={`report-tab-btn ${reportTab === 'availability' ? 'active' : ''}`}
+              onClick={() => {
+                setReportTab('availability');
+                if (!reportData) handleGenerateReport(reportTarget, reportRange);
+              }}
+            >
+              <FileText size={14} style={{ marginRight: '6px' }} />
+              Availability & SLA
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={reportTab === 'utilization'}
+              className={`report-tab-btn ${reportTab === 'utilization' ? 'active' : ''}`}
+              onClick={() => {
+                setReportTab('utilization');
+                if (!utilizationData) handleGenerateUtilizationReport(reportTarget, reportRange);
+              }}
+            >
+              <Activity size={14} style={{ marginRight: '6px' }} />
+              Metric Utilization
+            </button>
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
             <div style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-primary)' }}>{reportTarget.name}</div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>{reportTarget.host} ({reportTarget.type.toUpperCase()})</div>
           </div>
 
-          <div className="form-group" style={{ marginBottom: '20px' }}>
+          <div className="form-group" style={{ marginBottom: '16px' }}>
             <label htmlFor="report-time-range">Select Report Time Range</label>
             <select
               id="report-time-range"
               value={reportRange}
-              onChange={e => handleGenerateReport(reportTarget, Number(e.target.value))}
-              style={{ width: '100%', padding: '11px' }}
+              onChange={e => {
+                const hours = Number(e.target.value);
+                setReportRange(hours);
+                if (reportTab === 'availability') {
+                  handleGenerateReport(reportTarget, hours);
+                } else {
+                  handleGenerateUtilizationReport(reportTarget, hours);
+                }
+              }}
+              style={{ width: '100%', padding: '10px' }}
             >
               <option value={24}>Last 24 Hours</option>
               <option value={168}>Last 7 Days</option>
@@ -3321,55 +3395,178 @@ curl -X POST -H "Content-Type: application/json" \\
             </select>
           </div>
 
-          {reportLoading ? (
-            <div aria-live="polite" style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
-              ⏳ Querying database and calculating metrics…
-            </div>
-          ) : reportData ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {/* Stats Summary Preview */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '11px' }}>
-                <div style={{ background: 'var(--surface-raised)', padding: '11px', borderRadius: '6px', textAlign: 'center', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Uptime</div>
-                  <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--color-up)', marginTop: '4px' }}>
-                    {reportData.uptimePct.toFixed(2)}%
-                  </div>
-                </div>
-                <div style={{ background: 'var(--surface-raised)', padding: '11px', borderRadius: '6px', textAlign: 'center', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>MTTR</div>
-                  <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', marginTop: '4px' }}>
-                    {reportData.mttrMin} Mins
-                  </div>
-                </div>
-                <div style={{ background: 'var(--surface-raised)', padding: '11px', borderRadius: '6px', textAlign: 'center', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>MTBF</div>
-                  <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', marginTop: '4px' }}>
-                    {reportData.mtbfHours} Hours
-                  </div>
-                </div>
+          {/* TAB 1: AVAILABILITY REPORT */}
+          {reportTab === 'availability' && (
+            reportLoading ? (
+              <div aria-live="polite" style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
+                Querying database and calculating availability statistics...
               </div>
+            ) : reportData ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Stats Summary Preview */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '11px' }}>
+                  <div style={{ background: 'var(--surface-raised)', padding: '11px', borderRadius: '6px', textAlign: 'center', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Uptime</div>
+                    <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--color-up)', marginTop: '4px', fontVariantNumeric: 'tabular-nums' }}>
+                      {reportData.uptimePct.toFixed(2)}%
+                    </div>
+                  </div>
+                  <div style={{ background: 'var(--surface-raised)', padding: '11px', borderRadius: '6px', textAlign: 'center', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>MTTR</div>
+                    <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', marginTop: '4px', fontVariantNumeric: 'tabular-nums' }}>
+                      {reportData.mttrMin} Mins
+                    </div>
+                  </div>
+                  <div style={{ background: 'var(--surface-raised)', padding: '11px', borderRadius: '6px', textAlign: 'center', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>MTBF</div>
+                    <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', marginTop: '4px', fontVariantNumeric: 'tabular-nums' }}>
+                      {reportData.mtbfHours} Hours
+                    </div>
+                  </div>
+                </div>
 
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                Total outages in period: <span style={{ fontWeight: '700', color: reportData.failures > 0 ? 'var(--color-down)' : 'var(--text-muted)' }}>{reportData.failures}</span>
-              </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  Total outages in period: <span style={{ fontWeight: '700', color: reportData.failures > 0 ? 'var(--color-down)' : 'var(--text-muted)' }}>{reportData.failures}</span>
+                </div>
 
-              <div className="form-actions" style={{ marginTop: '11px' }}>
-                <button className="secondary" onClick={() => setShowReportModal(false)}>Close</button>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  disabled={downloadingPdf === 'monitor'}
-                  onClick={() => reportTarget && getPdf(
-                    `/api/reports/targets/${encodeURIComponent(reportTarget.id)}.pdf?hours=${reportRange}`,
-                    'monitor',
-                  )}
-                >
-                  <Download size={14} aria-hidden="true" />
-                  {downloadingPdf === 'monitor' ? 'Building PDF…' : 'Download PDF'}
-                </button>
+                <div className="form-actions" style={{ marginTop: '11px' }}>
+                  <button className="secondary" onClick={() => setShowReportModal(false)}>Close</button>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    disabled={downloadingPdf === 'monitor'}
+                    onClick={() => reportTarget && getPdf(
+                      `/api/reports/targets/${encodeURIComponent(reportTarget.id)}.pdf?hours=${reportRange}`,
+                      'monitor',
+                    )}
+                  >
+                    <Download size={14} aria-hidden="true" />
+                    {downloadingPdf === 'monitor' ? 'Building PDF…' : 'Download Availability PDF'}
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : null}
+            ) : null
+          )}
+
+          {/* TAB 2: METRIC UTILIZATION REPORT */}
+          {reportTab === 'utilization' && (
+            utilizationLoading ? (
+              <div aria-live="polite" style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
+                Aggregating resource metrics and analyzing saturation...
+              </div>
+            ) : utilizationData ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {!utilizationData.has_metrics ? (
+                  <div style={{ padding: '24px 16px', textAlign: 'center', background: 'var(--surface-raised)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <Cpu size={28} style={{ color: 'var(--text-muted)', marginBottom: '8px', opacity: 0.7 }} />
+                    <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                      No Metric Telemetry Available
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', maxWidth: '420px', margin: '0 auto', lineHeight: '1.4' }}>
+                      {utilizationData.message || 'This monitor does not collect system resource telemetry. Metric utilization reports are available for SSH, SNMP, Push, and Database monitors.'}
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Capacity Verdict Banner */}
+                    <div className={`report-verdict-banner ${utilizationData.verdict_level}`}>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                          {utilizationData.verdict}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          {utilizationData.verdict_summary}
+                        </div>
+                      </div>
+                      <span className={`report-verdict-badge ${utilizationData.verdict_level}`}>
+                        {utilizationData.verdict_level.toUpperCase()}
+                      </span>
+                    </div>
+
+                    {/* KPI 3-Card Summary */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '11px' }}>
+                      <div className="report-metric-card" style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>CPU Utilization</div>
+                        <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', marginTop: '3px' }}>
+                          {utilizationData.cpu ? `${utilizationData.cpu.avg}%` : 'N/A'}
+                        </div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          {utilizationData.cpu ? `Peak: ${utilizationData.cpu.max}% · p95: ${utilizationData.cpu.p95}%` : 'No readings'}
+                        </div>
+                      </div>
+
+                      <div className="report-metric-card" style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Memory (RAM)</div>
+                        <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', marginTop: '3px' }}>
+                          {utilizationData.memory ? `${utilizationData.memory.avg}%` : 'N/A'}
+                        </div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          {utilizationData.memory ? `Peak: ${utilizationData.memory.max}%` : 'No readings'}
+                          {utilizationData.host_info?.ram_total_gb ? ` · ${utilizationData.host_info.ram_total_gb} GB` : ''}
+                        </div>
+                      </div>
+
+                      <div className="report-metric-card" style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Storage / Disk</div>
+                        <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', marginTop: '3px' }}>
+                          {utilizationData.disk ? `${utilizationData.disk.avg}%` : 'N/A'}
+                        </div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          {utilizationData.disk ? `Peak: ${utilizationData.disk.max}%` : 'No readings'}
+                          {utilizationData.partitions?.length ? ` · ${utilizationData.partitions.length} vols` : ''}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Partitions list if present */}
+                    {utilizationData.partitions && utilizationData.partitions.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Volume Breakdown
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '110px', overflowY: 'auto' }}>
+                          {utilizationData.partitions.slice(0, 4).map((p: any, idx: number) => (
+                            <div key={idx} className="report-partition-row">
+                              <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{p.mount}</span>
+                              <span style={{ color: 'var(--text-muted)' }}>{p.used_gb ? `${p.used_gb.toFixed(1)} / ${p.size_gb.toFixed(1)} GB` : (p.size_gb ? `${p.size_gb.toFixed(1)} GB` : '')}</span>
+                              <span style={{ fontWeight: '700', color: (p.use_pct >= 90) ? 'var(--color-down)' : (p.use_pct >= 80 ? 'var(--color-warn)' : 'var(--text-primary)') }}>
+                                {p.use_pct ? `${p.use_pct.toFixed(1)}%` : '-'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Saturation summary text */}
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      Saturation spikes (&gt; 80% threshold):{' '}
+                      <span style={{ fontWeight: '700', color: utilizationData.saturation?.total_spikes > 0 ? 'var(--color-warn)' : 'var(--color-up)' }}>
+                        {utilizationData.saturation?.total_spikes || 0} incidents
+                      </span>
+                      {utilizationData.host_info?.uptime ? ` · Uptime: ${utilizationData.host_info.uptime}` : ''}
+                    </div>
+                  </>
+                )}
+
+                <div className="form-actions" style={{ marginTop: '11px' }}>
+                  <button className="secondary" onClick={() => setShowReportModal(false)}>Close</button>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    disabled={downloadingPdf === 'utilization' || !utilizationData.has_metrics}
+                    onClick={() => reportTarget && getPdf(
+                      `/api/reports/targets/${encodeURIComponent(reportTarget.id)}/utilization.pdf?hours=${reportRange}`,
+                      'utilization',
+                    )}
+                  >
+                    <Download size={14} aria-hidden="true" />
+                    {downloadingPdf === 'utilization' ? 'Building PDF…' : 'Download Utilization PDF'}
+                  </button>
+                </div>
+              </div>
+            ) : null
+          )}
         </Dialog>
       )}
 

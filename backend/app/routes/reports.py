@@ -18,9 +18,15 @@ from app.auth.security import require_viewer
 from app.database import get_db
 from app.models.incident import Incident
 from app.models.target import Target
-from app.reports import build_executive_report, build_fleet_report, build_monitor_report
+from app.reports import (
+    build_executive_report,
+    build_fleet_report,
+    build_monitor_report,
+    build_utilization_report,
+)
 from app.routes.dashboard import get_sla_trend, get_target_report
 from app.services.dashboard import compile_initial_data
+from app.services.utilization_report import get_target_utilization_report
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
@@ -77,6 +83,18 @@ def monitor_report_pdf(target_id: str, hours: int = 168, db: Session = Depends(g
     report = get_target_report(target_id=target_id, hours=hours, db=db)
     pdf = build_monitor_report(target, report, _sla_target(db))
     return _pdf(pdf, _filename("availability", target.name or target_id))
+
+
+@router.get("/targets/{target_id}/utilization.pdf", dependencies=[Depends(require_viewer)])
+def monitor_utilization_pdf(target_id: str, hours: int = 168, db: Session = Depends(get_db)):
+    """Metric utilization report for one monitor."""
+    target = db.query(Target).filter_by(id=target_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+
+    report = get_target_utilization_report(target_id=target_id, hours=hours, db=db)
+    pdf = build_utilization_report(target, report)
+    return _pdf(pdf, _filename("utilization", target.name or target_id))
 
 
 @router.get("/fleet.pdf", dependencies=[Depends(require_viewer)])

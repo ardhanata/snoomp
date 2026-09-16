@@ -2313,3 +2313,119 @@ dialog::backdrop {
     scroll-behavior: auto !important;
   }
 }
+
+/* ══════════════════════════════════════════
+   REPORT MODAL & TAB SWITCHER
+   ══════════════════════════════════════════ */
+.report-tab-switcher {
+  display: flex;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 4px;
+  margin-bottom: 18px;
+}
+
+.report-tab-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  min-height: 38px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.report-tab-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.report-tab-btn.active {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-color: var(--border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.report-tab-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.report-verdict-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+
+.report-verdict-banner.optimal {
+  background: rgba(46, 160, 67, 0.08);
+  border-color: rgba(46, 160, 67, 0.3);
+}
+
+.report-verdict-banner.warning {
+  background: rgba(210, 153, 34, 0.08);
+  border-color: rgba(210, 153, 34, 0.3);
+}
+
+.report-verdict-banner.critical {
+  background: rgba(248, 81, 73, 0.08);
+  border-color: rgba(248, 81, 73, 0.3);
+}
+
+.report-verdict-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+
+.report-verdict-badge.optimal {
+  background: rgba(46, 160, 67, 0.2);
+  color: var(--color-up);
+}
+
+.report-verdict-badge.warning {
+  background: rgba(210, 153, 34, 0.2);
+  color: var(--color-warn);
+}
+
+.report-verdict-badge.critical {
+  background: rgba(248, 81, 73, 0.2);
+  color: var(--color-down);
+}
+
+.report-metric-card {
+  background: var(--surface-raised);
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+.report-partition-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: var(--surface-raised);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
