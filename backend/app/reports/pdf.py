@@ -27,6 +27,7 @@ the thing the reader's eye lands on.
 
 from __future__ import annotations
 
+import copy
 import datetime
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Sequence
@@ -596,15 +597,30 @@ class _Doc(BaseDocTemplate):
 
 def _render(story: List, kind: str, title: str) -> bytes:
     """Two passes so the footer can say 'of N'."""
+    try:
+        story_pass1 = copy.deepcopy(story)
+        story_pass2 = copy.deepcopy(story)
+    except Exception:
+        story_pass1 = list(story)
+        story_pass2 = list(story)
+
     probe = BytesIO()
     d1 = _Doc(probe, kind, title)
-    d1.build(list(story))
+    d1.build(story_pass1)
     total = d1.page
+
+    # Ensure no flowables retain leftover internal pagination flags from pass 1
+    for f in story_pass2:
+        if hasattr(f, "_postponed"):
+            try:
+                delattr(f, "_postponed")
+            except AttributeError:
+                pass
 
     out = BytesIO()
     d2 = _Doc(out, kind, title)
     d2._total_pages = total
-    d2.build(list(story))
+    d2.build(story_pass2)
     return out.getvalue()
 
 

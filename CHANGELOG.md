@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Sub-Gigabyte Partition Precision:** Fixed truncation where small mounts (e.g. `/run/lock` under 100 MB) rounded to `0.0` and evaluated to `None` via falsy operators, displaying `—`. Added `_fmt_storage` helper in `pdf.py` which formats values into clean MB units (e.g. `5 MB`, `154 MB`) or `< 100 MB` when small.
   - **POSIX `df -h -P` Parsing:** Added `_parse_df_size_to_gb` to parse both total size and used size columns directly from POSIX `df` output across Linux and Windows hosts.
   - **Frontend Volume Breakdown:** Updated volume cards in `App.tsx` to handle `0.0` used space and utilization values cleanly without dropping to empty dashes or omitting used space.
+  - **Multi-Page PDF LayoutError (500 Error):** Fixed 500 Internal Server Error occurring when generating 7-day reports (`hours=168`) with multi-page table overflow. In two-pass ReportLab rendering, flowables postponed to page 2 retained `_postponed = 1` from pass 1 across shallow copies, triggering `LayoutError` on pass 2. Resolved by isolating passes with deep copies and clearing deferred pagination flags.
 
 ## [1.4.1] - 2026-09-16
 

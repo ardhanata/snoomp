@@ -250,6 +250,56 @@ cpu  1000 200 300 8000 100 50 20 0 0 0
         self.assertTrue(len(pdf_bytes) > 500)
         self.assertTrue(pdf_bytes.startswith(b"%PDF-"))
 
+    def test_multipage_utilization_report_pdf(self):
+        target = MagicMock()
+        target.name = "Multi-Page Host"
+        target.host = "10.0.0.1"
+        target.port = 22
+        target.type = "ssh"
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        timeline = []
+        for i in range(14):
+            timeline.append({
+                "start": (now - datetime.timedelta(hours=i*12)).isoformat(),
+                "avg_cpu": 35.0, "max_cpu": 82.0,
+                "avg_mem": 55.0, "max_mem": 70.0,
+                "avg_disk": 75.0, "max_disk": 80.0,
+            })
+
+        partitions = [
+            {"mount": "/", "size_gb": 145.0, "used_gb": 119.0, "use_pct": 82.0, "fstype": "local"},
+            {"mount": "/boot", "size_gb": 1.0, "used_gb": 0.58, "use_pct": 58.0, "fstype": "local"},
+            {"mount": "/run", "size_gb": 1.6, "used_gb": 0.016, "use_pct": 1.0, "fstype": "local"},
+            {"mount": "/dev/shm", "size_gb": 7.8, "used_gb": 0.0, "use_pct": 0.0, "fstype": "local"},
+            {"mount": "/run/lock", "size_gb": 0.005, "used_gb": 0.0, "use_pct": 0.0, "fstype": "local"},
+        ]
+
+        report = {
+            "target_name": "Multi-Page Host",
+            "target_host": "10.0.0.1",
+            "target_type": "ssh",
+            "range_hours": 168,
+            "has_metrics": True,
+            "total_samples": 200,
+            "verdict": "Critical Saturation",
+            "verdict_level": "critical",
+            "cpu": {"current": 4.0, "avg": 20.0, "min": 2.0, "max": 92.6, "p95": 4.8},
+            "memory": {"current": 25.2, "avg": 25.0, "min": 20.0, "max": 73.3, "p95": 30.0},
+            "disk": {"current": 73.3, "avg": 73.0, "min": 70.0, "max": 77.6, "p95": 75.0},
+            "host_info": {"uptime": "10 days", "cpu_cores": 4, "load_percent": 15.0, "load_1min": 0.05},
+            "timeline": timeline,
+            "partitions": partitions,
+            "spikes": [],
+            "saturation": {"total_spikes": 4},
+        }
+
+        # This must succeed across both passes and generate a 2+ page document without LayoutError
+        pdf_bytes = build_utilization_report(target, report)
+        self.assertIsInstance(pdf_bytes, bytes)
+        self.assertTrue(pdf_bytes.startswith(b"%PDF-"))
+        self.assertGreater(len(pdf_bytes), 2000)
+
 
 if __name__ == "__main__":
     unittest.main()
