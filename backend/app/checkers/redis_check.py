@@ -9,9 +9,9 @@ def check_redis(connection_string: str, timeout: int = 3) -> CheckerResult:
         # Establish connection with socket timeout
         r = redis.Redis.from_url(connection_string, socket_timeout=timeout)
         r.ping()
+        elapsed = (time.monotonic() - start) * 1000
         
         info = r.info()
-        elapsed = (time.monotonic() - start) * 1000
         
         # Calculate keyspace size
         total_keys = 0

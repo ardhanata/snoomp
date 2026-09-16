@@ -45,6 +45,18 @@ from app.checkers.mongodb import check_mongodb
 from app.checkers.redis_check import check_redis
 from app.notifications import discord
 
+def _attach_icmp_ping_latency(res, host: str | None) -> None:
+    """Overwrites response_time_ms with pure ICMP ping latency when the host is reachable.
+    Prevents heavy metric collection (e.g. SSH commands, DB statistics, SNMP walks) from inflating
+    network response time metrics."""
+    if getattr(res, "status", None) in ("up", "warning", "critical") and host:
+        try:
+            ping_res = check_icmp(host=host, count=1, timeout=1)
+            if ping_res.status == "up":
+                res.response_time_ms = ping_res.response_time_ms
+        except Exception:
+            pass
+
 async def execute_checker(target: Target) -> dict:
     """Executes the correct check based on target type and custom config."""
     cfg = target.config_json or {}
@@ -96,6 +108,7 @@ async def execute_checker(target: Target) -> dict:
             query=cfg.get("query", "SELECT 1"),
             timeout=cfg.get("timeout", 5)
         )
+        _attach_icmp_ping_latency(res, target.host)
         return res.to_dict()
         
     elif t_type == "mongodb":
@@ -103,6 +116,7 @@ async def execute_checker(target: Target) -> dict:
             connection_string=cfg.get("connection_string", ""),
             timeout=cfg.get("timeout", 5)
         )
+        _attach_icmp_ping_latency(res, target.host)
         return res.to_dict()
         
     elif t_type == "redis":
@@ -110,6 +124,7 @@ async def execute_checker(target: Target) -> dict:
             connection_string=cfg.get("connection_string", ""),
             timeout=cfg.get("timeout", 5)
         )
+        _attach_icmp_ping_latency(res, target.host)
         return res.to_dict()
         
     elif t_type == "snmp":
@@ -118,12 +133,7 @@ async def execute_checker(target: Target) -> dict:
             community=cfg.get("community", "public"),
             port=target.port or 161
         )
-        try:
-            ping_res = check_icmp(host=target.host, count=1, timeout=1)
-            if ping_res.status == "up":
-                res.response_time_ms = ping_res.response_time_ms
-        except Exception:
-            pass
+        _attach_icmp_ping_latency(res, target.host)
         return res.to_dict()
         
     elif t_type == "ssh":
@@ -137,7 +147,7 @@ async def execute_checker(target: Target) -> dict:
             target_id=target.id,
             redis_conn=redis_client
         )
-        # ponytail: cut redundant ICMP ping that was overwriting genuine SSH latency
+        _attach_icmp_ping_latency(res, target.host)
         return res.to_dict()
         
     elif t_type == "push":

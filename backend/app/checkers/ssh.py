@@ -419,7 +419,7 @@ async def check_ssh(
                     status, err = evaluate_resource_status(metrics["cpu_percent"], metrics["mem_percent"], metrics["disk_percent"])
                     return CheckerResult(
                         status=status,
-                        response_time_ms=round(elapsed, 2),
+                        response_time_ms=round(connect_ms, 2) if connect_ms > 0 else round(elapsed, 2),
                         error=err,
                         details=metrics
                     )
@@ -442,7 +442,7 @@ async def check_ssh(
                         status, err = evaluate_resource_status(metrics["cpu_percent"], metrics["mem_percent"], metrics["disk_percent"])
                         return CheckerResult(
                             status=status,
-                            response_time_ms=round(elapsed, 2),
+                            response_time_ms=round(connect_ms, 2) if connect_ms > 0 else round(elapsed, 2),
                             error=err,
                             details=metrics
                         )

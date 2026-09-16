@@ -46,6 +46,7 @@ def check_postgres(connection_string: str, query: str = "SELECT 1", timeout: int
                 # 1. Run validation query
                 cursor.execute(query)
                 res = cursor.fetchone()
+                query_elapsed = (time.monotonic() - start) * 1000
                 
                 # 2. Get active connections (server-wide)
                 try:
@@ -81,10 +82,9 @@ def check_postgres(connection_string: str, query: str = "SELECT 1", timeout: int
                 except Exception:
                     db_count = 0
 
-                elapsed = (time.monotonic() - start) * 1000
                 return CheckerResult(
                     status="up",
-                    response_time_ms=round(elapsed, 2),
+                    response_time_ms=round(query_elapsed, 2),
                     details={
                         "query_result": str(res[0]) if res else "None",
                         "connections_current": conn_count,

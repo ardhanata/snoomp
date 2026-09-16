@@ -10,10 +10,10 @@ def check_mongodb(connection_string: str, timeout: int = 3) -> CheckerResult:
         client = MongoClient(connection_string, serverSelectionTimeoutMS=timeout * 1000)
         # The ismaster command is cheap and checks server connectivity
         status_info = client.admin.command("ismaster")
+        elapsed = (time.monotonic() - start) * 1000
         
         # Get server status details
         server_status = client.admin.command("serverStatus")
-        elapsed = (time.monotonic() - start) * 1000
         
         # Extract metrics
         opcounters = server_status.get("opcounters", {})
