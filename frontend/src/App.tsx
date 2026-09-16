@@ -2198,9 +2198,15 @@ function App() {
                     )}
                   </div>
 
-                  <div className="monitor-detail-actions" style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  <div className="monitor-detail-actions">
                     {role !== 'viewer' && (
-                      <button className="secondary" onClick={() => handleRefreshMonitor(sm.id)} title="Trigger immediate check (Pull/Refresh)">
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => handleRefreshMonitor(sm.id)}
+                        title="Trigger immediate check (Pull/Refresh)"
+                        aria-label="Trigger immediate check"
+                      >
                         <Zap size={14} style={{ color: 'var(--accent)' }} />
                       </button>
                     )}
@@ -2239,21 +2245,51 @@ function App() {
                         : shareState === 'failed' ? 'Could not copy the link. Select the address bar and copy it manually.'
                           : ''}
                     </span>
-                    <button className="secondary" onClick={() => handleGenerateReport(sm, 168)} title="Generate Availability Report" aria-label="Generate Availability Report">
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => handleGenerateReport(sm, 168)}
+                      title="Generate Availability Report"
+                      aria-label="Generate Availability Report"
+                    >
                       <FileText size={14} />
                     </button>
-                    <button className="secondary" onClick={() => handleGenerateUtilizationReport(sm, 168)} title="Generate Metric Utilization Report" aria-label="Generate Metric Utilization Report">
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => handleGenerateUtilizationReport(sm, 168)}
+                      title="Generate Metric Utilization Report"
+                      aria-label="Generate Metric Utilization Report"
+                    >
                       <Activity size={14} />
                     </button>
                     {role !== 'viewer' && (
                       <>
-                        <button className="secondary" onClick={() => { setEditingMonitor(sm); setIsModalOpen(true); }} title="Edit Monitor" aria-label="Edit Monitor">
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() => { setEditingMonitor(sm); setIsModalOpen(true); }}
+                          title="Edit Monitor"
+                          aria-label="Edit Monitor"
+                        >
                           <Edit3 size={14} />
                         </button>
-                        <button className="secondary" onClick={() => handleToggleMonitor(sm)} title={sm.enabled ? 'Pause' : 'Resume'} aria-label={sm.enabled ? 'Pause' : 'Resume'}>
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() => handleToggleMonitor(sm)}
+                          title={sm.enabled ? 'Pause' : 'Resume'}
+                          aria-label={sm.enabled ? 'Pause' : 'Resume'}
+                        >
                           <Power size={14} style={{ color: sm.enabled ? 'var(--color-up)' : 'var(--color-off)' }} />
                         </button>
-                        <button className="danger" onClick={() => handleDeleteMonitor(sm.id)} title="Delete Monitor" aria-label="Delete Monitor">
+                        <button
+                          type="button"
+                          className="danger"
+                          onClick={() => handleDeleteMonitor(sm.id)}
+                          title="Delete Monitor"
+                          aria-label="Delete Monitor"
+                        >
                           <Trash2 size={14} />
                         </button>
                       </>
