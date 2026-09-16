@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Shield, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import { SnoompLogo } from './SnoompLogo';
+import IconButton from './IconButton';
 import { normalizeTags } from '../utils/tags';
 
 const API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
@@ -120,23 +121,14 @@ const PublicStatusPage: React.FC<PublicStatusPageProps> = ({ slug }) => {
           {lastUpdated && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
               <span>Updated {lastUpdated}</span>
-              <button
-                type="button"
+              <IconButton
+                icon={<RefreshCw size={13} className={isRefreshing ? 'spin' : ''} />}
+                variant="accent"
+                size="sm"
                 onClick={() => fetchStatusPage(true)}
                 title="Refresh status"
                 aria-label="Refresh status"
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  display: 'inline-flex',
-                  alignItems: 'center'
-                }}
-              >
-                <RefreshCw size={14} className={isRefreshing ? 'spin' : ''} />
-              </button>
+              />
             </div>
           )}
         </div>

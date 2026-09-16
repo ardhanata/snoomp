@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Send, Save, Trash2, Loader2, CheckCircle2, AlertTriangle, Bell, ExternalLink } from 'lucide-react';
 import Dialog from './Dialog';
+import IconButton from './IconButton';
 
 export interface NotificationItem {
   id?: string;
@@ -329,21 +330,14 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({
               {isEditing ? `Edit Notification` : `Setup Notification`}
             </h3>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              padding: '4px',
-              borderRadius: '4px',
-            }}
+          <IconButton
+            icon={<X size={16} />}
+            variant="neutral"
+            size="sm"
+            title="Close dialog"
             aria-label="Close dialog"
-          >
-            <X size={18} />
-          </button>
+            onClick={onClose}
+          />
         </div>
 
         {/* Scrollable Body */}

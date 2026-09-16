@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Tag, Plus, Edit2, Trash2 } from 'lucide-react';
+import IconButton from './IconButton';
 import { normalizeTags, normalizeTag, tagEquals, tagIncludes } from '../utils/tags';
 
 interface PreferencesTagsTabProps {
@@ -214,24 +215,26 @@ export default function PreferencesTagsTab({
                                 <span style={{ fontSize: '11.5px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontWeight: 600 }}>
                                   {tagItem.count} {tagItem.count === 1 ? 'monitor' : 'monitors'}
                                 </span>
-                                <div style={{ display: 'flex', gap: '4px' }}>
-                                  <button
-                                    type="button"
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                  <IconButton
+                                    icon={<Edit2 size={13} />}
+                                    variant="accent"
+                                    size="sm"
+                                    title={`Rename ${tagItem.name}`}
+                                    aria-label={`Rename tag ${tagItem.name}`}
                                     onClick={() => {
                                       setEditingTagKey(tagItem.name);
                                       setEditingTagValue(tagItem.name);
                                     }}
-                                    style={{ padding: '4px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.04)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                  >
-                                    <Edit2 size={12} /> Rename
-                                  </button>
-                                  <button
-                                    type="button"
+                                  />
+                                  <IconButton
+                                    icon={<Trash2 size={13} />}
+                                    variant="danger"
+                                    size="sm"
+                                    title={`Delete ${tagItem.name}`}
+                                    aria-label={`Delete tag ${tagItem.name}`}
                                     onClick={() => handleDeleteClick(tagItem.name, tagItem.count)}
-                                    style={{ padding: '4px 8px', borderRadius: '6px', background: 'rgba(239,68,68,0.1)', color: 'var(--color-down)', border: '1px solid rgba(239,68,68,0.2)', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                  >
-                                    <Trash2 size={12} /> Delete
-                                  </button>
+                                  />
                                 </div>
                               </div>
                             </>

@@ -15,6 +15,7 @@ import {
   Layers
 } from 'lucide-react';
 import Dialog from './Dialog';
+import IconButton from './IconButton';
 
 export interface UpdateInfo {
   current_version: string;
@@ -148,23 +149,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             </div>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--text-muted)',
-            cursor: 'pointer',
-            padding: '4px',
-            borderRadius: '6px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
+        <IconButton
+          icon={<X size={18} />}
+          variant="neutral"
+          size="sm"
+          title="Close dialog"
           aria-label="Close dialog"
-        >
-          <X size={18} />
-        </button>
+          onClick={onClose}
+        />
       </div>
 
       {/* Modal Body */}

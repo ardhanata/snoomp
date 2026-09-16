@@ -6,6 +6,7 @@ import {
   Terminal, Copy, Check, RefreshCw
 } from 'lucide-react';
 import Dialog from './Dialog';
+import IconButton from './IconButton';
 import PreferencesTagsTab from './PreferencesTagsTab';
 import { NotificationDialog, NotificationItem } from './NotificationDialog';
 import {
@@ -403,10 +404,14 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                 </span>
               </div>
             </div>
-            <button type="button" onClick={onClose} aria-label="Close preferences"
-              style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px', flexShrink: 0 }}>
-              <X size={20} aria-hidden="true" />
-            </button>
+            <IconButton
+              icon={<X size={18} />}
+              variant="neutral"
+              size="sm"
+              title="Close preferences"
+              aria-label="Close preferences"
+              onClick={onClose}
+            />
           </div>
 
           {!canEdit && (

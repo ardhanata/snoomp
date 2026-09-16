@@ -17,6 +17,7 @@ import Dialog from './components/Dialog';
 import { SnoompLogo } from './components/SnoompLogo';
 import type { SlaTrend } from './components/ExecutiveDashboard';
 import MonitorRow from './components/MonitorRow';
+import IconButton from './components/IconButton';
 import { HttpLatencyProfiler } from './components/HttpLatencyProfiler';
 import { InstanceSettings, readCache, fetchSettings, applyAppearance } from './lib/settings';
 import { downloadPdf } from './lib/downloadPdf';
@@ -2119,24 +2120,22 @@ function App() {
                             value={`${window.location.origin}/status/${page.slug}`}
                             style={{ fontSize: '12px', color: 'var(--text-muted)' }}
                           />
-                          <button
-                            className="secondary"
-                            style={{ padding: '7px', flexShrink: 0 }}
+                          <IconButton
+                            icon={copiedSlug === page.slug ? <Check size={13} /> : <Copy size={13} />}
+                            variant={copiedSlug === page.slug ? 'success' : 'cyan'}
+                            size="sm"
                             onClick={() => copyPublicUrl(page.slug)}
                             title="Copy public URL"
                             aria-label="Copy public URL"
-                          >
-                            {copiedSlug === page.slug ? <Check size={13} style={{ color: 'var(--color-up)' }} /> : <Copy size={13} />}
-                          </button>
-                          <button
-                            className="secondary"
-                            style={{ padding: '7px', flexShrink: 0 }}
+                          />
+                          <IconButton
+                            icon={<ExternalLink size={13} />}
+                            variant="cyan"
+                            size="sm"
                             onClick={() => window.open(`/status/${page.slug}`, '_blank')}
                             title="Open public page"
                             aria-label="Open public page"
-                          >
-                            <ExternalLink size={13} />
-                          </button>
+                          />
                         </div>
 
                         <div className="sp-card-footer">
@@ -2147,12 +2146,22 @@ function App() {
                             {page.is_public && <span className="sp-public-badge">Public</span>}
                             {role !== 'viewer' && (
                               <>
-                                <button className="secondary" style={{ padding: '5px 8px', fontSize: '12px' }} onClick={() => openSpModal(page)} title="Edit" aria-label="Edit Status Page">
-                                  <Pencil size={12} />
-                                </button>
-                                <button className="danger" style={{ padding: '5px 8px', fontSize: '12px' }} onClick={() => handleDeleteStatusPage(page.id)} title="Delete" aria-label="Delete Status Page">
-                                  <Trash2 size={12} />
-                                </button>
+                                <IconButton
+                                  icon={<Pencil size={13} />}
+                                  variant="accent"
+                                  size="sm"
+                                  onClick={() => openSpModal(page)}
+                                  title="Edit Status Page"
+                                  aria-label="Edit Status Page"
+                                />
+                                <IconButton
+                                  icon={<Trash2 size={13} />}
+                                  variant="danger"
+                                  size="sm"
+                                  onClick={() => handleDeleteStatusPage(page.id)}
+                                  title="Delete Status Page"
+                                  aria-label="Delete Status Page"
+                                />
                               </>
                             )}
                           </div>
@@ -2200,23 +2209,23 @@ function App() {
 
                   <div className="monitor-detail-actions">
                     {role !== 'viewer' && (
-                      <button
-                        type="button"
-                        className="secondary"
+                      <IconButton
+                        icon={<Zap size={14} />}
+                        variant="accent"
+                        size="md"
                         onClick={() => handleRefreshMonitor(sm.id)}
                         title="Trigger immediate check (Pull/Refresh)"
                         aria-label="Trigger immediate check"
-                      >
-                        <Zap size={14} style={{ color: 'var(--accent)' }} />
-                      </button>
+                      />
                     )}
                     {/* Web Share where available, clipboard otherwise. Both paths are
                       secure-context-safe via copyToClipboard(). */}
-                    <button
-                      className="secondary"
-                      type="button"
+                    <IconButton
+                      icon={shareState === 'copied' ? <Check size={14} /> : <Share2 size={14} />}
+                      variant={shareState === 'copied' ? 'success' : 'cyan'}
+                      size="md"
                       aria-label={`Share ${sm.name}`}
-                      title="Copy a link to this monitor"
+                      title={shareState === 'copied' ? 'Link copied to clipboard' : 'Copy a link to this monitor'}
                       onClick={async () => {
                         const url = monitorShareUrl(sm.id);
                         const summary = `${sm.name} is ${(sm.status || 'unknown').toUpperCase()} — Snoomp`;
@@ -2235,63 +2244,54 @@ function App() {
                         setShareState(ok ? 'copied' : 'failed');
                         setTimeout(() => setShareState('idle'), 2500);
                       }}
-                    >
-                      {shareState === 'copied'
-                        ? <Check size={14} style={{ color: 'var(--color-up)' }} />
-                        : <Share2 size={14} />}
-                    </button>
+                    />
                     <span role="status" aria-live="polite" className="sr-only">
                       {shareState === 'copied' ? 'Link copied to clipboard'
                         : shareState === 'failed' ? 'Could not copy the link. Select the address bar and copy it manually.'
                           : ''}
                     </span>
-                    <button
-                      type="button"
-                      className="secondary"
+                    <IconButton
+                      icon={<FileText size={14} />}
+                      variant="purple"
+                      size="md"
                       onClick={() => handleGenerateReport(sm, 168)}
                       title="Generate Availability Report"
                       aria-label="Generate Availability Report"
-                    >
-                      <FileText size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary"
+                    />
+                    <IconButton
+                      icon={<Activity size={14} />}
+                      variant="warning"
+                      size="md"
                       onClick={() => handleGenerateUtilizationReport(sm, 168)}
                       title="Generate Metric Utilization Report"
                       aria-label="Generate Metric Utilization Report"
-                    >
-                      <Activity size={14} />
-                    </button>
+                    />
                     {role !== 'viewer' && (
                       <>
-                        <button
-                          type="button"
-                          className="secondary"
+                        <IconButton
+                          icon={<Edit3 size={14} />}
+                          variant="accent"
+                          size="md"
                           onClick={() => { setEditingMonitor(sm); setIsModalOpen(true); }}
                           title="Edit Monitor"
                           aria-label="Edit Monitor"
-                        >
-                          <Edit3 size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          className="secondary"
+                        />
+                        <IconButton
+                          icon={<Power size={14} />}
+                          variant={sm.enabled ? 'success' : 'neutral'}
+                          size="md"
                           onClick={() => handleToggleMonitor(sm)}
-                          title={sm.enabled ? 'Pause' : 'Resume'}
+                          title={sm.enabled ? 'Pause Monitor' : 'Resume Monitor'}
                           aria-label={sm.enabled ? 'Pause' : 'Resume'}
-                        >
-                          <Power size={14} style={{ color: sm.enabled ? 'var(--color-up)' : 'var(--color-off)' }} />
-                        </button>
-                        <button
-                          type="button"
-                          className="danger"
+                        />
+                        <IconButton
+                          icon={<Trash2 size={14} />}
+                          variant="danger"
+                          size="md"
                           onClick={() => handleDeleteMonitor(sm.id)}
                           title="Delete Monitor"
                           aria-label="Delete Monitor"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        />
                       </>
                     )}
                   </div>
@@ -3221,9 +3221,14 @@ curl -X POST -H "Content-Type: application/json" \\
               <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--text-muted)', fontWeight: 700 }}>Status Page Configuration</span>
               <h3 id="sp-modal-title" style={{ margin: 0, fontSize: '20px', fontWeight: 700, fontFamily: 'var(--font-header)' }}>{editingPage ? 'Edit Status Page' : 'New Status Page'}</h3>
             </div>
-            <button type="button" aria-label="Close modal" className="secondary" style={{ padding: '8px', borderRadius: '50%' }} onClick={() => setShowSpModal(false)}>
-              <X size={16} />
-            </button>
+            <IconButton
+              icon={<X size={16} />}
+              variant="neutral"
+              size="sm"
+              title="Close modal"
+              aria-label="Close modal"
+              onClick={() => setShowSpModal(false)}
+            />
           </div>
 
           <div className="form-group" style={{ marginBottom: '16px' }}>
@@ -3368,9 +3373,14 @@ curl -X POST -H "Content-Type: application/json" \\
             <h3 id="report-modal-title">
               {reportTab === 'availability' ? 'Availability Report' : 'Metric Utilization Report'}
             </h3>
-            <button type="button" aria-label="Close modal" className="secondary" style={{ padding: '6px' }} onClick={() => setShowReportModal(false)}>
-              <X size={16} />
-            </button>
+            <IconButton
+              icon={<X size={16} />}
+              variant="neutral"
+              size="sm"
+              title="Close modal"
+              aria-label="Close modal"
+              onClick={() => setShowReportModal(false)}
+            />
           </div>
 
           {/* Segmented Tab Switcher */}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Layers, Tag, Clock, Power, RefreshCw } from 'lucide-react';
 import Dialog from './Dialog';
+import IconButton from './IconButton';
 
 interface BatchEditModalProps {
   isOpen: boolean;
@@ -129,14 +130,14 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
                 </span>
               </div>
             </div>
-            <button 
-              type="button" 
+            <IconButton 
+              icon={<X size={16} />}
+              variant="neutral"
+              size="sm"
               onClick={onClose} 
+              title="Close batch edit modal"
               aria-label="Close batch edit modal"
-              style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-            >
-              <X size={18} />
-            </button>
+            />
           </div>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Plus } from 'lucide-react';
+import { Bell, Plus, X } from 'lucide-react';
 import Dialog from './Dialog';
+import IconButton from './IconButton';
 import NotificationDialog, { NotificationItem } from './NotificationDialog';
 import { normalizeTags, normalizeTag, tagEquals, tagIncludes } from '../utils/tags';
 
@@ -508,7 +509,14 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
     <Dialog isOpen={isOpen} onClose={onClose} aria-labelledby="monitor-modal-title" className="modal-content">
         <div className="modal-header">
           <h3 id="monitor-modal-title">{editingMonitor ? 'Edit Monitor Target' : 'Create Monitor Target'}</h3>
-          <button type="button" aria-label="Close modal" className="secondary" style={{ padding: '4px 11px' }} onClick={onClose}>✕</button>
+          <IconButton
+            icon={<X size={16} />}
+            variant="neutral"
+            size="sm"
+            title="Close modal"
+            aria-label="Close modal"
+            onClick={onClose}
+          />
         </div>
         
         <form onSubmit={handleSubmit}>

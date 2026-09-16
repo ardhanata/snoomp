@@ -5,6 +5,16 @@ All notable changes to Snoomp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-09-16
+
+### Changed
+- **Unified Two-Tone SVG Icon Buttons (`frontend/src/components/IconButton.tsx` & `frontend/src/styles/dashboard.css`):**
+  - Standardized all icon buttons across the application (monitor detail header, status pages, modal close triggers, and tag management) using a new reusable `IconButton` component and `.icon-btn` design system tokens.
+  - Implemented semantic two-tone SVG iconography (Tone 1: solid crisp stroke in `currentColor`; Tone 2: translucent `fill-opacity: 0.18` fill for enclosed geometry).
+  - Added semantic color-coded variants (`accent`, `success`, `danger`, `warning`, `purple`, `cyan`, `neutral`) with matching soft translucent button surfaces and subtle glowing hover borders.
+  - Replaced ad-hoc inline styles and inconsistent Unicode `✕` characters in modals (`MonitorModal`, `StatusPageModal`, `ReportModal`, `UserPreferencesModal`, `UpdateModal`, `NotificationDialog`, `BatchEditModal`) with accessible, keyboard-operable SVG icon buttons.
+  - Maintained full WCAG AA contrast standards across both Light and Dark themes, with strict adherence to Anti-Slop UI guidelines.
+
 ## [1.4.0] - 2026-09-16
 
 ### Added

@@ -356,6 +356,257 @@ button.danger:hover {
 button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
 
 /* ══════════════════════════════════════════
+   TWO-TONE ICON BUTTONS (Anti-Slop Unified)
+   Harmonious semantic two-tone SVG iconography:
+   - Tone 1 (Stroke): Solid semantic stroke
+   - Tone 2 (Fill): Translucent tinted fill (fill-opacity: 0.18 - 0.22)
+   - Translucent tinted container matching each semantic color
+   ══════════════════════════════════════════ */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ib-border, var(--border));
+  background: var(--ib-bg, var(--surface-raised));
+  color: var(--ib-color, var(--text-secondary));
+  cursor: pointer;
+  flex-shrink: 0;
+  user-select: none;
+  touch-action: manipulation;
+  transition: background-color var(--t-fast), border-color var(--t-fast), color var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
+}
+
+/* Two-Tone SVG Icon Effect:
+   Tone 1: Solid stroke with crisp geometry (currentColor)
+   Tone 2: Subtle tinted fill for closed shapes (polygons, circles, rects, closed paths)
+*/
+.icon-btn svg {
+  flex-shrink: 0;
+  pointer-events: none;
+  stroke: currentColor;
+  transition: transform var(--t-fast), stroke var(--t-fast), fill-opacity var(--t-fast);
+}
+
+.icon-btn svg path[d*="Z"],
+.icon-btn svg path[d*="z"],
+.icon-btn svg polygon,
+.icon-btn svg rect,
+.icon-btn svg circle {
+  fill: currentColor;
+  fill-opacity: 0.18;
+}
+
+.icon-btn svg line {
+  stroke: currentColor;
+}
+
+/* Hover & Active Interactions */
+.icon-btn:hover:not(:disabled) {
+  background: var(--ib-bg-hover, var(--surface-hover));
+  border-color: var(--ib-border-hover, var(--border-hover));
+  color: var(--ib-color-hover, var(--text-primary));
+  box-shadow: 0 2px 8px var(--ib-glow, rgba(0, 0, 0, 0.2));
+  transform: translateY(-1px);
+}
+
+.icon-btn:hover:not(:disabled) svg path[d*="Z"],
+.icon-btn:hover:not(:disabled) svg path[d*="z"],
+.icon-btn:hover:not(:disabled) svg polygon,
+.icon-btn:hover:not(:disabled) svg rect,
+.icon-btn:hover:not(:disabled) svg circle {
+  fill-opacity: 0.28;
+}
+
+.icon-btn:active:not(:disabled) {
+  transform: scale(0.95);
+  box-shadow: none;
+}
+
+.icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* ── Sizes ── */
+.icon-btn--sm {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+}
+
+.icon-btn--md {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+}
+
+.icon-btn--lg {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Semantic Two-Tone Color Variants ── */
+/* Accent (Blue) — Immediate check, edit, active tabs */
+.icon-btn--accent {
+  --ib-color: var(--accent);
+  --ib-color-hover: var(--accent);
+  --ib-bg: var(--accent-dim);
+  --ib-bg-hover: rgba(var(--accent-rgb), 0.18);
+  --ib-border: rgba(var(--accent-rgb), 0.25);
+  --ib-border-hover: rgba(var(--accent-rgb), 0.45);
+  --ib-glow: var(--accent-glow);
+}
+
+/* Success (Emerald) — Copied, verified, running/power on */
+.icon-btn--success {
+  --ib-color: var(--color-up);
+  --ib-color-hover: var(--color-up);
+  --ib-bg: rgba(63, 185, 80, 0.12);
+  --ib-bg-hover: rgba(63, 185, 80, 0.22);
+  --ib-border: rgba(63, 185, 80, 0.28);
+  --ib-border-hover: rgba(63, 185, 80, 0.50);
+  --ib-glow: var(--color-up-glow);
+}
+
+/* Danger (Ruby Red) — Delete, cancel, close */
+.icon-btn--danger {
+  --ib-color: var(--color-down);
+  --ib-color-hover: var(--color-down);
+  --ib-bg: rgba(248, 81, 73, 0.12);
+  --ib-bg-hover: rgba(248, 81, 73, 0.22);
+  --ib-border: rgba(248, 81, 73, 0.28);
+  --ib-border-hover: rgba(248, 81, 73, 0.50);
+  --ib-glow: var(--color-down-glow);
+}
+
+/* Warning (Amber) — Metric utilization reports, alerts */
+.icon-btn--warning {
+  --ib-color: var(--color-warning);
+  --ib-color-hover: var(--color-warning);
+  --ib-bg: rgba(210, 153, 34, 0.12);
+  --ib-bg-hover: rgba(210, 153, 34, 0.22);
+  --ib-border: rgba(210, 153, 34, 0.28);
+  --ib-border-hover: rgba(210, 153, 34, 0.50);
+  --ib-glow: var(--color-warning-glow);
+}
+
+/* Purple (Violet) — Availability reports, telemetry */
+.icon-btn--purple {
+  --ib-color: var(--chart-1);
+  --ib-color-hover: var(--chart-1);
+  --ib-bg: rgba(139, 92, 246, 0.12);
+  --ib-bg-hover: rgba(139, 92, 246, 0.22);
+  --ib-border: rgba(139, 92, 246, 0.28);
+  --ib-border-hover: rgba(139, 92, 246, 0.50);
+  --ib-glow: rgba(139, 92, 246, 0.25);
+}
+
+/* Cyan (Teal) — Share, external link, copy */
+.icon-btn--cyan {
+  --ib-color: var(--chart-2);
+  --ib-color-hover: var(--chart-2);
+  --ib-bg: rgba(6, 182, 212, 0.12);
+  --ib-bg-hover: rgba(6, 182, 212, 0.22);
+  --ib-border: rgba(6, 182, 212, 0.28);
+  --ib-border-hover: rgba(6, 182, 212, 0.50);
+  --ib-glow: rgba(6, 182, 212, 0.25);
+}
+
+/* Neutral (Steel/Slate) — Close, secondary menu, neutral actions */
+.icon-btn--neutral {
+  --ib-color: var(--text-secondary);
+  --ib-color-hover: var(--text-primary);
+  --ib-bg: var(--surface-raised);
+  --ib-bg-hover: var(--surface-hover);
+  --ib-border: var(--border);
+  --ib-border-hover: var(--border-hover);
+  --ib-glow: rgba(0, 0, 0, 0.15);
+}
+
+.icon-btn.active {
+  background: var(--ib-bg-hover, var(--surface-hover));
+  border-color: var(--ib-color, var(--accent));
+  color: var(--ib-color, var(--accent));
+}
+
+/* Light Mode Fine-Tuning */
+[data-theme="light"] .icon-btn svg path[d*="Z"],
+[data-theme="light"] .icon-btn svg path[d*="z"],
+[data-theme="light"] .icon-btn svg polygon,
+[data-theme="light"] .icon-btn svg rect,
+[data-theme="light"] .icon-btn svg circle {
+  fill-opacity: 0.14;
+}
+
+[data-theme="light"] .icon-btn:hover:not(:disabled) svg path[d*="Z"],
+[data-theme="light"] .icon-btn:hover:not(:disabled) svg path[d*="z"],
+[data-theme="light"] .icon-btn:hover:not(:disabled) svg polygon,
+[data-theme="light"] .icon-btn:hover:not(:disabled) svg rect,
+[data-theme="light"] .icon-btn:hover:not(:disabled) svg circle {
+  fill-opacity: 0.22;
+}
+
+[data-theme="light"] .icon-btn--accent {
+  --ib-bg: rgba(37, 99, 235, 0.08);
+  --ib-bg-hover: rgba(37, 99, 235, 0.15);
+  --ib-border: rgba(37, 99, 235, 0.22);
+  --ib-border-hover: rgba(37, 99, 235, 0.40);
+}
+
+[data-theme="light"] .icon-btn--success {
+  --ib-bg: rgba(4, 106, 78, 0.08);
+  --ib-bg-hover: rgba(4, 106, 78, 0.15);
+  --ib-border: rgba(4, 106, 78, 0.22);
+  --ib-border-hover: rgba(4, 106, 78, 0.40);
+}
+
+[data-theme="light"] .icon-btn--danger {
+  --ib-bg: rgba(220, 38, 38, 0.08);
+  --ib-bg-hover: rgba(220, 38, 38, 0.15);
+  --ib-border: rgba(220, 38, 38, 0.22);
+  --ib-border-hover: rgba(220, 38, 38, 0.40);
+}
+
+[data-theme="light"] .icon-btn--warning {
+  --ib-bg: rgba(180, 83, 9, 0.08);
+  --ib-bg-hover: rgba(180, 83, 9, 0.15);
+  --ib-border: rgba(180, 83, 9, 0.22);
+  --ib-border-hover: rgba(180, 83, 9, 0.40);
+}
+
+[data-theme="light"] .icon-btn--purple {
+  --ib-bg: rgba(124, 58, 237, 0.08);
+  --ib-bg-hover: rgba(124, 58, 237, 0.15);
+  --ib-border: rgba(124, 58, 237, 0.22);
+  --ib-border-hover: rgba(124, 58, 237, 0.40);
+}
+
+[data-theme="light"] .icon-btn--cyan {
+  --ib-bg: rgba(14, 116, 144, 0.08);
+  --ib-bg-hover: rgba(14, 116, 144, 0.15);
+  --ib-border: rgba(14, 116, 144, 0.22);
+  --ib-border-hover: rgba(14, 116, 144, 0.40);
+}
+
+[data-theme="light"] .icon-btn--neutral {
+  --ib-bg: rgba(0, 0, 0, 0.04);
+  --ib-bg-hover: rgba(0, 0, 0, 0.08);
+  --ib-border: rgba(0, 0, 0, 0.12);
+  --ib-border-hover: rgba(0, 0, 0, 0.24);
+}
+
+/* ══════════════════════════════════════════
    APP LAYOUT
    ══════════════════════════════════════════ */
 
@@ -685,43 +936,10 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
   z-index: 2;
 }
 
+.monitor-detail-actions .icon-btn,
 .monitor-detail-actions button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 32px;
   height: 32px;
-  padding: 0;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--text-secondary);
-  transition: background-color var(--t-fast), color var(--t-fast), border-color var(--t-fast);
-  pointer-events: auto;
-  user-select: none;
-}
-
-.monitor-detail-actions button:hover {
-  background: var(--surface-raised);
-  color: var(--text-primary);
-  border-color: var(--border);
-  transform: none !important;
-}
-
-.monitor-detail-actions button:active {
-  transform: scale(0.95) !important;
-}
-
-.monitor-detail-actions button.danger {
-  color: var(--color-down);
-}
-
-.monitor-detail-actions button.danger:hover {
-  background: rgba(227, 72, 80, 0.12);
-  color: var(--color-down);
-  border-color: rgba(227, 72, 80, 0.25);
-  transform: none !important;
 }
 
 .monitor-detail-actions button svg {
