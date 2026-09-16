@@ -2440,7 +2440,7 @@ function App() {
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '11px' }}>
                           {visibleDisks.map((dk: any, idx: number) => {
-                            const pct = dk.used_percent || 0;
+                            const pct = dk.used_percent ?? dk.use_pct ?? 0;
                             const badgeColor = pct >= 90 ? 'var(--color-down)' : pct >= 80 ? 'var(--color-warning)' : 'var(--color-up)';
                             const isNfs = dk.filesystem?.includes(':') || dk.mount?.includes('nfs');
                             return (
@@ -3574,9 +3574,13 @@ curl -X POST -H "Content-Type: application/json" \\
                           {utilizationData.partitions.slice(0, 4).map((p: any, idx: number) => (
                             <div key={idx} className="report-partition-row">
                               <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{p.mount}</span>
-                              <span style={{ color: 'var(--text-muted)' }}>{p.used_gb ? `${p.used_gb.toFixed(1)} / ${p.size_gb.toFixed(1)} GB` : (p.size_gb ? `${p.size_gb.toFixed(1)} GB` : '')}</span>
+                              <span style={{ color: 'var(--text-muted)' }}>
+                                {p.used_gb != null && p.size_gb != null
+                                  ? `${p.used_gb >= 1 ? `${p.used_gb.toFixed(1)}` : `${Math.round(p.used_gb * 1024)}M`} / ${p.size_gb >= 1 ? `${p.size_gb.toFixed(1)} GB` : `${Math.round(p.size_gb * 1024)} MB`}`
+                                  : (p.size_gb != null ? (p.size_gb >= 1 ? `${p.size_gb.toFixed(1)} GB` : `${Math.round(p.size_gb * 1024)} MB`) : '')}
+                              </span>
                               <span style={{ fontWeight: '700', color: (p.use_pct >= 90) ? 'var(--color-down)' : (p.use_pct >= 80 ? 'var(--color-warn)' : 'var(--text-primary)') }}>
-                                {p.use_pct ? `${p.use_pct.toFixed(1)}%` : '-'}
+                                {p.use_pct != null ? `${p.use_pct.toFixed(1)}%` : '-'}
                               </span>
                             </div>
                           ))}

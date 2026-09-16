@@ -689,6 +689,28 @@ def _cell(text: str, size: float = 8, colour=INK, bold: bool = False) -> Paragra
     return Paragraph(text, _style("c", size, size + 3.5, colour, FONT_B if bold else FONT))
 
 
+def _fmt_storage(val_gb: Optional[float], is_size: bool = False) -> str:
+    """Format storage capacity or usage in GB/MB/TB for PDF report tables."""
+    if val_gb is None:
+        return "—"
+    try:
+        val = float(val_gb)
+    except (ValueError, TypeError):
+        return "—"
+    if val < 0:
+        return "0.0 GB"
+    if val >= 1024.0:
+        return f"{val / 1024.0:.1f} TB"
+    if val >= 1.0:
+        return f"{val:.1f} GB"
+    if val > 0.0:
+        mb = val * 1024.0
+        if mb >= 1.0:
+            return f"{mb:.0f} MB"
+        return f"{mb:.1f} MB"
+    return "< 100 MB" if is_size else "0.0 GB"
+
+
 # ── Reports ───────────────────────────────────────────────────────────────
 
 def build_monitor_report(target: Any, report: Dict[str, Any], sla_target: float = 99.9) -> bytes:
@@ -984,8 +1006,8 @@ def build_utilization_report(target: Any, report: Dict[str, Any]) -> bytes:
         for p in partitions:
             pct = float(p.get("use_pct") or 0.0)
             col = RED if pct >= 90 else (AMBER if pct >= 80 else INK)
-            sz_str = f"{p.get('size_gb'):.1f} GB" if p.get("size_gb") is not None else "—"
-            used_str = f"{p.get('used_gb'):.1f} GB" if p.get("used_gb") is not None else "—"
+            sz_str = _fmt_storage(p.get("size_gb"), is_size=True)
+            used_str = _fmt_storage(p.get("used_gb"), is_size=False)
             p_rows.append([
                 _cell(str(p.get("mount") or "/"), bold=True),
                 _cell(str(p.get("fstype") or "local"), 7.5, MUTED),

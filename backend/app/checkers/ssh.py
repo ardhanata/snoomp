@@ -109,6 +109,27 @@ def calculate_proc_stat_cpu_percent(
 
     return None
 
+def _parse_df_size_to_gb(size_str: str) -> float:
+    """Converts df human-readable size string (e.g. '95G', '3.2G', '5.0M', '150K', '0') to float GB."""
+    if not size_str or size_str == "-":
+        return 0.0
+    try:
+        num_match = re.findall(r'[\d\.]+', size_str)
+        if num_match:
+            num_val = float(num_match[0])
+            unit = size_str.replace(num_match[0], '').strip().upper()
+            if 'T' in unit:
+                return round(num_val * 1024, 4)
+            elif 'M' in unit:
+                return round(num_val / 1024, 4)
+            elif 'K' in unit:
+                return round(num_val / (1024 * 1024), 6)
+            else:
+                return round(num_val, 4)
+    except Exception:
+        pass
+    return 0.0
+
 def parse_metrics_output(output: str, target_id: str | None = None, redis_conn=None) -> dict:
     """Parses output of: uptime && free -m && df -h -P -x tmpfs -x devtmpfs -x squashfs -x overlay && cat /proc/stat && cat /proc/loadavg && nproc"""
     metrics = {
@@ -128,25 +149,28 @@ def parse_metrics_output(output: str, target_id: str | None = None, redis_conn=N
     if not lines:
         return metrics
 
-    # 1. Parse Uptime
-    uptime_match = re.search(r'up\s+(.*?),\s*\d+\s+user', output)
-    if uptime_match:
-        metrics["uptime"] = uptime_match.group(1).strip()
-    else:
-        uptime_match_fallback = re.search(r'up\s+(.*?),\s*load', output)
-        if uptime_match_fallback:
-            metrics["uptime"] = uptime_match_fallback.group(1).strip()
+    # 1. Parse uptime
+    for line in lines:
+        if "up" in line and ("user" in line or "load average" in line):
+            metrics["uptime"] = line
+            break
 
     # 2. Parse Memory from free -m
-    mem_match = re.search(r'Mem:\s+(\d+)\s+(\d+)\s+(\d+)(?:\s+(\d+)\s+(\d+)\s+(\d+))?', output)
-    if mem_match:
-        total = float(mem_match.group(1))
-        used = float(mem_match.group(2))
-        
-        if total > 0:
+    for line in lines:
+        if line.startswith("Mem:"):
+            parts = line.split()
+            if len(parts) < 3:
+                continue
+            total = float(parts[1])
+            used = float(parts[2])
+            
+            # Use 'available' if present (Linux kernel 3.14+)
             available = None
-            if mem_match.group(6):
-                available = float(mem_match.group(6))
+            if len(parts) >= 7:
+                try:
+                    available = float(parts[6])
+                except (ValueError, IndexError):
+                    pass
                 
             if available is not None:
                 actual_used = total - available
@@ -178,33 +202,25 @@ def parse_metrics_output(output: str, target_id: str | None = None, redis_conn=N
 
             used_pct = float(pct_str)
             size_str = parts[1]
-            size_gb = 0.0
+            used_str = parts[2] if len(parts) >= 3 else ""
 
-            try:
-                num_match = re.findall(r'[\d\.]+', size_str)
-                if num_match:
-                    num_val = float(num_match[0])
-                    unit = size_str.replace(num_match[0], '').strip().upper()
-                    if 'T' in unit:
-                        size_gb = round(num_val * 1024, 1)
-                    elif 'M' in unit:
-                        size_gb = round(num_val / 1024, 1)
-                    elif 'K' in unit:
-                        size_gb = round(num_val / (1024 * 1024), 1)
-                    else:
-                        size_gb = round(num_val, 1)
-            except Exception:
-                pass
+            size_gb = _parse_df_size_to_gb(size_str)
+            if used_str and used_str != "-":
+                used_gb = _parse_df_size_to_gb(used_str)
+            else:
+                used_gb = round(size_gb * (used_pct / 100.0), 4)
 
             parsed_disks.append({
                 "filesystem": filesystem,
                 "mount": mount_point,
-                "size_gb": size_gb,
-                "used_percent": used_pct
+                "size_gb": round(size_gb, 2) if size_gb >= 0.1 else round(size_gb, 4),
+                "used_gb": round(used_gb, 2) if used_gb >= 0.1 else round(used_gb, 4),
+                "used_percent": used_pct,
+                "use_pct": used_pct
             })
 
             total_disk_gb += size_gb
-            total_used_gb += size_gb * (used_pct / 100.0)
+            total_used_gb += used_gb
 
     if parsed_disks:
         metrics["disks"] = parsed_disks
@@ -307,15 +323,18 @@ def parse_windows_metrics_output(output: str) -> dict:
                     label = parts[1] or "Local Disk"
                     size_gb = float(parts[2]) if parts[2] else 0.0
                     used_pct = float(parts[3]) if parts[3] else 0.0
+                    used_gb = round(size_gb * (used_pct / 100.0), 2)
 
                     parsed_disks.append({
                         "filesystem": label,
                         "mount": drive,
                         "size_gb": size_gb,
-                        "used_percent": used_pct
+                        "used_gb": used_gb,
+                        "used_percent": used_pct,
+                        "use_pct": used_pct
                     })
                     total_disk_gb += size_gb
-                    total_used_gb += size_gb * (used_pct / 100.0)
+                    total_used_gb += used_gb
             except Exception:
                 pass
 
@@ -337,8 +356,8 @@ def _get_mock_metrics() -> dict:
         "ram_total_gb": 8.0,
         "disk_total_gb": 580.0,
         "disks": [
-            { "filesystem": "/dev/sda1", "mount": "/", "size_gb": 80.0, "used_percent": 32.5 },
-            { "filesystem": "/dev/sdb1", "mount": "/u01", "size_gb": 500.0, "used_percent": 50.0 }
+            { "filesystem": "/dev/sda1", "mount": "/", "size_gb": 80.0, "used_gb": 26.0, "used_percent": 32.5, "use_pct": 32.5 },
+            { "filesystem": "/dev/sdb1", "mount": "/u01", "size_gb": 500.0, "used_gb": 250.0, "used_percent": 50.0, "use_pct": 50.0 }
         ]
     }
 

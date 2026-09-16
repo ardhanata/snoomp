@@ -10,7 +10,8 @@ import unittest
 from unittest.mock import MagicMock
 
 from app.services.utilization_report import _metric_stats, get_target_utilization_report
-from app.reports.pdf import build_utilization_report
+from app.reports.pdf import build_utilization_report, _fmt_storage
+from app.checkers.ssh import parse_metrics_output, _parse_df_size_to_gb
 
 
 class TestUtilizationReport(unittest.TestCase):
@@ -143,6 +144,92 @@ class TestUtilizationReport(unittest.TestCase):
         self.assertTrue(len(pdf_bytes) > 1000)
         self.assertTrue(pdf_bytes.startswith(b"%PDF-"))
 
+    def test_fmt_storage(self):
+        self.assertEqual(_fmt_storage(None), "—")
+        self.assertEqual(_fmt_storage(2048.0), "2.0 TB")
+        self.assertEqual(_fmt_storage(95.0), "95.0 GB")
+        self.assertEqual(_fmt_storage(3.2), "3.2 GB")
+        self.assertEqual(_fmt_storage(1.0), "1.0 GB")
+        self.assertEqual(_fmt_storage(0.15), "154 MB")
+        self.assertEqual(_fmt_storage(0.0049), "5 MB")
+        self.assertEqual(_fmt_storage(0.0, is_size=False), "0.0 GB")
+        self.assertEqual(_fmt_storage(0.0, is_size=True), "< 100 MB")
+
+    def test_parse_df_size_to_gb(self):
+        self.assertEqual(_parse_df_size_to_gb("95G"), 95.0)
+        self.assertEqual(_parse_df_size_to_gb("3.2G"), 3.2)
+        self.assertEqual(_parse_df_size_to_gb("5.0M"), 0.0049)
+        self.assertEqual(_parse_df_size_to_gb("0"), 0.0)
+        self.assertEqual(_parse_df_size_to_gb("-"), 0.0)
+
+    def test_parse_metrics_output_disks(self):
+        raw_output = """
+ 21:00:01 up 14 days,  6:20,  2 users,  load average: 0.45, 0.52, 0.48
+Mem:         32000       16000        8000           0        4000       16000
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1        95G   20G   71G  22% /
+tmpfs           3.2G     0  3.2G   0% /run
+tmpfs            16G     0   16G   0% /dev/shm
+tmpfs           5.0M     0  5.0M   0% /run/lock
+/dev/sda2       1.0G  150M  850M  15% /boot
+cpu  1000 200 300 8000 100 50 20 0 0 0
+0.45 0.52 0.48 1/450 12345
+8
+"""
+        metrics = parse_metrics_output(raw_output)
+        self.assertIn("disks", metrics)
+        disks = metrics["disks"]
+        self.assertEqual(len(disks), 5)
+        root = next(d for d in disks if d["mount"] == "/")
+        self.assertEqual(root["size_gb"], 95.0)
+        self.assertEqual(root["used_gb"], 20.0)
+        self.assertEqual(root["used_percent"], 22.0)
+        self.assertEqual(root["use_pct"], 22.0)
+
+        lock = next(d for d in disks if d["mount"] == "/run/lock")
+        self.assertEqual(lock["used_gb"], 0.0)
+        self.assertGreater(lock["size_gb"], 0.0)  # Preserves sub-0.1 GB rather than truncating to 0
+
+    def test_partition_fallback_computation(self):
+        db = MagicMock()
+        target = MagicMock()
+        target.id = "target-legacy-disks"
+        target.name = "Legacy Disk Host"
+        target.host = "10.0.0.99"
+        target.type = "ssh"
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        row = MagicMock()
+        row.checked_at = now
+        row.cpu_percent = 20.0
+        row.mem_percent = 40.0
+        row.disk_percent = 50.0
+        row.uptime = "5 days"
+        # Legacy details_json where only 'used_percent' exists and 'used_gb' is missing
+        row.details_json = {
+            "disks": [
+                {"filesystem": "/dev/sda1", "mount": "/", "size_gb": 100.0, "used_percent": 45.0},
+                {"filesystem": "tmpfs", "mount": "/run/lock", "size_gb": 0.0, "used_percent": 0.0},
+            ]
+        }
+
+        query_mock = MagicMock()
+        db.query.return_value = query_mock
+        query_mock.filter_by.return_value.first.return_value = target
+        query_mock.filter.return_value.filter.return_value.order_by.return_value.all.return_value = [row]
+
+        res = get_target_utilization_report("target-legacy-disks", hours=24, db=db)
+        partitions = res["partitions"]
+        self.assertEqual(len(partitions), 2)
+        root = next(p for p in partitions if p["mount"] == "/")
+        self.assertEqual(root["use_pct"], 45.0)
+        self.assertEqual(root["used_gb"], 45.0)  # Computed 100 * 0.45
+        self.assertEqual(root["size_gb"], 100.0)
+
+        # Ensure PDF generates without issue with these partitions
+        pdf_bytes = build_utilization_report(target, res)
+        self.assertTrue(pdf_bytes.startswith(b"%PDF-"))
+
     def test_build_utilization_report_pdf_empty(self):
         target = MagicMock()
         target.name = "ICMP Ping GW"
@@ -166,3 +253,4 @@ class TestUtilizationReport(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

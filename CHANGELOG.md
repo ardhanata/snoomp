@@ -5,6 +5,16 @@ All notable changes to Snoomp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2026-09-16
+
+### Fixed
+- **Storage Partition Telemetry & PDF Report Generation (`backend/app/checkers/ssh.py`, `backend/app/services/utilization_report.py`, `backend/app/reports/pdf.py`, `frontend/src/App.tsx`):**
+  - **Used Space & Utilization Display Bug:** Fixed issue where the PDF report's "Storage partitions" table rendered all partitions with `0.0%` utilization and `—` for used space. Resolved property key mismatch where the SSH checker produced `used_percent` while the reporting service expected `use_pct`.
+  - **Dynamic Fallback Calculation:** Partition extraction in `utilization_report.py` now accepts `use_pct`, `percent`, or `used_percent` and dynamically computes `used_gb` (`size_gb * (use_pct / 100)`) when not explicitly stored, guaranteeing accurate metrics for all legacy and active heartbeats.
+  - **Sub-Gigabyte Partition Precision:** Fixed truncation where small mounts (e.g. `/run/lock` under 100 MB) rounded to `0.0` and evaluated to `None` via falsy operators, displaying `—`. Added `_fmt_storage` helper in `pdf.py` which formats values into clean MB units (e.g. `5 MB`, `154 MB`) or `< 100 MB` when small.
+  - **POSIX `df -h -P` Parsing:** Added `_parse_df_size_to_gb` to parse both total size and used size columns directly from POSIX `df` output across Linux and Windows hosts.
+  - **Frontend Volume Breakdown:** Updated volume cards in `App.tsx` to handle `0.0` used space and utilization values cleanly without dropping to empty dashes or omitting used space.
+
 ## [1.4.1] - 2026-09-16
 
 ### Changed

@@ -255,12 +255,42 @@ def get_target_utilization_report(target_id: str, hours: int = 168, db: Session 
     if isinstance(raw_disks, list):
         for d in raw_disks:
             if isinstance(d, dict):
+                mount = d.get("mount") or d.get("filesystem") or "/"
+
+                # Size in GB: preserve 0.0 or small floats
+                raw_sz = d.get("size_gb") if d.get("size_gb") is not None else d.get("total_gb")
+                try:
+                    size_gb = float(raw_sz) if raw_sz is not None else None
+                except (ValueError, TypeError):
+                    size_gb = None
+
+                # Used percent: check all known variants (use_pct, percent, used_percent)
+                pct_val = d.get("use_pct")
+                if pct_val is None:
+                    pct_val = d.get("percent")
+                if pct_val is None:
+                    pct_val = d.get("used_percent")
+                try:
+                    use_pct = float(pct_val) if pct_val is not None else 0.0
+                except (ValueError, TypeError):
+                    use_pct = 0.0
+
+                # Used space in GB: check explicit field or compute from size_gb * (use_pct / 100)
+                raw_used = d.get("used_gb")
+                try:
+                    used_gb = float(raw_used) if raw_used is not None else None
+                except (ValueError, TypeError):
+                    used_gb = None
+
+                if used_gb is None and size_gb is not None:
+                    used_gb = round(size_gb * (use_pct / 100.0), 4)
+
                 partitions.append({
-                    "mount": d.get("mount") or d.get("filesystem") or "/",
-                    "size_gb": d.get("size_gb") or d.get("total_gb"),
-                    "used_gb": d.get("used_gb"),
-                    "use_pct": d.get("use_pct") or d.get("percent"),
-                    "fstype": d.get("fstype", ""),
+                    "mount": mount,
+                    "size_gb": size_gb,
+                    "used_gb": used_gb,
+                    "use_pct": round(use_pct, 1),
+                    "fstype": d.get("fstype") or "local",
                 })
         partitions.sort(key=lambda p: float(p.get("use_pct") or 0.0), reverse=True)
 
