@@ -424,71 +424,127 @@ class UtilizationVerdictBand(Flowable):
         return self.width, self.height
 
 
-class ResourceSparkline(Flowable):
+class ResourceTrendChart(Flowable):
     """
-    Resource percentage trend with 80% threshold line and peak indicator.
+    Resource percentage trend chart with Y-axis scale (0%, 50%, 80%, 100%),
+    peak indicator envelope, and clean non-overlapping headers.
     """
 
-    def __init__(self, values: Sequence[Optional[float]], width: float, label: str,
-                 height: float = 16 * mm, color=INK, fill_hex="#e8ebee"):
+    def __init__(self, avg_values: Sequence[Optional[float]], width: float, label: str,
+                 max_values: Optional[Sequence[Optional[float]]] = None,
+                 height: float = 24 * mm, color=INK, fill_hex="#e8edf5",
+                 threshold_pct: float = 80.0):
         super().__init__()
-        self.values = list(values)
+        self.avg_values = list(avg_values)
+        self.max_values = list(max_values) if max_values else [None] * len(self.avg_values)
         self.width = width
         self.height = height
         self.label = label
         self.color = color
         self.fill_color = colors.HexColor(fill_hex)
+        self.threshold_pct = threshold_pct
 
     def draw(self):
-        pts = [(i, v) for i, v in enumerate(self.values) if v is not None]
         c = self.canv
-        if len(pts) < 2:
+        pts_avg = [(i, v) for i, v in enumerate(self.avg_values) if v is not None]
+        if len(pts_avg) < 2:
             c.setFont(FONT, 7.5)
             c.setFillColor(MUTED)
-            c.drawString(0, self.height / 2, f"Insufficient {self.label} data in this window.")
+            c.drawString(0, self.height / 2, f"Insufficient {self.label} samples in this window.")
             return
 
-        n = max(1, len(self.values) - 1)
-        hi = max(v for _, v in pts)
-        ceiling = 100.0
+        # Layout boundaries
+        header_h = 4.5 * mm
+        plot_top = self.height - header_h
+        plot_h = plot_top - (1.5 * mm)
+        plot_bot = 1.5 * mm
+        gutter_left = 13 * mm
+        plot_w = self.width - gutter_left
 
-        def X(i): return (i / n) * self.width
-        def Y(v): return (min(100.0, max(0.0, v)) / ceiling) * (self.height - 4)
+        # Header Row (Label on left, Peak & Threshold on right)
+        valid_avgs = [v for _, v in pts_avg]
+        valid_maxs = [v for v in self.max_values if v is not None]
+        overall_peak = max(valid_maxs) if valid_maxs else max(valid_avgs)
+        overall_avg = sum(valid_avgs) / len(valid_avgs) if valid_avgs else 0.0
 
-        # 80% warning threshold line
-        y80 = (80.0 / ceiling) * (self.height - 4)
-        c.setStrokeColor(colors.HexColor("#eec4c4"))
-        c.setLineWidth(0.5)
-        c.setDash(2, 2)
-        c.line(0, y80, self.width, y80)
+        c.setFont(FONT_B, 7.5)
+        c.setFillColor(INK)
+        c.drawString(gutter_left, self.height - 3.2 * mm, self.label)
+
+        c.setFont(FONT, 6.8)
+        c.setFillColor(MUTED)
+        stat_summary = f"Average {overall_avg:.1f}% · Peak {overall_peak:.1f}% · {self.threshold_pct:.0f}% threshold"
+        c.drawRightString(self.width, self.height - 3.2 * mm, stat_summary)
+
+        # Coordinate transforms
+        n = max(1, len(self.avg_values) - 1)
+        def X(i): return gutter_left + (i / n) * plot_w
+        def Y(v): return plot_bot + (min(100.0, max(0.0, v)) / 100.0) * plot_h
+
+        # Grid lines and Y-axis scale labels
+        ticks = [
+            (0.0, "0%", RULE),
+            (50.0, "50%", colors.HexColor("#ebeef2")),
+            (self.threshold_pct, f"{self.threshold_pct:.0f}%", colors.HexColor("#f3d2d2")),
+            (100.0, "100%", colors.HexColor("#ebeef2")),
+        ]
+
+        for val, label_txt, line_col in ticks:
+            y_pos = Y(val)
+            c.setFont(FONT, 6.0)
+            if val == self.threshold_pct:
+                c.setFillColor(colors.HexColor("#b34747"))
+                c.setStrokeColor(colors.HexColor("#eec4c4"))
+                c.setLineWidth(0.5)
+                c.setDash(2, 2)
+            else:
+                c.setFillColor(MUTED)
+                c.setStrokeColor(line_col)
+                c.setLineWidth(0.4)
+                c.setDash()
+
+            # Axis tick text (right aligned to gutter)
+            c.drawRightString(gutter_left - 2 * mm, y_pos - 1.8, label_txt)
+            c.line(gutter_left, y_pos, self.width, y_pos)
+
         c.setDash()
 
-        # Shaded area
+        # Plot fill area for average series
         path = c.beginPath()
-        path.moveTo(X(pts[0][0]), 0)
-        for i, v in pts:
+        path.moveTo(X(pts_avg[0][0]), plot_bot)
+        for i, v in pts_avg:
             path.lineTo(X(i), Y(v))
-        path.lineTo(X(pts[-1][0]), 0)
+        path.lineTo(X(pts_avg[-1][0]), plot_bot)
         path.close()
         c.setFillColor(self.fill_color)
         c.drawPath(path, stroke=0, fill=1)
 
-        # Line stroke
+        # Plot Peak trace line (if max_values present)
+        pts_max = [(i, v) for i, v in enumerate(self.max_values) if v is not None]
+        if len(pts_max) >= 2:
+            c.setStrokeColor(colors.HexColor("#a0abb8"))
+            c.setLineWidth(0.6)
+            c.setDash(1.5, 1.5)
+            peak_line = c.beginPath()
+            peak_line.moveTo(X(pts_max[0][0]), Y(pts_max[0][1]))
+            for i, v in pts_max[1:]:
+                peak_line.lineTo(X(i), Y(v))
+            c.drawPath(peak_line, stroke=1, fill=0)
+            c.setDash()
+
+        # Plot Average utilization line stroke
         c.setStrokeColor(self.color)
-        c.setLineWidth(0.9)
+        c.setLineWidth(1.0)
         line = c.beginPath()
-        line.moveTo(X(pts[0][0]), Y(pts[0][1]))
-        for i, v in pts[1:]:
+        line.moveTo(X(pts_avg[0][0]), Y(pts_avg[0][1]))
+        for i, v in pts_avg[1:]:
             line.lineTo(X(i), Y(v))
         c.drawPath(line, stroke=1, fill=0)
 
-        # Top label: Name and Peak
-        c.setFont(FONT_B, 7.2)
-        c.setFillColor(INK)
-        c.drawString(0, self.height - 2, self.label)
-        c.setFont(FONT, 6.8)
-        c.setFillColor(MUTED)
-        c.drawRightString(self.width, self.height - 2, f"Peak {hi:,.1f}% (80% threshold line)")
+        # Outer plot border line (baseline)
+        c.setStrokeColor(RULE)
+        c.setLineWidth(0.5)
+        c.line(gutter_left, plot_bot, self.width, plot_bot)
 
     def wrap(self, *_):
         return self.width, self.height
@@ -792,20 +848,44 @@ def build_utilization_report(target: Any, report: Dict[str, Any]) -> bytes:
     if timeline:
         story += _section("Resource trends", f"{len(timeline)} intervals · earliest to latest")
         cpu_series = [b.get("avg_cpu") for b in timeline]
+        cpu_peaks = [b.get("max_cpu") for b in timeline]
         mem_series = [b.get("avg_mem") for b in timeline]
+        mem_peaks = [b.get("max_mem") for b in timeline]
         disk_series = [b.get("avg_disk") for b in timeline]
+        disk_peaks = [b.get("max_disk") for b in timeline]
 
         if any(v is not None for v in cpu_series):
-            story += [ResourceSparkline(cpu_series, CONTENT_W, "CPU Utilization (%)", height=15 * mm, color=INK, fill_hex="#e8edf5"), Spacer(1, 6)]
+            story += [
+                ResourceTrendChart(
+                    cpu_series, CONTENT_W, "CPU Utilization (%)",
+                    max_values=cpu_peaks, height=22 * mm,
+                    color=INK, fill_hex="#e8edf5", threshold_pct=80.0,
+                ),
+                Spacer(1, 6),
+            ]
         if any(v is not None for v in mem_series):
-            story += [ResourceSparkline(mem_series, CONTENT_W, "Memory Utilization (%)", height=15 * mm, color=colors.HexColor("#2f6f44"), fill_hex="#e9f3ec"), Spacer(1, 6)]
+            story += [
+                ResourceTrendChart(
+                    mem_series, CONTENT_W, "Memory Utilization (%)",
+                    max_values=mem_peaks, height=22 * mm,
+                    color=colors.HexColor("#2f6f44"), fill_hex="#e9f3ec", threshold_pct=80.0,
+                ),
+                Spacer(1, 6),
+            ]
         if any(v is not None for v in disk_series):
-            story += [ResourceSparkline(disk_series, CONTENT_W, "Storage Utilization (%)", height=15 * mm, color=colors.HexColor("#7a5214"), fill_hex="#f6efe5"), Spacer(1, 6)]
+            story += [
+                ResourceTrendChart(
+                    disk_series, CONTENT_W, "Storage Utilization (%)",
+                    max_values=disk_peaks, height=22 * mm,
+                    color=colors.HexColor("#7a5214"), fill_hex="#f6efe5", threshold_pct=80.0,
+                ),
+                Spacer(1, 6),
+            ]
 
         story += [
             RibbonAxis(timeline, CONTENT_W, hours),
             Spacer(1, 4),
-            Paragraph("Each chart displays average utilization per interval with dashed lines representing the 80% saturation threshold.", S_SMALL),
+            Paragraph("Dotted line indicates intra-interval peaks. Dashed red line represents 80% saturation threshold.", S_SMALL),
             Spacer(1, 12),
         ]
 
