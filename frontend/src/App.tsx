@@ -115,68 +115,12 @@ function visibleVolumes(disks: any[] | undefined | null): any[] {
   });
 }
 
-/**
- * Clean human-readable uptime formatter.
- * Handles both already-formatted strings ("91 days, 16 hours") and legacy raw
- * POSIX output lines ("08:59:18 up 4 days, 12:36,  0 users,  load average...").
- */
+// ponytail: clean uptime extractor; strips legacy load averages/users and normalizes HH:MM
 function formatUptime(raw?: string | null): string {
   if (!raw || raw.toLowerCase() === 'unknown') return '—';
-  const trimmed = raw.trim();
-
-  // If already clean (no load average, no user count, no leading clock timestamp)
-  if (!trimmed.includes('load average') && !trimmed.includes('user') && !/^\d{1,2}:\d{2}:\d{2}\s+up\b/.test(trimmed)) {
-    return trimmed;
-  }
-
-  // Extract portion between 'up ' and user/load average
-  const match = trimmed.match(/\bup\s+(.*?)(?:,\s+\d+\s+user|,\s+load average|$)/);
-  const upPart = match ? match[1].trim() : trimmed;
-
-  // "X days, HH:MM" e.g. "4 days, 12:36" or "576 days,  8:24"
-  const mDaysTime = upPart.match(/^(\d+)\s+day(?:s)?,\s*(\d{1,2}):(\d{2})$/);
-  if (mDaysTime) {
-    const days = parseInt(mDaysTime[1], 10);
-    const hrs = parseInt(mDaysTime[2], 10);
-    const dStr = days === 1 ? '1 day' : `${days} days`;
-    const hStr = hrs === 1 ? '1 hour' : `${hrs} hours`;
-    return `${dStr}, ${hStr}`;
-  }
-
-  // "X days, X min"
-  const mDaysMin = upPart.match(/^(\d+)\s+day(?:s)?,\s*(\d+)\s+min(?:s)?$/);
-  if (mDaysMin) {
-    const days = parseInt(mDaysMin[1], 10);
-    const dStr = days === 1 ? '1 day' : `${days} days`;
-    return `${dStr}, 0 hours`;
-  }
-
-  // "X days, X hours" (strip any extra trailing minutes if present)
-  const mDaysHrs = upPart.match(/^(\d+)\s+day(?:s)?,\s*(\d+)\s+hour(?:s)?/);
-  if (mDaysHrs) {
-    const days = parseInt(mDaysHrs[1], 10);
-    const hrs = parseInt(mDaysHrs[2], 10);
-    const dStr = days === 1 ? '1 day' : `${days} days`;
-    const hStr = hrs === 1 ? '1 hour' : `${hrs} hours`;
-    return `${dStr}, ${hStr}`;
-  }
-
-  // "HH:MM" e.g. "2:15"
-  const mTime = upPart.match(/^(\d{1,2}):(\d{2})$/);
-  if (mTime) {
-    const hrs = parseInt(mTime[1], 10);
-    const mins = parseInt(mTime[2], 10);
-    const hStr = hrs === 1 ? '1 hour' : `${hrs} hours`;
-    return mins ? `${hStr}, ${mins} mins` : hStr;
-  }
-
-  // "X min"
-  const mMin = upPart.match(/^(\d+)\s+min(?:s)?$/);
-  if (mMin) {
-    return `${mMin[1]} mins`;
-  }
-
-  return upPart;
+  const match = raw.match(/\bup\s+(.*?)(?:,\s+\d+\s+user|,\s+load average|$)/);
+  const clean = (match ? match[1] : raw).trim();
+  return clean.replace(/\b(\d{1,2}):(\d{2})\b/, (_, h) => `${parseInt(h, 10)} hours`) || '—';
 }
 
 // ponytail: clear inline styles on default accent so CSS data-theme tokens resolve naturally

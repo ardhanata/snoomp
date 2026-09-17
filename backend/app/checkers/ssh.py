@@ -132,66 +132,12 @@ def _parse_df_size_to_gb(size_str: str) -> float:
     return 0.0
 
 def parse_uptime_str(line: str) -> str:
-    """
-    Parses a raw Linux/POSIX uptime or uptime -p output line into a clean, simple uptime string
-    matching SNMP format (e.g. '91 days, 16 hours') or clean human uptime ('up 1 week, 23 hours, 27 minutes').
-    """
+    # ponytail: clean uptime extractor; strips load averages/users and normalizes HH:MM
     if not line or line.lower() == "unknown":
         return "unknown"
-
     match = re.search(r'\bup\s+(.*?)(?:,\s+\d+\s+user|,\s+load average|$)', line)
     raw = match.group(1).strip() if match else line.strip()
-
-    # Case 1: 'X days, HH:MM' e.g. '576 days,  8:24' or '4 days, 12:36'
-    m_days_time = re.match(r'^(\d+)\s+day(?:s)?,\s*(\d{1,2}):(\d{2})$', raw)
-    if m_days_time:
-        days, hrs = int(m_days_time.group(1)), int(m_days_time.group(2))
-        d_str = f"{days} day" if days == 1 else f"{days} days"
-        h_str = f"{hrs} hour" if hrs == 1 else f"{hrs} hours"
-        return f"{d_str}, {h_str}"
-
-    # Case 2: 'X days, X min' e.g. '3 days, 14 min'
-    m_days_min = re.match(r'^(\d+)\s+day(?:s)?,\s*(\d+)\s+min(?:utes?|s)?$', raw)
-    if m_days_min:
-        days = int(m_days_min.group(1))
-        d_str = f"{days} day" if days == 1 else f"{days} days"
-        return f"{d_str}, 0 hours"
-
-    # Case 3: 'X days, X hours...' e.g. '91 days, 16 hours' or '91 days, 16 hours, 20 minutes'
-    m_days_hrs = re.match(r'^(\d+)\s+day(?:s)?,\s*(\d+)\s+hour(?:s)?', raw)
-    if m_days_hrs:
-        days, hrs = int(m_days_hrs.group(1)), int(m_days_hrs.group(2))
-        d_str = f"{days} day" if days == 1 else f"{days} days"
-        h_str = f"{hrs} hour" if hrs == 1 else f"{hrs} hours"
-        return f"{d_str}, {h_str}"
-
-    # Case 4: 'HH:MM' e.g. '2:15'
-    m_time = re.match(r'^(\d{1,2}):(\d{2})$', raw)
-    if m_time:
-        hrs, mins = int(m_time.group(1)), int(m_time.group(2))
-        h_str = f"{hrs} hour" if hrs == 1 else f"{hrs} hours"
-        return f"{h_str}, {mins} mins" if mins else h_str
-
-    # Case 5: 'X hours, X min(s)' e.g. '2 hours, 15 minutes'
-    m_hrs_min = re.match(r'^(\d+)\s+hour(?:s)?,\s*(\d+)\s+min(?:utes?|s)?$', raw)
-    if m_hrs_min:
-        hrs, mins = int(m_hrs_min.group(1)), int(m_hrs_min.group(2))
-        h_str = f"{hrs} hour" if hrs == 1 else f"{hrs} hours"
-        return f"{h_str}, {mins} mins" if mins else h_str
-
-    # Case 6: 'X min(s)' e.g. '45 min' or '45 minutes'
-    m_min = re.match(r'^(\d+)\s+min(?:utes?|s)?$', raw)
-    if m_min:
-        return f"{m_min.group(1)} mins"
-
-    # Case 7: 'X day(s)' e.g. '1 day' or '10 days'
-    m_days = re.match(r'^(\d+)\s+day(?:s)?$', raw)
-    if m_days:
-        d = int(m_days.group(1))
-        d_str = f"{d} day" if d == 1 else f"{d} days"
-        return f"{d_str}, 0 hours"
-
-    return raw
+    return re.sub(r'\b(\d{1,2}):(\d{2})\b', r'\1 hours', raw)
 
 def parse_metrics_output(output: str, target_id: str | None = None, redis_conn=None) -> dict:
     """Parses output of: (uptime -p 2>/dev/null || uptime) && free -m && df -h -P && cat /proc/stat && cat /proc/loadavg && nproc"""

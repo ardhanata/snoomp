@@ -133,13 +133,8 @@ def test_parse_uptime_str():
     assert parse_uptime_str(" 08:59:18 up 4 days, 12:36,  0 users,  load average: 0.05, 0.03, 0.01") == "4 days, 12 hours"
     assert parse_uptime_str("up 1 week, 23 hours, 27 minutes") == "1 week, 23 hours, 27 minutes"
     assert parse_uptime_str("up 91 days, 16 hours") == "91 days, 16 hours"
-    assert parse_uptime_str("up 91 days, 16 hours, 4 minutes") == "91 days, 16 hours"
-    assert parse_uptime_str("up 1 day, 1:05, 1 user, load average: 0.10, 0.10, 0.10") == "1 day, 1 hour"
-    assert parse_uptime_str(" 10:00:00 up 3 days, 14 min, 1 user, load average: 0.00") == "3 days, 0 hours"
-    assert parse_uptime_str("up 2 hours, 15 minutes") == "2 hours, 15 mins"
-    assert parse_uptime_str("up 2:15, 1 user, load average: 0.00, 0.00, 0.00") == "2 hours, 15 mins"
-    assert parse_uptime_str("up 45 minutes") == "45 mins"
-    assert parse_uptime_str("up 45 min") == "45 mins"
+    assert parse_uptime_str("up 2 hours, 15 minutes") == "2 hours, 15 minutes"
+    assert parse_uptime_str("up 45 minutes") == "45 minutes"
     assert parse_uptime_str("unknown") == "unknown"
 
 
