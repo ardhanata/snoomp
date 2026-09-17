@@ -4,6 +4,7 @@ from app.checkers.ssh import (
     parse_proc_stat,
     calculate_proc_stat_cpu_percent,
     parse_metrics_output,
+    parse_uptime_str,
     _memory_cpustat_cache
 )
 
@@ -35,6 +36,8 @@ cpu  1100 50 250 8600 100 10 20 0 0 0
 """
 
 def setup_function():
+    import os
+    os.environ["REDIS_URL"] = ""
     _memory_cpustat_cache.clear()
 
 def test_parse_proc_stat():
@@ -124,4 +127,20 @@ async def test_check_ssh_timeout_retries_and_reports_real_error(monkeypatch):
         assert res.status in ["up", "warning", "critical"]
         assert res.details is not None
         assert res.details["cpu_percent"] == 40.0
+
+def test_parse_uptime_str():
+    assert parse_uptime_str(" 08:55:09 up 209 days, 14:21, 0 users, load average: 0.00, 0.00, 0.00") == "209 days, 14 hours"
+    assert parse_uptime_str(" 08:59:18 up 4 days, 12:36,  0 users,  load average: 0.05, 0.03, 0.01") == "4 days, 12 hours"
+    assert parse_uptime_str("up 1 week, 23 hours, 27 minutes") == "1 week, 23 hours, 27 minutes"
+    assert parse_uptime_str("up 91 days, 16 hours") == "91 days, 16 hours"
+    assert parse_uptime_str("up 91 days, 16 hours, 4 minutes") == "91 days, 16 hours"
+    assert parse_uptime_str("up 1 day, 1:05, 1 user, load average: 0.10, 0.10, 0.10") == "1 day, 1 hour"
+    assert parse_uptime_str(" 10:00:00 up 3 days, 14 min, 1 user, load average: 0.00") == "3 days, 0 hours"
+    assert parse_uptime_str("up 2 hours, 15 minutes") == "2 hours, 15 mins"
+    assert parse_uptime_str("up 2:15, 1 user, load average: 0.00, 0.00, 0.00") == "2 hours, 15 mins"
+    assert parse_uptime_str("up 45 minutes") == "45 mins"
+    assert parse_uptime_str("up 45 min") == "45 mins"
+    assert parse_uptime_str("unknown") == "unknown"
+
+
 

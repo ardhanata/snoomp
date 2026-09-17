@@ -5,6 +5,15 @@ All notable changes to Snoomp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] - 2026-09-17
+
+### Fixed
+- **System Uptime Normalization & Formatting (`ssh.py`, `utilization_report.py`, `App.tsx`):**
+  - **SSH Checker Uptime Command & Output Parsing:** Updated SSH checker metric gathering command to prefer `(uptime -p 2>/dev/null || uptime)`. Replaced dumping raw standard `uptime` output lines (which previously included server time-of-day clock timestamps, user counts, and load averages) with `parse_uptime_str()`.
+  - **SNMP-Aligned Output Format:** Uptime values are now normalized to simple, human-readable strings (`X days, Y hours` or pretty uptime `up 1 week, 23 hours, 27 minutes`) matching the clean convention of SNMP monitors.
+  - **Frontend Regex Demangling:** Replaced fragile frontend regex replacements in `App.tsx` with a robust `formatUptime()` parser, preventing mangled clock timestamp prefixes (e.g. `8 hours, 55 minutes:09 up 209 days...`) in dashboard metric cards and utilization dialogs.
+  - **Database Historical Backfill:** Sanitized and normalized existing historical uptime records in `SystemMetrics` and check results.
+
 ## [1.4.2] - 2026-09-16
 
 ### Fixed

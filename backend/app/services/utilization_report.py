@@ -239,14 +239,17 @@ def get_target_utilization_report(target_id: str, hours: int = 168, db: Session 
     total_n = len(rows)
 
     # Host info
+    from app.checkers.ssh import parse_uptime_str
+    raw_uptime = latest_uptime or latest_details.get("uptime") or "Active"
+    host_uptime = parse_uptime_str(raw_uptime) if raw_uptime != "Active" else "Active"
     host_info = {
-        "uptime": latest_uptime or latest_details.get("uptime") or "Active",
+        "uptime": host_uptime,
         "cpu_cores": latest_details.get("cpu_cores") or 1,
         "ram_total_gb": latest_details.get("ram_total_gb"),
         "disk_total_gb": latest_details.get("disk_total_gb"),
         "load_1min": latest_details.get("load_1min"),
         "load_percent": latest_details.get("load_percent"),
-        "os_type": latest_details.get("os_type") or ("Windows" if "Windows" in str(latest_uptime) else "Linux/POSIX"),
+        "os_type": latest_details.get("os_type") or ("Windows" if "Windows" in str(raw_uptime) else "Linux/POSIX"),
     }
 
     # Disk partitions
