@@ -97,13 +97,13 @@ export default class ErrorBoundary extends React.Component<Props, State> {
           <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 700 }}>Snoomp stopped rendering</h1>
 
           <p style={{ margin: '10px 0 0', fontSize: '14px', lineHeight: 1.6, color: 'var(--text-secondary, #8b92aa)' }}>
-            The interface hit an error it could not recover from. Monitoring is unaffected — checks keep
+            The interface hit an error it could not recover from. Monitoring is unaffected: checks keep
             running on the server, and no data was lost.
           </p>
 
           <p style={{ margin: '14px 0 0', fontSize: '14px', lineHeight: 1.6, color: 'var(--text-secondary, #8b92aa)' }}>
-            Reload first. If it happens again straight away, the deployed frontend is likely out of date —
-            replace <code style={{ fontFamily: 'var(--font-mono, monospace)' }}>frontend/dist</code> next to
+            Reload first. If it happens again straight away, the deployed frontend is likely out of date.
+            Replace <code style={{ fontFamily: 'var(--font-mono, monospace)' }}>frontend/dist</code> next to
             the server executable and restart it.
           </p>
 

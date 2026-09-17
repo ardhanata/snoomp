@@ -23,7 +23,7 @@ def parse_cert_expiry_days(cert: dict) -> int | None:
             expire_date = datetime.datetime.strptime(expiry_str, '%b %d %H:%M:%S %Y')
         except ValueError:
             return None
-    remaining = expire_date - datetime.datetime.utcnow()
+    remaining = expire_date - datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
     return max(0, remaining.days)
 
 def get_ssl_expiry_days(hostname: str, port: int = 443) -> int | None:
@@ -85,13 +85,15 @@ async def check_http(
         dns_ms = max(0.1, round((time.monotonic() - start) * 1000, 1))
 
     # TCP & TLS Handshake Phase + SSL Expiry Inspection
+    addr_family = addr_info[0][0] if addr_info else socket.AF_INET
+
     def _probe_socket_and_tls() -> Tuple[float, float, int | None, bool]:
         t_tcp = 0.0
         t_tls = 0.0
         exp_days = None
         is_valid_ssl = False
         
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock = socket.socket(addr_family, socket.SOCK_STREAM)
         sock.settimeout(min(timeout, 3.0))
         t0 = time.monotonic()
         try:

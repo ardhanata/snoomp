@@ -35,6 +35,46 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+_sync_redis_client = None
+
+def get_redis_client():
+    global _sync_redis_client
+    if _sync_redis_client is None and REDIS_URL and REDIS_URL.lower() not in ("none", "false", ""):
+        try:
+            import redis
+            _sync_redis_client = redis.Redis.from_url(REDIS_URL, socket_timeout=2)
+        except Exception as e:
+            logger.warning(f"Could not connect synchronous Redis client: {e}")
+            _sync_redis_client = None
+    return _sync_redis_client
+
+def publish_update(payload: dict, channel: str = "snoomp_updates") -> None:
+    """Safely publish an event to Redis pub/sub, with in-memory WebSocket broadcast fallback."""
+    r = get_redis_client()
+    if r:
+        try:
+            r.publish(channel, json.dumps(payload))
+            return
+        except Exception as e:
+            logger.debug(f"Redis publish to '{channel}' failed ({e}), falling back to in-memory broadcast")
+
+    # In-process WebSocket broadcast fallback (standalone/testing)
+    if manager.active_connections:
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                if payload.get("type") == "reload":
+                    db = SessionLocal()
+                    try:
+                        refreshed = compile_initial_data(db)
+                        asyncio.create_task(manager.broadcast({"type": "initial_state", "data": refreshed}))
+                    finally:
+                        db.close()
+                else:
+                    asyncio.create_task(manager.broadcast({"type": "target_update", "data": payload}))
+        except Exception:
+            pass
+
 async def redis_listener():
     if not REDIS_URL or REDIS_URL.lower() in ("none", "false", ""):
         logger.info("REDIS_URL not configured. Running WebSockets in standalone in-memory broadcast mode.")

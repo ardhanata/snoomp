@@ -400,7 +400,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                   Preferences
                 </h3>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Instance-wide — these apply to every operator
+                  Instance-wide: these apply to every operator
                 </span>
               </div>
             </div>
@@ -588,7 +588,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                     Your accent colour
                   </legend>
                   <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: 0, marginBottom: 'var(--space-3)' }}>
-                    Stored in this browser only — it does not change what anyone else sees, and
+                    Stored in this browser only: it does not change what anyone else sees, and
                     applies as soon as you pick it.
                   </p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
@@ -779,7 +779,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', opacity: discord.enabled ? 1 : 0.55 }}>
                     <div>
                       <label htmlFor="pref-webhook-critical" style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                        Critical channel webhook — down transitions, pings the on-call role
+                        Critical channel webhook: down transitions, pings the on-call role
                       </label>
                       <input
                         id="pref-webhook-critical"
@@ -796,7 +796,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                     </div>
                     <div>
                       <label htmlFor="pref-webhook-warning" style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                        Warning channel webhook — degraded and threshold breaches, never pings
+                        Warning channel webhook: degraded and threshold breaches, never pings
                       </label>
                       <input
                         id="pref-webhook-warning"
@@ -842,7 +842,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                         : <><Send size={13} aria-hidden="true" /> Send test alert</>}
                     </button>
                     <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                      Save first — the test uses the stored webhook.
+                      Save first: the test uses the stored webhook.
                     </span>
                   </div>
                 </fieldset>

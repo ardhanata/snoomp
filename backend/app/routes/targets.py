@@ -1,6 +1,5 @@
 import uuid
 import json
-import redis
 import os
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -11,6 +10,8 @@ from app.database import get_db
 from app.models.target import Target, normalize_tags
 from app.auth.security import require_editor, require_viewer
 from app.scheduler.runner import add_target_job, remove_target_job
+from app.services.dashboard import compile_initial_data
+from app.websockets import publish_update
 from worker.tasks import execute_checker
 
 router = APIRouter(prefix="/api/targets", tags=["Targets"])
@@ -36,7 +37,6 @@ class TargetCreateUpdate(BaseModel):
 @router.get("", dependencies=[Depends(require_viewer)])
 @router.get("/", dependencies=[Depends(require_viewer)])
 def list_targets(db: Session = Depends(get_db)):
-    from app.main import compile_initial_data
     return compile_initial_data(db)
 
 @router.get("/{target_id}", dependencies=[Depends(require_viewer)])
@@ -78,10 +78,7 @@ def create_target(target_in: TargetCreateUpdate, request: Request, db: Session =
     if target.enabled and hasattr(request.app.state, "scheduler"):
         add_target_job(request.app.state.scheduler, target)
         
-    try:
-        redis_client.publish("snoomp_updates", json.dumps({"type": "reload"}))
-    except Exception:
-        pass
+    publish_update({"type": "reload"})
 
     return target.to_dict()
 
@@ -119,10 +116,7 @@ def update_target(target_id: str, target_in: TargetCreateUpdate, request: Reques
         else:
             remove_target_job(request.app.state.scheduler, target.id)
             
-    try:
-        redis_client.publish("snoomp_updates", json.dumps({"type": "reload"}))
-    except Exception:
-        pass
+    publish_update({"type": "reload"})
 
     return target.to_dict()
 
@@ -139,10 +133,7 @@ def delete_target(target_id: str, request: Request, db: Session = Depends(get_db
     if hasattr(request.app.state, "scheduler"):
         remove_target_job(request.app.state.scheduler, target_id)
 
-    try:
-        redis_client.publish("snoomp_updates", json.dumps({"type": "reload"}))
-    except Exception:
-        pass
+    publish_update({"type": "reload"})
 
 @router.post("/test", dependencies=[Depends(require_editor)])
 async def test_target_connection(

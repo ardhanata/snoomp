@@ -467,21 +467,8 @@ def run_check_task(target_id: str):
         try:
             if redis_client:
                 redis_client.publish("snoomp_updates", json.dumps(update_payload))
-            else:
-                raise RuntimeError("Redis not configured")
-        except Exception:
-            try:
-                from app.websockets import manager
-                if manager.active_connections:
-                    import asyncio
-                    try:
-                        loop = asyncio.get_event_loop()
-                        if loop.is_running():
-                            asyncio.create_task(manager.broadcast(update_payload))
-                    except Exception:
-                        pass
-            except Exception:
-                pass
+        except Exception as e:
+            logger.debug(f"Redis publish failed for target {target_id}: {e}")
         
         logger.info(f"Check completed for target {target.name} ({target_id}): Status {status.upper()}")
         

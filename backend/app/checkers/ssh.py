@@ -3,6 +3,7 @@ import time
 import re
 import logging
 import json
+import redis
 import asyncssh
 from typing import Any
 from app.checkers.base import CheckerResult, evaluate_resource_status

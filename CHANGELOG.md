@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.4.2] - 2026-09-16
 
 ### Fixed
+- **Anti-Slop Audit 002 & Backend Resilience (`websockets.py`, `dashboard.py`, `targets.py`, `ssh.py`, `http.py`):**
+  - **Push Monitor 500 NameError:** Added unified `publish_update` helper in `app/websockets.py` with safe synchronous Redis pub/sub client and in-memory fallback. Fixed HTTP 500 error in `receive_push_heartbeat` (`app/routes/dashboard.py`) caused by uninstantiated `redis_client`.
+  - **Target Reload Event Broadcasting:** Fixed silent failure in `app/routes/targets.py` during target creation, update, and deletion, restoring WebSocket `{"type": "reload"}` signals so client browsers refresh without manual reloads.
+  - **SSH Multi-Worker CPU Utilization Cache:** Added missing `import redis` in `app/checkers/ssh.py`, resolving `NameError` and restoring multi-worker shared delta CPU calculation across check intervals.
+  - **Anti-Slop Copywriting Hard Gate (`R-02`):** Removed raw em dashes (`—`) from operator UI text in `UserPreferencesModal.tsx` and `ErrorBoundary.tsx`.
+  - **IPv6 Pre-Flight Socket Probes:** Updated socket inspection in `app/checkers/http.py` to dynamically detect address family (`AF_INET` / `AF_INET6`), eliminating probe socket errors on IPv6 endpoints. Replaced deprecated `datetime.utcnow()` with timezone-aware UTC datetime.
+  - **Architecture Import Cleanup:** Replaced circular re-export import `from app.main import compile_initial_data` with direct `from app.services.dashboard import compile_initial_data` in `app/routes/targets.py`.
+- **Ponytail Repo Optimization:**
+  - Removed dead in-process WebSocket broadcast fallback in Celery worker task (`worker/tasks.py`).
+  - Deleted obsolete 1-line empty stylesheet `frontend/src/styles/theme.css` and its unreferenced import in `main.tsx`.
+  - Removed legacy SQLite database file `backend/snoomp.db` from repository.
+- **SNMP Checker Multi-Core CPU Discovery Bug (`backend/app/checkers/snmp.py`, `backend/tests/test_snmp_checker.py`):**
+  - Fixed an issue where the SNMP monitor and dashboard always reported all SNMP targets as having `1 Core` regardless of actual server hardware specifications.
+  - Resolved PySNMP type error in `hrProcessorLoad` table traversal where `varBind[0]` returned an `ObjectType` instance instead of an `ObjectIdentity`. Passing `ObjectType(varBind[0])` raised an unhandled `SmiError` on the second iteration, which caused the checker exception handler to silently fall back to `cores = 1`.
+  - Upgraded CPU core discovery to use fast asynchronous SNMP `bulkCmd` (GETBULK) querying `1.3.6.1.2.1.25.3.3.1.2` with up to 64 repetitions in a single network round-trip, drastically accelerating polling speed while eliminating worker pool starvation.
+  - Implemented multi-tier fallback mechanism: clean string-based OID extraction for `nextCmd` (GETNEXT), followed by `hrDeviceProcessor` entry counting in `hrDeviceTable` (`1.3.6.1.2.1.25.3.2.1.2`) if load tables are inaccessible.
 - **Storage Partition Telemetry & PDF Report Generation (`backend/app/checkers/ssh.py`, `backend/app/services/utilization_report.py`, `backend/app/reports/pdf.py`, `frontend/src/App.tsx`):**
   - **Used Space & Utilization Display Bug:** Fixed issue where the PDF report's "Storage partitions" table rendered all partitions with `0.0%` utilization and `—` for used space. Resolved property key mismatch where the SSH checker produced `used_percent` while the reporting service expected `use_pct`.
   - **Dynamic Fallback Calculation:** Partition extraction in `utilization_report.py` now accepts `use_pct`, `percent`, or `used_percent` and dynamically computes `used_gb` (`size_gb * (use_pct / 100)`) when not explicitly stored, guaranteeing accurate metrics for all legacy and active heartbeats.

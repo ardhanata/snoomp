@@ -6,6 +6,29 @@ from app.checkers.base import CheckerResult, evaluate_resource_status
 
 logger = logging.getLogger(__name__)
 
+try:
+    from pysnmp.hlapi.v3arch.asyncio import (
+        get_cmd as getCmd, next_cmd as nextCmd, bulk_cmd as bulkCmd,
+        SnmpEngine, CommunityData, UdpTransportTarget,
+        ContextData, ObjectType, ObjectIdentity,
+    )
+except ImportError:
+    try:
+        from pysnmp.hlapi.asyncio import (
+            getCmd, nextCmd, bulkCmd,
+            SnmpEngine, CommunityData, UdpTransportTarget,
+            ContextData, ObjectType, ObjectIdentity,
+        )
+    except ImportError:
+        getCmd = nextCmd = bulkCmd = None
+        SnmpEngine = CommunityData = UdpTransportTarget = None
+        ContextData = ObjectType = ObjectIdentity = None
+
+async def _make_target(h, p, timeout_sec=3, retries_cnt=1):
+    if hasattr(UdpTransportTarget, 'create'):
+        return await UdpTransportTarget.create((h, p), timeout=timeout_sec, retries=retries_cnt)
+    return UdpTransportTarget((h, p), timeout=timeout_sec, retries=retries_cnt)
+
 def _get_mock_metrics() -> dict:
     import random
     # Generate realistic looking metrics
@@ -21,7 +44,7 @@ def _get_mock_metrics() -> dict:
 
 async def check_snmp(host: str, community: str = "public", port: int = 161) -> CheckerResult:
     """Check server metrics via SNMP (CPU, Memory, Disk, Uptime)"""
-    use_mock = os.getenv("USE_SNMP_MOCK", "false").lower() == "true"
+    use_mock = os.getenv("USE_SNMP_MOCK", "false").lower() == "true" or getCmd is None
 
     if use_mock or host in ["127.0.0.1", "localhost"]:
         metrics = _get_mock_metrics()
@@ -29,21 +52,6 @@ async def check_snmp(host: str, community: str = "public", port: int = 161) -> C
         return CheckerResult(status=status, response_time_ms=0.0, error=err, details=metrics)
 
     try:
-        try:
-            from pysnmp.hlapi.v3arch.asyncio import (
-                get_cmd as getCmd, next_cmd as nextCmd, SnmpEngine, CommunityData, UdpTransportTarget,
-                ContextData, ObjectType, ObjectIdentity,
-            )
-        except ImportError:
-            from pysnmp.hlapi.asyncio import (
-                getCmd, nextCmd, SnmpEngine, CommunityData, UdpTransportTarget,
-                ContextData, ObjectType, ObjectIdentity,
-            )
-
-        async def _make_target(h, p, timeout_sec=3, retries_cnt=1):
-            if hasattr(UdpTransportTarget, 'create'):
-                return await UdpTransportTarget.create((h, p), timeout=timeout_sec, retries=retries_cnt)
-            return UdpTransportTarget((h, p), timeout=timeout_sec, retries=retries_cnt)
 
         # OIDs (UCD-SNMP-MIB / HOST-RESOURCES-MIB)
         # CPU: use ssCpuUser + ssCpuSystem for true % (not load average)
@@ -121,36 +129,87 @@ async def check_snmp(host: str, community: str = "public", port: int = 161) -> C
         except (IndexError, ValueError):
             uptime_str = "unknown"
 
-        # Walk to find CPU Cores count
+        # Discover CPU Cores count via hrProcessorLoad (1.3.6.1.2.1.25.3.3.1.2)
         cores = 0
+        base_proc_oid = "1.3.6.1.2.1.25.3.3.1.2"
+
+        # 1. Fast GETBULK (SNMPv2c) in one network round trip
         try:
-            engine = SnmpEngine()
-            target = await _make_target(host, port, timeout_sec=2, retries_cnt=0)
-            context = ContextData()
-            current_oid = ObjectIdentity('1.3.6.1.2.1.25.3.3.1.2')
-            
-            while True:
-                errInd, errStat, _, vBinds = await nextCmd(
-                    engine,
-                    CommunityData(community),
-                    target,
-                    context,
-                    ObjectType(current_oid),
-                    lexicographicMode=False
-                )
-                if errInd or errStat or not vBinds:
-                    break
-                varBind = vBinds[0]
-                oid_str = varBind[0].prettyPrint()
-                if oid_str.startswith("SNMPv2-SMI::mib-2.25.3.3.1.2") or oid_str.startswith("1.3.6.1.2.1.25.3.3.1.2"):
-                    cores += 1
-                    current_oid = varBind[0]
-                else:
-                    break
-        except Exception:
-            cores = 1
+            target_bulk = await _make_target(host, port, timeout_sec=2, retries_cnt=0)
+            errInd, errStat, _, vBinds = await bulkCmd(
+                SnmpEngine(),
+                CommunityData(community),
+                target_bulk,
+                ContextData(),
+                0, 64,
+                ObjectType(ObjectIdentity(base_proc_oid)),
+                lexicographicMode=False,
+            )
+            if not errInd and not errStat and vBinds:
+                for row in vBinds:
+                    for vb in row:
+                        oid_obj = vb[0]
+                        oid_str = str(oid_obj.getOid()) if hasattr(oid_obj, "getOid") else str(oid_obj)
+                        if oid_str.startswith(base_proc_oid) or "25.3.3.1.2" in oid_str:
+                            cores += 1
+        except Exception as e:
+            logger.debug(f"SNMP bulkCmd core discovery failed for {host}: {e}")
+
+        # 2. Fallback to GETNEXT walk (SNMPv1 / devices lacking GETBULK support)
         if cores == 0:
-            cores = 1
+            try:
+                target_next = await _make_target(host, port, timeout_sec=2, retries_cnt=0)
+                engine_next = SnmpEngine()
+                current_oid = ObjectIdentity(base_proc_oid)
+                for _ in range(64):
+                    errInd, errStat, _, vBinds = await nextCmd(
+                        engine_next,
+                        CommunityData(community),
+                        target_next,
+                        ContextData(),
+                        ObjectType(current_oid),
+                        lexicographicMode=False,
+                    )
+                    if errInd or errStat or not vBinds:
+                        break
+                    row = vBinds[0]
+                    oid_obj = row[0][0]
+                    oid_str = str(oid_obj.getOid()) if hasattr(oid_obj, "getOid") else str(oid_obj)
+                    if oid_str.startswith(base_proc_oid) or "25.3.3.1.2" in oid_str:
+                        cores += 1
+                        current_oid = ObjectIdentity(oid_str)
+                    else:
+                        break
+            except Exception as e:
+                logger.debug(f"SNMP nextCmd core discovery failed for {host}: {e}")
+
+        # 3. Fallback to hrDeviceProcessor entries in hrDeviceTable (1.3.6.1.2.1.25.3.2.1.2)
+        if cores == 0:
+            try:
+                dev_oid = "1.3.6.1.2.1.25.3.2.1.2"
+                target_dev = await _make_target(host, port, timeout_sec=2, retries_cnt=0)
+                errInd, errStat, _, vBinds = await bulkCmd(
+                    SnmpEngine(),
+                    CommunityData(community),
+                    target_dev,
+                    ContextData(),
+                    0, 64,
+                    ObjectType(ObjectIdentity(dev_oid)),
+                    lexicographicMode=False,
+                )
+                if not errInd and not errStat and vBinds:
+                    for row in vBinds:
+                        for vb in row:
+                            oid_obj = vb[0]
+                            val_obj = vb[1]
+                            oid_str = str(oid_obj.getOid()) if hasattr(oid_obj, "getOid") else str(oid_obj)
+                            val_str = str(val_obj.getOid()) if hasattr(val_obj, "getOid") else str(val_obj)
+                            if (oid_str.startswith(dev_oid) or "25.3.2.1.2" in oid_str) and ("25.3.1.3" in val_str or "hrDeviceProcessor" in val_str):
+                                cores += 1
+            except Exception:
+                pass
+
+        cores = max(1, cores)
 
         metrics = {
             "cpu_percent": cpu, 

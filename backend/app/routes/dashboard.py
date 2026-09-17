@@ -15,6 +15,7 @@ from app.models.incident import Incident
 from app.auth.security import require_viewer, require_editor
 from app.checkers.base import evaluate_resource_status
 from app.services.utilization_report import get_target_utilization_report
+from app.websockets import publish_update
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
@@ -571,7 +572,7 @@ def receive_push_heartbeat(target_id: str, request: Request = None, payload: Dic
         "details": details,
         "checked_at": datetime.datetime.utcnow().isoformat()
     }
-    redis_client.publish("snoomp_updates", json.dumps(update_payload))
+    publish_update(update_payload)
     
     return {"status": "ok", "message": "Heartbeat registered"}
 
