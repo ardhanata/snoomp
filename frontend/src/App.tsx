@@ -363,6 +363,10 @@ function App() {
   // ── Dashboard ──
   const [monitors, setMonitors] = useState<any[]>([]);
   const [selectedMonitor, setSelectedMonitor] = useState<any>(null);
+  const selectedMonitorRef = useRef<any>(null);
+  useEffect(() => {
+    selectedMonitorRef.current = selectedMonitor;
+  }, [selectedMonitor]);
   const [stats, setStats] = useState<any>({
     total_targets: 0, status_summary: { up: 0, down: 0, warning: 0, critical: 0 }
   });
@@ -744,19 +748,16 @@ function App() {
         setMetricsHistory([]);
       }
 
-      setDbEngineStatus(null);
-
       if (isDb) {
         fetchDbEngineStatus(id);
+      } else {
+        setDbEngineStatus(null);
       }
     } catch { }
   };
 
   const handleResourceHoursChange = (hours: number) => {
     setResourceHours(hours);
-    if (selectedMonitor?.id) {
-      fetchMonitorDetails(selectedMonitor.id, selectedMonitor.type, hours);
-    }
   };
 
   const fetchStatusPages = async () => {
@@ -856,6 +857,50 @@ function App() {
             metrics: last.metrics ?? prev.metrics,
           };
         });
+
+        // ponytail: live-update heartbeats and metricsHistory for active monitor without manual page refresh
+        const currentSel = selectedMonitorRef.current;
+        if (currentSel?.id) {
+          const selUps = batch.get(currentSel.id);
+          if (selUps && selUps.length > 0) {
+            setHeartbeats(prev => {
+              const next = [...prev];
+              for (const u of selUps) {
+                if (u.status) {
+                  next.push({
+                    id: u.id || `live-${Date.now()}-${Math.random()}`,
+                    status: u.status,
+                    response_time_ms: u.response_time_ms,
+                    error: u.error,
+                    checked_at: u.checked_at || new Date().toISOString(),
+                  });
+                }
+              }
+              return next.slice(-60);
+            });
+
+            setMetricsHistory(prev => {
+              const next = [...prev];
+              let changed = false;
+              for (const u of selUps) {
+                const m = u.metrics || u.details;
+                if (m && (m.cpu_percent != null || m.mem_percent != null || m.disk_percent != null)) {
+                  changed = true;
+                  next.push({
+                    id: `live-${Date.now()}-${Math.random()}`,
+                    target_id: currentSel.id,
+                    checked_at: u.checked_at || new Date().toISOString(),
+                    cpu_percent: m.cpu_percent,
+                    mem_percent: m.mem_percent,
+                    disk_percent: m.disk_percent,
+                    details_json: m
+                  });
+                }
+              }
+              return changed ? (next.length > 500 ? next.slice(-500) : next) : prev;
+            });
+          }
+        }
       });
 
       debouncedFetchStatsAndIncidents();
@@ -939,11 +984,32 @@ function App() {
     };
   }, [token]);
 
-  // Sync selected monitor on initial selection
+  // Sync selected monitor details on selection, timeframe change, and periodic background refresh
   useEffect(() => {
     if (!selectedMonitor?.id) return;
-    fetchMonitorDetails(selectedMonitor.id, selectedMonitor.type, resourceHours);
-  }, [selectedMonitor?.id]); // eslint-disable-line
+    const mid = selectedMonitor.id;
+    const mtype = selectedMonitor.type;
+
+    fetchMonitorDetails(mid, mtype, resourceHours);
+
+    // Periodic refresh for active monitor details (matches check_interval or default 60s)
+    const intervalSec = Math.max(15, selectedMonitor.check_interval || 60);
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchMonitorDetails(mid, mtype, resourceHours);
+      }
+    }, intervalSec * 1000);
+
+    const onFocus = () => {
+      fetchMonitorDetails(mid, mtype, resourceHours);
+    };
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [selectedMonitor?.id, resourceHours]); // eslint-disable-line
 
   // Stable identities so React.memo(MonitorRow) can actually bail out. Inline
   // arrow props changed on every render, which re-rendered every row and its

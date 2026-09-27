@@ -39,8 +39,10 @@ function ResourceHistoryChartImpl({ metricsHistory, resourceHours }: ResourceHis
   );
 
   // Deliberately not memoized: the window is anchored to "now", so it has to be
-  // recomputed whenever the chart actually renders.
-  const now = Date.now();
+  // recomputed whenever the chart actually renders. Ensure slight client-server clock drift
+  // does not push recent points beyond the chart right boundary.
+  const lastTs = data.length > 0 ? data[data.length - 1].timestamp : 0;
+  const now = Math.max(Date.now(), lastTs);
 
   return (
     <>
