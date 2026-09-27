@@ -31,7 +31,9 @@ function ResourceHistoryChartImpl({ metricsHistory, resourceHours }: ResourceHis
   const data = useMemo(
     () => metricsHistory.map((m: any) => ({
       timestamp: new Date(m.checked_at).getTime(),
-      cpu: m.cpu_percent, mem: m.mem_percent, disk: m.disk_percent,
+      cpu: m.cpu_percent != null ? Math.max(0, m.cpu_percent) : null,
+      mem: m.mem_percent != null ? Math.max(0, m.mem_percent) : null,
+      disk: m.disk_percent != null ? Math.max(0, m.disk_percent) : null,
     })),
     [metricsHistory]
   );

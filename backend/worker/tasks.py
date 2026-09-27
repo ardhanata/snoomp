@@ -381,11 +381,15 @@ def run_check_task(target_id: str):
             uptime = details.get("uptime")
             
             if cpu is not None or mem is not None or disk is not None or bool(details):
+                is_host = target.type.lower() in ["snmp", "ssh"]
+                safe_cpu = max(0.0, min(100.0, float(cpu))) if (cpu is not None and is_host) else (max(0.0, float(cpu)) if cpu is not None else None)
+                safe_mem = max(0.0, min(100.0, float(mem))) if (mem is not None and is_host) else (max(0.0, float(mem)) if mem is not None else None)
+                safe_disk = max(0.0, min(100.0, float(disk))) if disk is not None else None
                 metric_row = SystemMetrics(
                     target_id=target_id,
-                    cpu_percent=cpu,
-                    mem_percent=mem,
-                    disk_percent=disk,
+                    cpu_percent=safe_cpu,
+                    mem_percent=safe_mem,
+                    disk_percent=safe_disk,
                     uptime=uptime,
                     details_json=details
                 )

@@ -44,8 +44,8 @@ def check_mongodb(connection_string: str, timeout: int = 3) -> CheckerResult:
             "mem_virtual_mb": mem.get("virtual", 0),
             # Map database metrics standard CPU/RAM percents
             "cpu_percent": 0.0, # Simulated
-            "mem_percent": float(connections.get("current", 0)), # map active connections to mem_percent
-            "disk_percent": float(min(100.0, (total_ops % 1000) / 10.0)) # map ops scale to disk_percent
+            "mem_percent": float(max(0, connections.get("current", 0))), # map active connections to mem_percent
+            "disk_percent": float(max(0.0, min(100.0, (total_ops % 1000) / 10.0))) # map ops scale to disk_percent
         }
         
         client.close()

@@ -22,9 +22,9 @@ class SystemMetrics(Base):
             "id": self.id,
             "target_id": self.target_id,
             "checked_at": self.checked_at.isoformat() if self.checked_at else None,
-            "cpu_percent": self.cpu_percent,
-            "mem_percent": self.mem_percent,
-            "disk_percent": self.disk_percent,
+            "cpu_percent": max(0.0, self.cpu_percent) if self.cpu_percent is not None else None,
+            "mem_percent": max(0.0, self.mem_percent) if self.mem_percent is not None else None,
+            "disk_percent": max(0.0, self.disk_percent) if self.disk_percent is not None else None,
             "uptime": self.uptime,
             "details_json": self.details_json or {}
         }

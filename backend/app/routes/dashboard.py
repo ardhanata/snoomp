@@ -141,9 +141,9 @@ def get_target_metrics(target_id: str, hours: int = 24, db: Session = Depends(ge
         bucket_ts = int(ts // bucket_seconds) * bucket_seconds
         if bucket_ts not in buckets:
             buckets[bucket_ts] = {"cpus": [], "mems": [], "disks": [], "details": {}}
-        if m.cpu_percent is not None: buckets[bucket_ts]["cpus"].append(m.cpu_percent)
-        if m.mem_percent is not None: buckets[bucket_ts]["mems"].append(m.mem_percent)
-        if m.disk_percent is not None: buckets[bucket_ts]["disks"].append(m.disk_percent)
+        if m.cpu_percent is not None: buckets[bucket_ts]["cpus"].append(max(0.0, m.cpu_percent))
+        if m.mem_percent is not None: buckets[bucket_ts]["mems"].append(max(0.0, m.mem_percent))
+        if m.disk_percent is not None: buckets[bucket_ts]["disks"].append(max(0.0, m.disk_percent))
 
         # Carry the numeric fields out of details_json through the bucketing.
         # Database monitors chart from these (connections, cache hit ratio,
@@ -524,9 +524,9 @@ def receive_push_heartbeat(target_id: str, request: Request = None, payload: Dic
     if cpu is not None or mem is not None or disk is not None:
         metric_row = SystemMetrics(
             target_id=target_id,
-            cpu_percent=float(cpu) if cpu is not None else None,
-            mem_percent=float(mem) if mem is not None else None,
-            disk_percent=float(disk) if disk is not None else None,
+            cpu_percent=max(0.0, min(100.0, float(cpu))) if cpu is not None else None,
+            mem_percent=max(0.0, min(100.0, float(mem))) if mem is not None else None,
+            disk_percent=max(0.0, min(100.0, float(disk))) if disk is not None else None,
             uptime=str(uptime) if uptime is not None else None,
             details_json=details
         )

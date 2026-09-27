@@ -51,7 +51,7 @@ def check_postgres(connection_string: str, query: str = "SELECT 1", timeout: int
                 # 2. Get active connections (server-wide)
                 try:
                     cursor.execute("SELECT count(*) FROM pg_stat_activity WHERE state IS NOT NULL")
-                    conn_count = cursor.fetchone()[0]
+                    conn_count = max(0, int(cursor.fetchone()[0]))
                 except Exception:
                     conn_count = 0
                     
@@ -63,7 +63,7 @@ def check_postgres(connection_string: str, query: str = "SELECT 1", timeout: int
                         WHERE datistemplate = false
                     """)
                     val = cursor.fetchone()[0]
-                    total_db_size = float(round(val, 2)) if val is not None else 0.0
+                    total_db_size = max(0.0, float(round(val, 2))) if val is not None else 0.0
                 except Exception:
                     total_db_size = 0.0
 
@@ -71,7 +71,7 @@ def check_postgres(connection_string: str, query: str = "SELECT 1", timeout: int
                 try:
                     cursor.execute("SELECT (sum(heap_blks_hit) * 100.0) / nullif(sum(heap_blks_hit) + sum(heap_blks_read), 0) FROM pg_statio_user_tables")
                     hit_ratio = cursor.fetchone()[0]
-                    hit_ratio = round(float(hit_ratio), 2) if hit_ratio is not None else 100.0
+                    hit_ratio = max(0.0, min(100.0, round(float(hit_ratio), 2))) if hit_ratio is not None else 100.0
                 except Exception:
                     hit_ratio = 100.0
                 

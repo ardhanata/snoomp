@@ -58,10 +58,12 @@ async def check_snmp(host: str, community: str = "public", port: int = 161) -> C
         CPU_USER_OID   = "1.3.6.1.4.1.2021.11.9.0"      # ssCpuUser  - % user-space CPU
         CPU_SYS_OID    = "1.3.6.1.4.1.2021.11.10.0"     # ssCpuSystem - % kernel CPU
         MEM_TOTAL_OID  = "1.3.6.1.4.1.2021.4.5.0"       # memTotalReal (kB)
-        MEM_FREE_OID   = "1.3.6.1.4.1.2021.4.11.0"      # memAvailReal (kB)
+        MEM_AVAIL_OID  = "1.3.6.1.4.1.2021.4.6.0"       # memAvailReal (kB) - physical free RAM (.4.11.0 was memTotalFree which includes swap)
         DISK_PCT_OID   = "1.3.6.1.4.1.2021.9.1.9.1"     # dskPercent.1 (Partition /)
         UPTIME_OID     = "1.3.6.1.2.1.25.1.1.0"         # hrSystemUptime
         DISK_TOTAL_OID = "1.3.6.1.4.1.2021.9.1.6.1"     # dskTotal.1 (kB, Partition /)
+        MEM_BUFFER_OID = "1.3.6.1.4.1.2021.4.14.0"      # memBuffer (kB)
+        MEM_CACHED_OID = "1.3.6.1.4.1.2021.4.15.0"      # memCached (kB)
 
         start = time.monotonic()
         target_obj = await _make_target(host, port, timeout_sec=3, retries_cnt=1)
@@ -73,10 +75,12 @@ async def check_snmp(host: str, community: str = "public", port: int = 161) -> C
             ObjectType(ObjectIdentity(CPU_USER_OID)),   # [0] ssCpuUser
             ObjectType(ObjectIdentity(CPU_SYS_OID)),    # [1] ssCpuSystem
             ObjectType(ObjectIdentity(MEM_TOTAL_OID)),  # [2] memTotalReal
-            ObjectType(ObjectIdentity(MEM_FREE_OID)),   # [3] memAvailReal
+            ObjectType(ObjectIdentity(MEM_AVAIL_OID)),  # [3] memAvailReal
             ObjectType(ObjectIdentity(DISK_PCT_OID)),   # [4] dskPercent.1
             ObjectType(ObjectIdentity(UPTIME_OID)),     # [5] hrSystemUptime
             ObjectType(ObjectIdentity(DISK_TOTAL_OID)), # [6] dskTotal.1
+            ObjectType(ObjectIdentity(MEM_BUFFER_OID)), # [7] memBuffer
+            ObjectType(ObjectIdentity(MEM_CACHED_OID)), # [8] memCached
         )
             
         elapsed = (time.monotonic() - start) * 1000
@@ -95,26 +99,45 @@ async def check_snmp(host: str, community: str = "public", port: int = 161) -> C
         try:
             cpu_user = int(var_binds[0][1])
             cpu_sys  = int(var_binds[1][1])
-            cpu = min(100.0, round(float(cpu_user + cpu_sys), 2))
-        except (IndexError, ValueError):
+            cpu = max(0.0, min(100.0, round(float(cpu_user + cpu_sys), 2)))
+        except (IndexError, ValueError, TypeError):
             cpu = 0.0
         
-        # Calculate memory percentage and total RAM size [2][3]
+        # Calculate memory percentage and total RAM size [2][3] + optional buffers [7], cached [8]
         try:
             mem_total = int(var_binds[2][1])
-            mem_free  = int(var_binds[3][1])
-            mem_percent = round(((mem_total - mem_free) / mem_total) * 100, 2) if mem_total else 0.0
-            ram_total_gb = round(mem_total / 1024 / 1024, 1)
-        except (IndexError, ValueError):
+            mem_avail = int(var_binds[3][1])
+            mem_buffer = 0
+            mem_cached = 0
+            if len(var_binds) > 7:
+                try:
+                    mem_buffer = int(var_binds[7][1])
+                except (IndexError, ValueError, TypeError):
+                    mem_buffer = 0
+            if len(var_binds) > 8:
+                try:
+                    mem_cached = int(var_binds[8][1])
+                except (IndexError, ValueError, TypeError):
+                    mem_cached = 0
+
+            # ponytail: effective free = avail + buffer + cached; if that exceeds total, memAvailReal already represents MemAvailable
+            effective_free = mem_avail + mem_buffer + mem_cached
+            if effective_free > mem_total or effective_free < 0:
+                effective_free = min(mem_total, max(0, mem_avail))
+
+            actual_used = max(0, mem_total - effective_free)
+            mem_percent = max(0.0, min(100.0, round((actual_used / mem_total) * 100, 2))) if mem_total > 0 else 0.0
+            ram_total_gb = max(0.0, round(mem_total / 1024 / 1024, 1))
+        except (IndexError, ValueError, TypeError):
             mem_percent = 0.0
             ram_total_gb = 0.0
             
         # Parse disk percentage [4] and total disk size [6]
         try:
-            disk_percent = round(float(str(var_binds[4][1])), 2)
+            disk_percent = max(0.0, min(100.0, round(float(str(var_binds[4][1])), 2)))
             disk_total = int(var_binds[6][1])
-            disk_total_gb = round(disk_total / 1024 / 1024, 1)
-        except (IndexError, ValueError):
+            disk_total_gb = max(0.0, round(disk_total / 1024 / 1024, 1))
+        except (IndexError, ValueError, TypeError):
             disk_percent = 0.0
             disk_total_gb = 0.0
 
@@ -122,11 +145,17 @@ async def check_snmp(host: str, community: str = "public", port: int = 161) -> C
         try:
             uptime_ticks = int(var_binds[5][1])
             # timeticks is in 1/100 of a second
-            uptime_seconds = uptime_ticks // 100
+            uptime_seconds = max(0, uptime_ticks // 100)
             uptime_days = uptime_seconds // 86400
             uptime_hours = (uptime_seconds % 86400) // 3600
-            uptime_str = f"{uptime_days} days, {uptime_hours} hours"
-        except (IndexError, ValueError):
+            uptime_mins = (uptime_seconds % 3600) // 60
+            if uptime_days > 0:
+                uptime_str = f"{uptime_days} days, {uptime_hours} hours"
+            elif uptime_hours > 0:
+                uptime_str = f"{uptime_hours} hours, {uptime_mins} mins"
+            else:
+                uptime_str = f"{uptime_mins} mins"
+        except (IndexError, ValueError, TypeError):
             uptime_str = "unknown"
 
         # Discover CPU Cores count via hrProcessorLoad (1.3.6.1.2.1.25.3.3.1.2)

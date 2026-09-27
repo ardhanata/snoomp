@@ -96,6 +96,58 @@ class TestSnmpChecker(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(res.status, "up")
         self.assertEqual(res.details.get("cpu_cores"), 4)
 
+    @patch("app.checkers.snmp.bulkCmd", new_callable=AsyncMock)
+    @patch("app.checkers.snmp.getCmd", new_callable=AsyncMock)
+    @patch("app.checkers.snmp._make_target", new_callable=AsyncMock)
+    async def test_snmp_memory_calculation_with_buffers_and_cached(self, mock_target, mock_get_cmd, mock_bulk_cmd):
+        mock_target.return_value = MagicMock()
+        # [0] ssCpuUser, [1] ssCpuSystem, [2] memTotalReal, [3] memAvailReal, [4] dskPercent, [5] hrSystemUptime, [6] dskTotal, [7] memBuffer, [8] memCached
+        # Total: 16 GB = 16384000 kB. Free: 2 GB, Buffer: 1 GB, Cached: 5 GB -> Effective free: 8 GB -> 50% usage
+        var_binds_get = [
+            (MagicMock(), 5),
+            (MagicMock(), 5),
+            (MagicMock(), 16384000),
+            (MagicMock(), 2048000),
+            (MagicMock(), "50.0"),
+            (MagicMock(), 8640000),
+            (MagicMock(), 100000000),
+            (MagicMock(), 1024000),
+            (MagicMock(), 5120000),
+        ]
+        mock_get_cmd.return_value = (None, None, 0, var_binds_get)
+        mock_bulk_cmd.return_value = (None, None, 0, [])
+
+        res = await check_snmp("192.168.1.102", community="public")
+        self.assertEqual(res.status, "up")
+        self.assertEqual(res.details.get("mem_percent"), 50.0)
+        self.assertEqual(res.details.get("ram_total_gb"), 15.6)
+
+    @patch("app.checkers.snmp.bulkCmd", new_callable=AsyncMock)
+    @patch("app.checkers.snmp.getCmd", new_callable=AsyncMock)
+    @patch("app.checkers.snmp._make_target", new_callable=AsyncMock)
+    async def test_snmp_memory_never_negative_when_free_exceeds_total(self, mock_target, mock_get_cmd, mock_bulk_cmd):
+        mock_target.return_value = MagicMock()
+        # Simulated host where free was reported greater than total (e.g. swap free included or misconfigured OID)
+        # Total: 16384000 kB, Avail: 18000000 kB
+        var_binds_get = [
+            (MagicMock(), 2),
+            (MagicMock(), 1),
+            (MagicMock(), 16384000),
+            (MagicMock(), 18000000),
+            (MagicMock(), "20.0"),
+            (MagicMock(), 8640000),
+            (MagicMock(), 100000000),
+            (MagicMock(), 0),
+            (MagicMock(), 0),
+        ]
+        mock_get_cmd.return_value = (None, None, 0, var_binds_get)
+        mock_bulk_cmd.return_value = (None, None, 0, [])
+
+        res = await check_snmp("192.168.1.103", community="public")
+        self.assertEqual(res.status, "up")
+        self.assertEqual(res.details.get("mem_percent"), 0.0)
+        self.assertGreaterEqual(res.details.get("mem_percent"), 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()

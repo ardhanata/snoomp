@@ -35,8 +35,8 @@ def check_redis(connection_string: str, timeout: int = 3) -> CheckerResult:
             "mem_fragmentation_ratio": info.get("mem_fragmentation_ratio", 0.0),
             # Map database metrics standard CPU/RAM percents
             "cpu_percent": 0.0, # Simulated
-            "mem_percent": float(connected_clients), # map connected clients to mem_percent
-            "disk_percent": float(min(100.0, ops_per_sec / 10.0)) # map ops count to disk_percent
+            "mem_percent": float(max(0, connected_clients)), # map connected clients to mem_percent
+            "disk_percent": float(max(0.0, min(100.0, ops_per_sec / 10.0))) # map ops count to disk_percent
         }
         
         return CheckerResult(

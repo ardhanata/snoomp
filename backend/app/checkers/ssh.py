@@ -233,7 +233,7 @@ def parse_metrics_output(output: str, target_id: str | None = None, redis_conn=N
 
     if parsed_disks:
         metrics["disks"] = parsed_disks
-        metrics["disk_percent"] = round((total_used_gb / total_disk_gb) * 100, 2) if total_disk_gb > 0 else 0.0
+        metrics["disk_percent"] = max(0.0, min(100.0, round((total_used_gb / total_disk_gb) * 100, 2))) if total_disk_gb > 0 else 0.0
         metrics["disk_total_gb"] = round(total_disk_gb, 1)
 
     # 4. Parse CPU cores count
@@ -266,7 +266,7 @@ def parse_metrics_output(output: str, target_id: str | None = None, redis_conn=N
         if load_match:
             load_1min = float(load_match.group(1))
 
-    load_percent = min(100.0, round((load_1min / metrics["cpu_cores"]) * 100, 2))
+    load_percent = max(0.0, min(100.0, round((load_1min / metrics["cpu_cores"]) * 100, 2)))
     metrics["load_1min"] = round(load_1min, 2)
     metrics["load_percent"] = load_percent
 
@@ -308,12 +308,12 @@ def parse_windows_metrics_output(output: str) -> dict:
             continue
         if line.startswith("CPU_PCT="):
             try:
-                metrics["cpu_percent"] = min(100.0, round(float(line.split("=")[1]), 2))
+                metrics["cpu_percent"] = max(0.0, min(100.0, round(float(line.split("=")[1]), 2)))
             except Exception:
                 pass
         elif line.startswith("MEM_TOTAL="):
             try:
-                metrics["ram_total_gb"] = round(float(line.split("=")[1]), 1)
+                metrics["ram_total_gb"] = max(0.0, round(float(line.split("=")[1]), 1))
             except Exception:
                 pass
         elif line.startswith("MEM_FREE="):
@@ -321,7 +321,7 @@ def parse_windows_metrics_output(output: str) -> dict:
                 free_mb = float(line.split("=")[1])
                 total_mb = metrics["ram_total_gb"] * 1024
                 if total_mb > 0:
-                    metrics["mem_percent"] = round(((total_mb - free_mb) / total_mb) * 100, 2)
+                    metrics["mem_percent"] = max(0.0, min(100.0, round(((total_mb - free_mb) / total_mb) * 100, 2)))
             except Exception:
                 pass
         elif line.startswith("DISK="):
@@ -330,8 +330,8 @@ def parse_windows_metrics_output(output: str) -> dict:
                 if len(parts) >= 4:
                     drive = parts[0]
                     label = parts[1] or "Local Disk"
-                    size_gb = float(parts[2]) if parts[2] else 0.0
-                    used_pct = float(parts[3]) if parts[3] else 0.0
+                    size_gb = max(0.0, float(parts[2])) if parts[2] else 0.0
+                    used_pct = max(0.0, min(100.0, float(parts[3]))) if parts[3] else 0.0
                     used_gb = round(size_gb * (used_pct / 100.0), 2)
 
                     parsed_disks.append({
@@ -349,7 +349,7 @@ def parse_windows_metrics_output(output: str) -> dict:
 
     if parsed_disks:
         metrics["disks"] = parsed_disks
-        metrics["disk_percent"] = round((total_used_gb / total_disk_gb) * 100, 2) if total_disk_gb > 0 else 0.0
+        metrics["disk_percent"] = max(0.0, min(100.0, round((total_used_gb / total_disk_gb) * 100, 2))) if total_disk_gb > 0 else 0.0
         metrics["disk_total_gb"] = round(total_disk_gb, 1)
 
     return metrics

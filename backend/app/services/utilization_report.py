@@ -143,7 +143,7 @@ def get_target_utilization_report(target_id: str, hours: int = 168, db: Session 
 
         # CPU
         if r.cpu_percent is not None:
-            c = float(r.cpu_percent)
+            c = max(0.0, float(r.cpu_percent))
             cpu_samples.append((c, ts))
             if c >= 90.0:
                 cpu_crit_count += 1
@@ -168,7 +168,7 @@ def get_target_utilization_report(target_id: str, hours: int = 168, db: Session 
 
         # Memory
         if r.mem_percent is not None:
-            m = float(r.mem_percent)
+            m = max(0.0, float(r.mem_percent))
             mem_samples.append((m, ts))
             if m >= 95.0:
                 mem_crit_count += 1
@@ -193,7 +193,7 @@ def get_target_utilization_report(target_id: str, hours: int = 168, db: Session 
 
         # Disk
         if r.disk_percent is not None:
-            d = float(r.disk_percent)
+            d = max(0.0, float(r.disk_percent))
             disk_samples.append((d, ts))
             if d >= 90.0:
                 disk_crit_count += 1
@@ -354,11 +354,11 @@ def get_target_utilization_report(target_id: str, hours: int = 168, db: Session 
         if 0 <= idx < bucket_count:
             b = buckets[idx]
             if r.cpu_percent is not None:
-                b["cpus"].append(float(r.cpu_percent))
+                b["cpus"].append(max(0.0, float(r.cpu_percent)))
             if r.mem_percent is not None:
-                b["mems"].append(float(r.mem_percent))
+                b["mems"].append(max(0.0, float(r.mem_percent)))
             if r.disk_percent is not None:
-                b["disks"].append(float(r.disk_percent))
+                b["disks"].append(max(0.0, float(r.disk_percent)))
 
     timeline = []
     for i, b in enumerate(buckets):
