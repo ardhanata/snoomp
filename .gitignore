@@ -45,9 +45,10 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 
-# Docker volumes
+# Docker volumes & persistent data directories
 db_data/
 redis_data/
+data/
 
 # Etc
 

@@ -20,7 +20,8 @@ services:
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}"
       POSTGRES_DB: "${POSTGRES_DB:-snoomp_db}"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      # ponytail: bind mount to host directory so database is permanent and immune to docker volume prune
+      - "${SNOOMP_DATA_DIR:-./data}/postgres:/var/lib/postgresql/data"
     # Not published to the host — only the app containers need it. Uncomment
     # to attach a SQL client from outside.
     # ports:
@@ -38,7 +39,7 @@ services:
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
     volumes:
-      - redis_data:/data
+      - "${SNOOMP_DATA_DIR:-./data}/redis:/data"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -101,6 +102,4 @@ services:
       disable: true
     logging: *logging
 
-volumes:
-  db_data:
-  redis_data:
+
