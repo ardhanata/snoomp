@@ -1,6 +1,7 @@
 import uuid
 import json
 import os
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field, field_validator
@@ -165,8 +166,16 @@ async def test_target_connection(
     )
     
     try:
-        res = await execute_checker(temp_target)
+        # ponytail: prevent one-off connection tests from hanging the HTTP request
+        res = await asyncio.wait_for(execute_checker(temp_target), timeout=18.0)
         return res
+    except asyncio.TimeoutError:
+        return {
+            "status": "down",
+            "response_time_ms": 0.0,
+            "error": "Connection test timed out after 18s (check credentials, port, or firewall)",
+            "details": {}
+        }
     except Exception as e:
         return {
             "status": "down",

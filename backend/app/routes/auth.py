@@ -18,22 +18,36 @@ from app.auth.security import (
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
-# F7: Simple in-memory rate limiter for login — 5 attempts per 15 min per IP
-_LOGIN_WINDOW = 15 * 60  # seconds
+# ponytail: rate limit failed attempts only, resolve real client IP behind proxy, clear on success
+_LOGIN_WINDOW = 5 * 60  # 5 minutes
 _LOGIN_MAX = 5
 _login_attempts: dict[str, list[float]] = defaultdict(list)
+
+def _get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip.strip()
+    return request.client.host if request.client else "unknown"
 
 def _check_rate_limit(ip: str):
     now = _time.monotonic()
     attempts = _login_attempts[ip]
-    # Prune expired
     _login_attempts[ip] = [t for t in attempts if now - t < _LOGIN_WINDOW]
     if len(_login_attempts[ip]) >= _LOGIN_MAX:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many login attempts — try again later",
+            detail="Too many failed login attempts, please try again later",
         )
+
+def _record_failed_attempt(ip: str):
+    now = _time.monotonic()
     _login_attempts[ip].append(now)
+
+def _clear_rate_limit(ip: str):
+    _login_attempts.pop(ip, None)
 
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
@@ -56,11 +70,12 @@ class Token(BaseModel):
 
 @router.post("/login", response_model=Token)
 def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = _get_client_ip(request)
     _check_rate_limit(client_ip)
 
     user = db.query(User).filter(User.username == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
+        _record_failed_attempt(client_ip)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -72,6 +87,9 @@ def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db
             detail="Inactive user"
         )
         
+    # Clear failed attempt history upon successful authentication
+    _clear_rate_limit(client_ip)
+
     access_token = create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer", "role": user.role}
 

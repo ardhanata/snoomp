@@ -392,14 +392,18 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
       tags: normalizeTags(tagsStr),
       config_json
     };
+    const controller = new AbortController();
+    const timeoutTimer = setTimeout(() => controller.abort(), 20000);
     try {
       const apiOrigin = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
       const testUrl = `${apiOrigin}/api/targets/test${editingMonitor?.id ? `?target_id=${editingMonitor.id}` : ''}`;
       const response = await fetch(testUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
+      clearTimeout(timeoutTimer);
       const data = await response.json();
       if (response.ok && data.status !== 'down') {
         setTestStatus('success');
@@ -409,8 +413,13 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
         setTestMessage(data.error || 'Connection failed');
       }
     } catch (err: any) {
+      clearTimeout(timeoutTimer);
       setTestStatus('failed');
-      setTestMessage(err.message || 'Network error');
+      if (err.name === 'AbortError') {
+        setTestMessage('Connection test timed out after 20s. Verify credentials and network response.');
+      } else {
+        setTestMessage(err.message || 'Network error');
+      }
     }
   };
 
