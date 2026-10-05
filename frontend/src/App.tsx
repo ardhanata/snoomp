@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, startTransition } from 'react';
+import React, { useState, useEffect, useRef, useCallback, startTransition, useMemo } from 'react';
 import {
   Shield, Power, Trash2, Edit3, Plus,
   Search, Cpu, HardDrive, MemoryStick, Clock,
@@ -543,7 +543,7 @@ function App() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [initialLoading, searchTerm, selectedGroupTag, selectedEnvTag, statusFilter, groupBy, dbActiveTab, view, selectedMonitor]);
+  }, [initialLoading, searchTerm, selectedGroupTag, selectedEnvTag, statusFilter, groupBy, dbActiveTab, view, selectedMonitor?.id]);
 
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportTab, setReportTab] = useState<'availability' | 'utilization'>('availability');
@@ -827,7 +827,11 @@ function App() {
       const isDb = ['db', 'mongodb', 'redis'].includes(type.toLowerCase());
       if (['snmp', 'ssh', 'push', 'db', 'mongodb', 'redis'].includes(type.toLowerCase())) {
         const mRes = await fetch(`${API_URL}/api/dashboard/targets/${id}/metrics?hours=${hours}`, { headers: authHeaders() });
-        if (mRes.ok) setMetricsHistory(await mRes.json());
+        if (mRes.ok) {
+          const list = await mRes.json();
+          const pruned = Array.isArray(list) ? (list.length > 500 ? list.slice(-500) : list) : [];
+          setMetricsHistory(pruned);
+        }
       } else {
         setMetricsHistory([]);
       }
@@ -932,6 +936,14 @@ function App() {
           const ups = batch.get(prev.id);
           if (!ups || ups.length === 0) return prev;
           const last = ups[ups.length - 1];
+          if (
+            prev.status === last.status &&
+            prev.response_time_ms === last.response_time_ms &&
+            prev.error === last.error &&
+            prev.metrics === last.metrics
+          ) {
+            return prev;
+          }
           return {
             ...prev,
             status: last.status ?? prev.status,
@@ -969,6 +981,18 @@ function App() {
                 const m = u.metrics || u.details;
                 if (m && (m.cpu_percent != null || m.mem_percent != null || m.disk_percent != null)) {
                   changed = true;
+                  const compactDetails = m.connections_current != null || m.cache_hit_ratio != null || m.mem_resident_mb != null || m.ops_total != null || m.ops_per_sec != null || m.total_keys != null
+                    ? {
+                        connections_current: m.connections_current,
+                        cache_hit_ratio: m.cache_hit_ratio,
+                        mem_resident_mb: m.mem_resident_mb,
+                        mem_virtual_mb: m.mem_virtual_mb,
+                        ops_total: m.ops_total,
+                        ops_per_sec: m.ops_per_sec,
+                        total_keys: m.total_keys
+                      }
+                    : undefined;
+
                   next.push({
                     id: `live-${Date.now()}-${Math.random()}`,
                     target_id: currentSel.id,
@@ -976,7 +1000,7 @@ function App() {
                     cpu_percent: m.cpu_percent,
                     mem_percent: m.mem_percent,
                     disk_percent: m.disk_percent,
-                    details_json: m
+                    details_json: compactDetails
                   });
                 }
               }
@@ -1032,14 +1056,23 @@ function App() {
             } else {
               pendingUpdates.set(targetId, [u]);
             }
-            if (!flushTimer) flushTimer = setTimeout(flushUpdates, UPDATE_FLUSH_MS);
+            if (!flushTimer) {
+              const isHidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+              flushTimer = setTimeout(flushUpdates, isHidden ? 30000 : UPDATE_FLUSH_MS);
+            }
           }
         } catch { }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event: CloseEvent) => {
         if (pingInterval) { clearInterval(pingInterval); pingInterval = null; }
         if (!isMounted) return;
+        if (event.code === 1008) {
+          setWsStatus('disconnected');
+          handleLogout();
+          showToast('Session expired. Please log in again.');
+          return;
+        }
         setWsStatus('reconnecting');
         reconnectTimeout = setTimeout(() => {
           retryDelay = Math.min(retryDelay * 2, 30000);
@@ -1052,10 +1085,19 @@ function App() {
       };
     };
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && pendingUpdates.size > 0) {
+        if (flushTimer) clearTimeout(flushTimer);
+        flushUpdates();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     connectWebSocket();
 
     return () => {
       isMounted = false;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
       if (pingInterval) { clearInterval(pingInterval); pingInterval = null; }
@@ -1376,46 +1418,54 @@ function App() {
 
   // Safe list to ensure no non-array can crash the dashboard
   const safeMonitors = Array.isArray(monitors) ? monitors : [];
-  const allTags = normalizeTags(safeMonitors.map(m => normalizeTags(m?.tags)).flat());
-  const groupTags = allTags.filter(t => !isEnvTagHelper(t));
-  const presentEnvTags = allTags.filter(t => isEnvTagHelper(t));
-  const envTags = normalizeTags(['prod', 'staging', 'dev', ...presentEnvTags]);
 
-  /**
-   * Search + tag filters only — deliberately excludes the status filter.
-   *
-   * The stats strip is both a readout and a control, so its numbers are
-   * counted from this list. If they were counted after the status filter, then
-   * clicking "Down" would zero out Up and Warn and you could never click your
-   * way back out.
-   */
-  const tagFilteredMonitors = safeMonitors.filter(m => {
-    const matchSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) || m.host.toLowerCase().includes(searchTerm.toLowerCase());
+  const { allTags, groupTags, envTags, filteredMonitors, sidebarCounts } = useMemo(() => {
+    const all = normalizeTags(safeMonitors.map(m => normalizeTags(m?.tags)).flat());
+    const grp = all.filter(t => !isEnvTagHelper(t));
+    const presentEnv = all.filter(t => isEnvTagHelper(t));
+    const env = normalizeTags(['prod', 'staging', 'dev', ...presentEnv]);
 
-    const targetTags = normalizeTags(m.tags);
-    const matchGroup = selectedGroupTag
-      ? targetTags.some((t: string) => tagEquals(t, selectedGroupTag))
-      : true;
+    const tagFiltered = safeMonitors.filter(m => {
+      const matchSearch = m.name?.toLowerCase().includes(searchTerm.toLowerCase()) || m.host?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchEnv = selectedEnvTag
-      ? targetTags.some((t: string) => {
-        const tLower = t.toLowerCase();
-        const selLower = selectedEnvTag.toLowerCase();
-        if (tLower === selLower) return true;
-        if ((selLower === 'staging' || selLower === 'stag') && (tLower === 'staging' || tLower === 'stag')) return true;
-        if ((selLower === 'prod' || selLower === 'production') && (tLower === 'prod' || tLower === 'production')) return true;
-        if ((selLower === 'dev' || selLower === 'development') && (tLower === 'dev' || tLower === 'development')) return true;
-        return false;
-      })
-      : true;
+      const targetTags = normalizeTags(m.tags);
+      const matchGroup = selectedGroupTag
+        ? targetTags.some((t: string) => tagEquals(t, selectedGroupTag))
+        : true;
 
-    return matchSearch && matchGroup && matchEnv;
-  });
+      const matchEnv = selectedEnvTag
+        ? targetTags.some((t: string) => {
+          const tLower = t.toLowerCase();
+          const selLower = selectedEnvTag.toLowerCase();
+          if (tLower === selLower) return true;
+          if ((selLower === 'staging' || selLower === 'stag') && (tLower === 'staging' || tLower === 'stag')) return true;
+          if ((selLower === 'prod' || selLower === 'production') && (tLower === 'prod' || tLower === 'production')) return true;
+          if ((selLower === 'dev' || selLower === 'development') && (tLower === 'dev' || tLower === 'development')) return true;
+          return false;
+        })
+        : true;
 
-  /** What the list actually renders: tag filters, then the status bucket. */
-  const filteredMonitors = statusFilter
-    ? tagFilteredMonitors.filter(m => statusBucket(m.status) === statusFilter)
-    : tagFilteredMonitors;
+      return matchSearch && matchGroup && matchEnv;
+    });
+
+    const filtered = statusFilter
+      ? tagFiltered.filter(m => statusBucket(m.status) === statusFilter)
+      : tagFiltered;
+
+    const counts = { total: tagFiltered.length, up: 0, down: 0, warn: 0 };
+    for (const m of tagFiltered) {
+      const bucket = statusBucket(m.status);
+      if (bucket) counts[bucket]++;
+    }
+
+    return {
+      allTags: all,
+      groupTags: grp,
+      envTags: env,
+      filteredMonitors: filtered,
+      sidebarCounts: counts
+    };
+  }, [safeMonitors, searchTerm, selectedGroupTag, selectedEnvTag, statusFilter]);
 
   /** True when anything is narrowing the sidebar list. */
   const isListFiltered = Boolean(searchTerm || selectedGroupTag || selectedEnvTag || statusFilter);
@@ -1431,39 +1481,10 @@ function App() {
     setStatusFilter(null);
   };
 
-  /**
-   * Fleet-wide down count, straight from the API summary.
-   *
-   * Keep this fleet-wide: the Executive homepage reads it for the incident
-   * banner and the "Active Incidents" KPI, where a filtered number would be
-   * wrong. The sidebar uses `sidebarCounts` below instead.
-   */
   const downCount = (stats.status_summary?.down || 0) + (stats.status_summary?.critical || 0);
-  // Track warnings and latency >= 1000ms for status banner and alerts
   const warnCount = (stats.status_summary?.warning || 0);
 
-  /**
-   * Counts for the sidebar strip, derived from the rows actually rendered.
-   *
-   * Previously this strip read `stats.total_targets` — the unfiltered API
-   * total — while sitting directly beneath the filter chips, so narrowing to
-   * three monitors still displayed "52 Total". Single pass; the list is small
-   * enough that memoising would cost more than it saves.
-   */
-  const sidebarCounts = { total: tagFilteredMonitors.length, up: 0, down: 0, warn: 0 };
-  for (const m of tagFilteredMonitors) {
-    const bucket = statusBucket(m.status);
-    if (bucket) sidebarCounts[bucket]++;
-  }
-
-  /**
-   * Homepage KPI figures.
-   *
-   * One pass instead of six: the JSX previously ran two inline IIFEs plus four
-   * separate `.filter()` walks (two of them the identical outage filter, once
-   * for a length check and again for the map) on every render.
-   */
-  const homeStats = (() => {
+  const homeStats = useMemo(() => {
     const outages: any[] = [];
     let enabled = 0;
     let uptimeSum = 0;
@@ -1478,7 +1499,6 @@ function App() {
         uptimeSum += m.uptime_24h ?? 100;
         uptimeCount++;
       }
-      // Include outages, warnings, and latency >= 1000ms in alerts feed
       const isSlow = m.response_time_ms != null && m.response_time_ms >= 1000;
       if (isSlow) slowCount++;
       if (m.status === 'down' || m.status === 'critical' || m.status === 'warning' || isSlow) {
@@ -1498,7 +1518,7 @@ function App() {
       avgLatency: latencyCount > 0 ? latencySum / latencyCount : 0,
       slowCount,
     };
-  })();
+  }, [filteredMonitors]);
   const sm = selectedMonitor;
   const isHostMetricType = sm && ['snmp', 'ssh', 'push'].includes(sm.type?.toLowerCase());
   const isDatabaseType = sm && ['db', 'mongodb', 'redis'].includes(sm.type?.toLowerCase());
