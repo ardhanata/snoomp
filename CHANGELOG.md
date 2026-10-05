@@ -5,6 +5,16 @@ All notable changes to Snoomp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.4] - 2026-10-05
+
+### Added
+- **Password Recovery via Email (Forgot Password Flow):**
+  - **Email Service (`backend/app/services/email_service.py`):** Zero-dependency email dispatch utilizing Python standard library `smtplib` and `email.message.EmailMessage` supporting STARTTLS and SSL port 465 with responsive HTML/text email templates.
+  - **Auth API Endpoints (`backend/app/routes/auth.py`):** Added `POST /api/auth/forgot-password` with rate-limiting and uniform security messaging against account enumeration attacks, `GET /api/auth/verify-reset-token` for token pre-validation, `POST /api/auth/reset-password` for password resets, and `PUT /api/auth/me` for profile and recovery email updates.
+  - **Database Migration (`backend/app/models/user.py`, `backend/app/database.py`):** Added `email`, `reset_token`, and `reset_token_expires` columns to `User` model with automatic non-destructive column verification in `init_db()`.
+  - **Frontend UI (`frontend/src/App.tsx`, `frontend/src/styles/dashboard.css`, `frontend/src/components/UserPreferencesModal.tsx`):** Added "Lupa password?" flow, reset password view, and dedicated Account profile tab in User Preferences for email management.
+  - **Configuration (`.env.example`, `docker-compose.yml`):** Added SMTP environment variables (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_TLS`, `APP_URL`, `SNOOMP_ADMIN_EMAIL`).
+
 ## [1.4.3] - 2026-09-17
 
 ### Fixed

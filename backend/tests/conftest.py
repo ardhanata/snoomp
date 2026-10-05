@@ -1,24 +1,37 @@
+import os
 import pytest
-from testcontainers.postgres import PostgresContainer
-from testcontainers.redis import RedisContainer
+
+os.environ.setdefault("JWT_SECRET", "test_secret_for_e2e_tests_123")
+os.environ.setdefault("DATABASE_URL", "postgresql://snoomp_admin:dummy@localhost:5432/snoomp_db")
+
+try:
+    from testcontainers.postgres import PostgresContainer
+    from testcontainers.redis import RedisContainer
+    HAS_TESTCONTAINERS = True
+except ImportError:
+    HAS_TESTCONTAINERS = False
+    PostgresContainer = None
+    RedisContainer = None
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 import redis
-import os
-
-os.environ["JWT_SECRET"] = "test_secret_for_e2e_tests_123"
 
 from app.database import Base, get_db
 # app.main is imported inside test_client to allow setting env vars first
 
 @pytest.fixture(scope="session")
 def postgres_container():
+    if not HAS_TESTCONTAINERS:
+        pytest.skip("testcontainers not installed")
     with PostgresContainer("postgres:15-alpine") as postgres:
         yield postgres
 
 @pytest.fixture(scope="session")
 def redis_container():
+    if not HAS_TESTCONTAINERS:
+        pytest.skip("testcontainers not installed")
     with RedisContainer("redis:7-alpine") as redis_server:
         yield redis_server
 

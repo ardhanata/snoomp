@@ -3,7 +3,7 @@ import {
   X, Sliders, Shield, Palette, Bell, Settings, Tag,
   CheckCircle2, AlertTriangle, AlertCircle, Save, Info, Send, Loader2,
   Plus, Edit3, Database, Download, Upload, ArrowUpCircle, ExternalLink,
-  Terminal, Copy, Check, RefreshCw
+  Terminal, Copy, Check, RefreshCw, User as UserIcon
 } from 'lucide-react';
 import Dialog from './Dialog';
 import IconButton from './IconButton';
@@ -39,9 +39,10 @@ interface UserPreferencesModalProps {
   onAddTag?: (newTag: string) => void;
 }
 
-type TabId = 'sla' | 'appearance' | 'notifications' | 'defaults' | 'tags' | 'backup' | 'updates';
+type TabId = 'account' | 'sla' | 'appearance' | 'notifications' | 'defaults' | 'tags' | 'backup' | 'updates';
 
 const TABS: { id: TabId; label: string; icon: typeof Shield }[] = [
+  { id: 'account', label: 'Account', icon: UserIcon },
   { id: 'sla', label: 'SLA', icon: Shield },
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -99,6 +100,76 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [copiedDockerCmd, setCopiedDockerCmd] = useState(false);
   const [copiedInstallerCmd, setCopiedInstallerCmd] = useState(false);
+
+  // Account profile state
+  const [userProfile, setUserProfile] = useState<{ username: string; email: string | null; role: string } | null>(null);
+  const [accountEmail, setAccountEmail] = useState('');
+  const [accountPassword, setAccountPassword] = useState('');
+  const [accountConfirmPassword, setAccountConfirmPassword] = useState('');
+  const [savingAccount, setSavingAccount] = useState(false);
+  const [accountNotice, setAccountNotice] = useState('');
+  const [accountError, setAccountError] = useState('');
+
+  useEffect(() => {
+    if (isOpen && token) {
+      fetch(`${apiUrl}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data) {
+            setUserProfile(data);
+            setAccountEmail(data.email || '');
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen, token, apiUrl]);
+
+  const handleSaveAccount = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setAccountError('');
+    setAccountNotice('');
+    if (accountPassword && accountPassword.length < 6) {
+      setAccountError('Password baru minimal 6 karakter.');
+      return;
+    }
+    if (accountPassword && accountPassword !== accountConfirmPassword) {
+      setAccountError('Konfirmasi password baru tidak cocok.');
+      return;
+    }
+    setSavingAccount(true);
+    try {
+      const payload: { email?: string | null; password?: string } = {
+        email: accountEmail.trim() || null,
+      };
+      if (accountPassword) {
+        payload.password = accountPassword;
+      }
+      const res = await fetch(`${apiUrl}/api/auth/me`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setUserProfile(updated);
+        setAccountPassword('');
+        setAccountConfirmPassword('');
+        setAccountNotice('Pengaturan akun dan email pemulihan berhasil disimpan.');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setAccountError(err.detail || 'Gagal menyimpan profil akun.');
+      }
+    } catch {
+      setAccountError('Gagal terhubung ke server.');
+    } finally {
+      setSavingAccount(false);
+    }
+  };
 
   const fetchUpdatesTab = async (force: boolean = false) => {
     setCheckingUpdates(true);
@@ -473,6 +544,201 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
           )}
 
           <form onSubmit={handleSave}>
+
+            {/* ── ACCOUNT ── */}
+            {activeTab === 'account' && (
+              <div id="pref-panel-account" role="tabpanel" aria-labelledby="pref-tab-account"
+                style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+
+                {accountNotice && (
+                  <div
+                    role="status"
+                    style={{
+                      ...card,
+                      borderColor: 'var(--color-up)',
+                      color: 'var(--color-up)',
+                      fontSize: '12px',
+                      display: 'flex',
+                      gap: '8px',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <CheckCircle2 size={14} aria-hidden="true" />
+                    <span>{accountNotice}</span>
+                  </div>
+                )}
+                {accountError && (
+                  <div
+                    role="alert"
+                    style={{
+                      ...card,
+                      borderColor: 'var(--color-down)',
+                      color: 'var(--color-down)',
+                      fontSize: '12px',
+                      display: 'flex',
+                      gap: '8px',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <AlertCircle size={14} aria-hidden="true" />
+                    <span>{accountError}</span>
+                  </div>
+                )}
+
+                <div style={card}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)' }}>
+                        Informasi Pengguna
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        Username dan peran hak akses aktif.
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        background: 'var(--surface-raised)',
+                        color: 'var(--accent)',
+                        border: '1px solid var(--border)',
+                      }}
+                    >
+                      {userProfile?.role || role || 'Viewer'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    Username: <strong style={{ color: 'var(--text-primary)' }}>{userProfile?.username || '-'}</strong>
+                  </div>
+                </div>
+
+                <div style={card}>
+                  <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                    Email Pemulihan Kata Sandi
+                  </div>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 var(--space-3) 0', lineHeight: 1.5 }}>
+                    Alamat email ini digunakan untuk menerima tautan reset kata sandi jika Anda lupa password akun.
+                  </p>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    <div>
+                      <label htmlFor="account-email" style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                        Alamat Email
+                      </label>
+                      <input
+                        id="account-email"
+                        type="email"
+                        placeholder="contoh: admin@perusahaan.com"
+                        value={accountEmail}
+                        onChange={e => setAccountEmail(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '9px 12px',
+                          borderRadius: 'var(--radius-sm)',
+                          border: '1px solid var(--border)',
+                          background: 'var(--bg-secondary)',
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: 'var(--space-3)', marginTop: 'var(--space-1)' }}>
+                      <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                        Ganti Password (Opsional)
+                      </div>
+                      <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 var(--space-3) 0', lineHeight: 1.5 }}>
+                        Kosongkan bagian ini jika Anda hanya ingin memperbarui alamat email pemulihan.
+                      </p>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-3)' }}>
+                        <div>
+                          <label htmlFor="account-password" style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                            Password Baru
+                          </label>
+                          <input
+                            id="account-password"
+                            type="password"
+                            minLength={6}
+                            placeholder="Minimal 6 karakter"
+                            value={accountPassword}
+                            onChange={e => setAccountPassword(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '9px 12px',
+                              borderRadius: 'var(--radius-sm)',
+                              border: '1px solid var(--border)',
+                              background: 'var(--bg-secondary)',
+                              color: 'var(--text-primary)',
+                              fontSize: '13px',
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="account-confirm-password" style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                            Konfirmasi Password Baru
+                          </label>
+                          <input
+                            id="account-confirm-password"
+                            type="password"
+                            minLength={6}
+                            placeholder="Ulangi password"
+                            value={accountConfirmPassword}
+                            onChange={e => setAccountConfirmPassword(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '9px 12px',
+                              borderRadius: 'var(--radius-sm)',
+                              border: '1px solid var(--border)',
+                              background: 'var(--bg-secondary)',
+                              color: 'var(--text-primary)',
+                              fontSize: '13px',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'var(--space-2)' }}>
+                      <button
+                        type="button"
+                        onClick={handleSaveAccount}
+                        disabled={savingAccount}
+                        style={{
+                          padding: '10px 20px',
+                          borderRadius: 'var(--radius-sm)',
+                          background: 'var(--accent)',
+                          border: 'none',
+                          color: '#fff',
+                          fontWeight: 600,
+                          fontSize: '13px',
+                          cursor: savingAccount ? 'wait' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          minHeight: '44px',
+                        }}
+                      >
+                        {savingAccount ? (
+                          <>
+                            <Loader2 size={14} className="spin" />
+                            <span>Menyimpan...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Save size={14} />
+                            <span>Simpan Akun</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* ── SLA ── */}
             {activeTab === 'sla' && (
@@ -1410,7 +1676,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                 style={{ padding: '11px 18px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
                 {canEdit ? 'Cancel' : 'Close'}
               </button>
-              {canEdit && activeTab !== 'tags' && activeTab !== 'backup' && activeTab !== 'updates' && (
+              {canEdit && activeTab !== 'account' && activeTab !== 'tags' && activeTab !== 'backup' && activeTab !== 'updates' && (
                 <button
                   type="submit"
                   /* Stays enabled while invalid so the message is reachable —

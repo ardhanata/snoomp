@@ -256,6 +256,50 @@ function App() {
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
+  // ── Password Recovery States ──
+  const [authMode, setAuthMode] = useState<'login' | 'forgot' | 'reset'>('login');
+  const [forgotIdentifier, setForgotIdentifier] = useState('');
+  const [forgotSubmitting, setForgotSubmitting] = useState(false);
+  const [forgotNotice, setForgotNotice] = useState('');
+  const [forgotError, setForgotError] = useState('');
+
+  const [resetToken, setResetToken] = useState('');
+  const [resetTokenValid, setResetTokenValid] = useState<boolean | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [resetSubmitting, setResetSubmitting] = useState(false);
+  const [resetNotice, setResetNotice] = useState('');
+  const [resetError, setResetError] = useState('');
+
+  // ponytail: detect password reset token from query string or /reset-password pathname on boot
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tokenParam = params.get('token') || params.get('reset_token');
+    const isResetPath = window.location.pathname === '/reset-password';
+    if (tokenParam || isResetPath) {
+      if (tokenParam) {
+        setResetToken(tokenParam);
+        setAuthMode('reset');
+        fetch(`${API_URL}/api/auth/verify-reset-token?token=${encodeURIComponent(tokenParam)}`)
+          .then(res => {
+            if (!res.ok) {
+              setResetError('Tautan reset password tidak valid atau sudah kedaluwarsa.');
+              setResetTokenValid(false);
+            } else {
+              setResetTokenValid(true);
+            }
+          })
+          .catch(() => {
+            setResetTokenValid(true);
+          });
+      } else {
+        setAuthMode('reset');
+        setResetError('Tautan reset password tidak menyertakan token yang valid.');
+        setResetTokenValid(false);
+      }
+    }
+  }, []);
+
   // ── Theme ──
   const [theme, setTheme] = useState(() => localStorage.getItem('snoomp_theme') || 'dark');
   useEffect(() => {
@@ -670,6 +714,70 @@ function App() {
         setAuthError(err.detail || 'Invalid credentials');
       }
     } catch { setAuthError('Connection failed'); }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotIdentifier.trim()) return;
+    setForgotSubmitting(true);
+    setForgotError('');
+    setForgotNotice('');
+    try {
+      const res = await fetch(`${API_URL}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: forgotIdentifier.trim() }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setForgotNotice(d.message || 'Tautan reset password telah dikirim ke email Anda.');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setForgotError(err.detail || 'Gagal mengirim permintaan reset password.');
+      }
+    } catch {
+      setForgotError('Gagal terhubung ke server.');
+    } finally {
+      setForgotSubmitting(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetError('');
+    setResetNotice('');
+    if (!resetToken.trim()) {
+      setResetError('Token reset tidak ditemukan.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setResetError('Password baru minimal 6 karakter.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setResetError('Konfirmasi password baru tidak cocok.');
+      return;
+    }
+    setResetSubmitting(true);
+    try {
+      const res = await fetch(`${API_URL}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: resetToken.trim(), new_password: newPassword }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setResetNotice(d.message || 'Password berhasil diperbarui. Silakan login kembali.');
+        window.history.replaceState({}, document.title, window.location.pathname.startsWith('/reset-password') ? '/' : window.location.pathname);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setResetError(err.detail || 'Gagal mereset password.');
+      }
+    } catch {
+      setResetError('Gagal terhubung ke server.');
+    } finally {
+      setResetSubmitting(false);
+    }
   };
 
   const handleLogout = () => {
@@ -1450,21 +1558,185 @@ function App() {
             <p>Enterprise Health &amp; Resource Monitor</p>
           </div>
 
-          {authError && <div className="login-error" role="alert">{authError}</div>}
+          {authMode === 'login' && (
+            <>
+              {authError && <div className="login-error" role="alert">{authError}</div>}
 
-          <form onSubmit={handleLogin} className="login-form">
-            <div className="form-group">
-              <label htmlFor="login-username">Username</label>
-              <input id="login-username" name="username" autoComplete="username" spellCheck={false} type="text" required placeholder="admin" value={username} onChange={e => setUsername(e.target.value)} />
-            </div>
-            <div className="form-group">
-              <label htmlFor="login-password">Password</label>
-              <input id="login-password" name="password" autoComplete="current-password" type="password" required placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
-            </div>
-            <button type="submit" className="login-btn">
-              Sign In
-            </button>
-          </form>
+              <form onSubmit={handleLogin} className="login-form">
+                <div className="form-group">
+                  <label htmlFor="login-username">Username</label>
+                  <input id="login-username" name="username" autoComplete="username" spellCheck={false} type="text" required placeholder="admin" value={username} onChange={e => setUsername(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="login-password">Password</label>
+                  <input id="login-password" name="password" autoComplete="current-password" type="password" required placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-4px', marginBottom: '12px' }}>
+                  <button
+                    type="button"
+                    className="login-forgot-link"
+                    onClick={() => {
+                      setAuthMode('forgot');
+                      setAuthError('');
+                      setForgotError('');
+                      setForgotNotice('');
+                    }}
+                  >
+                    Lupa password?
+                  </button>
+                </div>
+                <button type="submit" className="login-btn">
+                  Sign In
+                </button>
+              </form>
+            </>
+          )}
+
+          {authMode === 'forgot' && (
+            <>
+              {forgotError && <div className="login-error" role="alert">{forgotError}</div>}
+              {forgotNotice && <div className="login-success" role="status">{forgotNotice}</div>}
+
+              {forgotNotice ? (
+                <div className="login-form">
+                  <button
+                    type="button"
+                    className="login-btn"
+                    onClick={() => {
+                      setAuthMode('login');
+                      setForgotNotice('');
+                      setForgotError('');
+                    }}
+                  >
+                    Kembali ke Login
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleForgotPassword} className="login-form">
+                  <div style={{ marginBottom: '16px' }}>
+                    <h3 style={{ margin: '0 0 6px 0', fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Lupa Password
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                      Masukkan username atau alamat email akun Anda untuk menerima tautan pemulihan.
+                    </p>
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="forgot-identifier">Username atau Email</label>
+                    <input
+                      id="forgot-identifier"
+                      name="identifier"
+                      type="text"
+                      required
+                      placeholder="admin atau user@example.com"
+                      value={forgotIdentifier}
+                      onChange={e => setForgotIdentifier(e.target.value)}
+                      disabled={forgotSubmitting}
+                      autoComplete="username email"
+                    />
+                  </div>
+                  <button type="submit" className="login-btn" disabled={forgotSubmitting}>
+                    {forgotSubmitting ? 'Mengirim...' : 'Kirim Tautan Reset'}
+                  </button>
+                  <button
+                    type="button"
+                    className="login-back-btn"
+                    onClick={() => {
+                      setAuthMode('login');
+                      setForgotError('');
+                      setForgotNotice('');
+                    }}
+                  >
+                    Kembali ke Login
+                  </button>
+                </form>
+              )}
+            </>
+          )}
+
+          {authMode === 'reset' && (
+            <>
+              {resetError && <div className="login-error" role="alert">{resetError}</div>}
+              {resetNotice && <div className="login-success" role="status">{resetNotice}</div>}
+
+              {resetNotice ? (
+                <div className="login-form">
+                  <button
+                    type="button"
+                    className="login-btn"
+                    onClick={() => {
+                      setAuthMode('login');
+                      setResetNotice('');
+                      setResetError('');
+                      setNewPassword('');
+                      setConfirmPassword('');
+                    }}
+                  >
+                    Masuk Sekarang
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleResetPassword} className="login-form">
+                  <div style={{ marginBottom: '16px' }}>
+                    <h3 style={{ margin: '0 0 6px 0', fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Reset Password
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                      Masukkan password baru yang aman untuk akun Anda (minimal 6 karakter).
+                    </p>
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="reset-new-password">Password Baru</label>
+                    <input
+                      id="reset-new-password"
+                      name="newPassword"
+                      type="password"
+                      required
+                      minLength={6}
+                      placeholder="Minimal 6 karakter"
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      disabled={resetSubmitting || resetTokenValid === false}
+                      autoComplete="new-password"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="reset-confirm-password">Konfirmasi Password Baru</label>
+                    <input
+                      id="reset-confirm-password"
+                      name="confirmPassword"
+                      type="password"
+                      required
+                      minLength={6}
+                      placeholder="Ulangi password baru"
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      disabled={resetSubmitting || resetTokenValid === false}
+                      autoComplete="new-password"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="login-btn"
+                    disabled={resetSubmitting || resetTokenValid === false}
+                  >
+                    {resetSubmitting ? 'Menyimpan...' : 'Simpan Password Baru'}
+                  </button>
+                  <button
+                    type="button"
+                    className="login-back-btn"
+                    onClick={() => {
+                      setAuthMode('login');
+                      setResetError('');
+                      setResetNotice('');
+                    }}
+                  >
+                    Batal dan Kembali ke Login
+                  </button>
+                </form>
+              )}
+            </>
+          )}
         </div>
 
         {/* Right Side: Visual Texture / Liquid Glass Approx */}

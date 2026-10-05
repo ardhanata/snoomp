@@ -49,12 +49,14 @@ async def lifespan(app: FastAPI):
     db = SessionLocal()
     try:
         user_count = db.query(User).count()
+        admin_email = os.environ.get("SNOOMP_ADMIN_EMAIL", "").strip().lower() or None
         if user_count == 0:
             # F8: Generate a random admin password — print once to stdout, never to logger
             initial_password = os.environ.get("SNOOMP_ADMIN_PASSWORD") or secrets.token_urlsafe(16)
             admin_pwd = get_password_hash(initial_password)
             admin_user = User(
                 username="admin",
+                email=admin_email,
                 hashed_password=admin_pwd,
                 role="admin",
                 is_active=True
@@ -65,9 +67,18 @@ async def lifespan(app: FastAPI):
             print(f"  SNOOMP FIRST-RUN: Admin account created")
             print(f"  Username: admin")
             print(f"  Password: {initial_password}")
+            if admin_email:
+                print(f"  Email: {admin_email}")
             print(f"  ⚠  Change this password immediately after first login.")
             print(f"{'='*60}\n")
             logger.info("Default admin user created (password printed to stdout)")
+        elif admin_email:
+            # ponytail: automatically set admin email if configured in .env and admin has no email
+            admin_user = db.query(User).filter(User.username == "admin", User.email == None).first()
+            if admin_user:
+                admin_user.email = admin_email
+                db.commit()
+                logger.info("Admin email updated from SNOOMP_ADMIN_EMAIL")
     finally:
         db.close()
         

@@ -80,6 +80,36 @@ def _migrate_lowercase_tags():
         db.close()
 
 
+def _ensure_user_columns():
+    """# ponytail: ensure email and password reset columns exist on users table without external migrations"""
+    db = SessionLocal()
+    try:
+        from sqlalchemy import inspect
+        inspector = inspect(engine)
+        if "users" in inspector.get_table_names():
+            cols = {c["name"] for c in inspector.get_columns("users")}
+            if "email" not in cols:
+                db.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR;"))
+                try:
+                    db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email);"))
+                except Exception:
+                    pass
+            if "reset_token" not in cols:
+                db.execute(text("ALTER TABLE users ADD COLUMN reset_token VARCHAR;"))
+                try:
+                    db.execute(text("CREATE INDEX IF NOT EXISTS ix_users_reset_token ON users (reset_token);"))
+                except Exception:
+                    pass
+            if "reset_token_expires" not in cols:
+                db.execute(text("ALTER TABLE users ADD COLUMN reset_token_expires TIMESTAMP;"))
+            db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.warning("User table column verification skipped: %s", e)
+    finally:
+        db.close()
+
+
 def init_db():
     # Import models to ensure they are registered on Base
     from app.models.user import User
@@ -97,6 +127,7 @@ def init_db():
     # indexes — so a declarative Index() never reaches a live deployment.
     # These are issued explicitly and are safe to re-run.
     _ensure_indexes()
+    _ensure_user_columns()
     _migrate_lowercase_tags()
 
     # ponytail: TimescaleDB extension/hypertable queries are Postgres-only

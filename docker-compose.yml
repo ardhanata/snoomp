@@ -62,6 +62,14 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: "${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}"
       ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-http://localhost:8008}"
       SNOOMP_ADMIN_PASSWORD: "${SNOOMP_ADMIN_PASSWORD:-}"
+      SNOOMP_ADMIN_EMAIL: "${SNOOMP_ADMIN_EMAIL:-}"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      SMTP_FROM: "${SMTP_FROM:-}"
+      SMTP_TLS: "${SMTP_TLS:-true}"
+      APP_URL: "${APP_URL:-}"
     ports:
       - "${SNOOMP_BIND_IP:-0.0.0.0}:${SNOOMP_PORT:-8008}:8000"
     # ICMP raw sockets. The container still runs as non-root; this grants the
