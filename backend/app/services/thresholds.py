@@ -151,7 +151,7 @@ def evaluate(
             breaches.append(f"Latency {v_lat:.1f}ms ≥ {warn_lat:g}ms")
             latency_breached = True
 
-    # ponytail: if latency exceeded and cold-connection phase timings exist, append phase root cause
+    # If latency is exceeded and connection phase timings exist, append root cause analysis
     timing = details.get("timing") if isinstance(details, dict) else None
     if latency_breached and isinstance(timing, dict) and "bottleneck" in timing:
         c_ms = timing.get("connect_ms")

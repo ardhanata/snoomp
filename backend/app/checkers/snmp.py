@@ -120,7 +120,7 @@ async def check_snmp(host: str, community: str = "public", port: int = 161) -> C
                 except (IndexError, ValueError, TypeError):
                     mem_cached = 0
 
-            # ponytail: effective free = avail + buffer + cached; if that exceeds total, memAvailReal already represents MemAvailable
+            # Effective free = avail + buffer + cached; if that exceeds total, memAvailReal already represents MemAvailable
             effective_free = mem_avail + mem_buffer + mem_cached
             if effective_free > mem_total or effective_free < 0:
                 effective_free = min(mem_total, max(0, mem_avail))
@@ -162,7 +162,7 @@ async def check_snmp(host: str, community: str = "public", port: int = 161) -> C
         cores = 0
         base_proc_oid = "1.3.6.1.2.1.25.3.3.1.2"
 
-        # 1. Fast GETBULK (SNMPv2c) in one network round trip
+        # Fast GETBULK (SNMPv2c) in one network round trip
         try:
             target_bulk = await _make_target(host, port, timeout_sec=2, retries_cnt=0)
             errInd, errStat, _, vBinds = await bulkCmd(
@@ -184,7 +184,7 @@ async def check_snmp(host: str, community: str = "public", port: int = 161) -> C
         except Exception as e:
             logger.debug(f"SNMP bulkCmd core discovery failed for {host}: {e}")
 
-        # 2. Fallback to GETNEXT walk (SNMPv1 / devices lacking GETBULK support)
+        # Fallback to GETNEXT walk (SNMPv1 / devices lacking GETBULK support)
         if cores == 0:
             try:
                 target_next = await _make_target(host, port, timeout_sec=2, retries_cnt=0)
@@ -212,7 +212,7 @@ async def check_snmp(host: str, community: str = "public", port: int = 161) -> C
             except Exception as e:
                 logger.debug(f"SNMP nextCmd core discovery failed for {host}: {e}")
 
-        # 3. Fallback to hrDeviceProcessor entries in hrDeviceTable (1.3.6.1.2.1.25.3.2.1.2)
+        # Fallback to hrDeviceProcessor entries in hrDeviceTable (1.3.6.1.2.1.25.3.2.1.2)
         if cores == 0:
             try:
                 dev_oid = "1.3.6.1.2.1.25.3.2.1.2"

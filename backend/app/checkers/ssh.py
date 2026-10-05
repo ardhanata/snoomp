@@ -52,7 +52,7 @@ def calculate_proc_stat_cpu_percent(
     now = time.time()
     prev_sample = None
 
-    # 1. Try reading previous sample from Redis
+    # Read previous sample from Redis or memory cache
     if redis_conn:
         try:
             raw = redis_conn.get(f"ssh_cpustat:{target_key}")
@@ -74,7 +74,7 @@ def calculate_proc_stat_cpu_percent(
         except Exception:
             prev_sample = _memory_cpustat_cache.get(target_key)
 
-    # 2. Save current sample to cache
+    # Save current sample to cache
     curr_sample = {"ts": now, "total": curr_total, "idle": curr_idle}
     if redis_conn:
         try:
@@ -93,7 +93,7 @@ def calculate_proc_stat_cpu_percent(
         except Exception:
             _memory_cpustat_cache[target_key] = curr_sample
 
-    # 3. Compute delta CPU utilization if previous sample exists and is valid
+    # Compute delta CPU utilization if previous sample exists and is valid
     if prev_sample:
         prev_ts = prev_sample.get("ts", 0)
         prev_total = prev_sample.get("total", 0)
@@ -132,7 +132,7 @@ def _parse_df_size_to_gb(size_str: str) -> float:
     return 0.0
 
 def parse_uptime_str(line: str) -> str:
-    # ponytail: clean uptime extractor; strips load averages/users and normalizes HH:MM
+    # Clean uptime extractor; strips load averages/users and normalizes HH:MM
     if not line or line.lower() == "unknown":
         return "unknown"
     match = re.search(r'\bup\s+(.*?)(?:,\s+\d+\s+user|,\s+load average|$)', line)
@@ -158,13 +158,13 @@ def parse_metrics_output(output: str, target_id: str | None = None, redis_conn=N
     if not lines:
         return metrics
 
-    # 1. Parse uptime (matches uptime -p e.g. 'up ...' or standard uptime with user/load average)
+    # Parse uptime (matches uptime -p e.g. 'up ...' or standard uptime with user/load average)
     for line in lines:
         if line.startswith("up ") or ("up" in line and ("user" in line or "load average" in line)):
             metrics["uptime"] = parse_uptime_str(line)
             break
 
-    # 2. Parse Memory from free -m
+    # Parse Memory from free -m
     for line in lines:
         if line.startswith("Mem:"):
             parts = line.split()
@@ -194,7 +194,7 @@ def parse_metrics_output(output: str, target_id: str | None = None, redis_conn=N
             metrics["mem_percent"] = max(0.0, min(100.0, round((actual_used / total) * 100, 2)))
             metrics["ram_total_gb"] = round(total / 1024, 1)
 
-    # 3. Parse Multi-Disk metrics from df -h -P (POSIX 1-line format)
+    # Parse Multi-Disk metrics from df -h -P (POSIX 1-line format)
     parsed_disks = []
     total_disk_gb = 0.0
     total_used_gb = 0.0
@@ -236,7 +236,7 @@ def parse_metrics_output(output: str, target_id: str | None = None, redis_conn=N
         metrics["disk_percent"] = max(0.0, min(100.0, round((total_used_gb / total_disk_gb) * 100, 2))) if total_disk_gb > 0 else 0.0
         metrics["disk_total_gb"] = round(total_disk_gb, 1)
 
-    # 4. Parse CPU cores count
+    # Parse CPU cores count
     try:
         metrics["cpu_cores"] = int(lines[-1])
     except (IndexError, ValueError):
@@ -244,7 +244,7 @@ def parse_metrics_output(output: str, target_id: str | None = None, redis_conn=N
     if metrics["cpu_cores"] <= 0:
         metrics["cpu_cores"] = 1
 
-    # 5. Parse 1-minute Load Average & Load Percent
+    # Parse 1-minute Load Average & Load Percent
     load_1min = 0.0
     loadavg_line = ""
     if len(lines) >= 2:
@@ -270,7 +270,7 @@ def parse_metrics_output(output: str, target_id: str | None = None, redis_conn=N
     metrics["load_1min"] = round(load_1min, 2)
     metrics["load_percent"] = load_percent
 
-    # 6. Parse /proc/stat and compute stateful delta cpu_percent matching sar/nmon
+    # Parse /proc/stat and compute stateful delta cpu_percent matching sar/nmon
     stat_sample = parse_proc_stat(output)
     delta_cpu = None
     if stat_sample and target_id:
@@ -389,9 +389,9 @@ async def check_ssh(
         return CheckerResult(status=status, response_time_ms=0.0, error=err, details=metrics)
 
     start = time.monotonic()
-    # ponytail: show all partitions natively, no unrequested filtering
+    # Gather core system metrics natively from standard tools
     command = "(uptime -p 2>/dev/null || uptime) && free -m && df -h -P && cat /proc/stat && cat /proc/loadavg && nproc"
-    # 2. Windows PowerShell CIM metric gathering fallback command
+    # Windows PowerShell CIM metric gathering fallback command
     win_command = 'powershell -NoProfile -Command "$cpu=(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average; $os=Get-CimInstance Win32_OperatingSystem; Write-Output CPU_PCT=$cpu; Write-Output MEM_TOTAL=$([math]::Round($os.TotalVisibleMemorySize/1024,1)); Write-Output MEM_FREE=$([math]::Round($os.FreePhysicalMemory/1024,1)); Get-CimInstance Win32_LogicalDisk | ForEach-Object { if ($_.Size -gt 0) { $u=[math]::Round(($_.Size - $_.FreeSpace)/$_.Size * 100,1); $s=[math]::Round($_.Size/1GB,1); Write-Output DISK=$($_.DeviceID)~$($_.VolumeName)~$s~$u } }"'
 
     client_keys = []
@@ -406,12 +406,12 @@ async def check_ssh(
                 error=f"Invalid SSH private key: {ke}"
             )
 
-    # ponytail: retry once on transient login/handshake timeouts to prevent false flapping on 60s polls
+    # Retry once on transient login/handshake timeouts to prevent false flapping on 60s polls
     login_timeout = max(15, timeout)
     last_err = None
     for attempt in range(2):
         try:
-            # ponytail: track cold connection phases (Phase 1: TCP/KEX/auth vs Phase 2: shell/forks)
+            # Track connection phases (Phase 1: TCP/KEX/auth vs Phase 2: shell/forks)
             t_conn_start = time.monotonic()
             async with asyncssh.connect(
                 host,

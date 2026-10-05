@@ -3,7 +3,7 @@
    Redesigned: tinted darks, Geist, refined palette
    ======================================================== */
 
-/* ── Design Tokens ── */
+/* Design Tokens */
 :root {
   /* Backgrounds — tinted blue-black hierarchy (not pure OLED) */
   --bg-void:      #08090d;
@@ -27,7 +27,7 @@
   --text-muted:     #7d85a3;
 
   /* Status — desaturated for comfort (Anti-Slop Color Discipline) */
-  /* ponytail: #3fb950 clears WCAG AA >= 4.5:1 on dark canvas */
+  /* #3fb950 clears WCAG AA >= 4.5:1 on dark canvas */
   --color-up:          #3fb950;
   --color-up-glow:     rgba(46, 160, 67, 0.30);
   --color-down:        #f85149;
@@ -121,7 +121,7 @@
   --text-muted:     #475569;
 
   /* Status — Vivid for contrast in bright environments */
-  /* ponytail: #046a4e clears WCAG AA >= 4.5:1 on light canvas (fixes audit moderate) */
+  /* #046a4e clears WCAG AA >= 4.5:1 on light canvas */
   --color-up:          #046a4e;
   --color-up-glow:     rgba(4, 106, 78, 0.15);
   --color-down:        #DC2626;
@@ -178,7 +178,7 @@ code, pre, .font-mono, .uptime-value, .hw-spec-value, .metric-value, .latency-pi
 h1, h2, h3, h4 { text-wrap: balance; }
 p { text-wrap: pretty; }
 
-/* ── Reset ── */
+/* Reset */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -249,7 +249,7 @@ body::after {
 /* The grain reads as dirt on a light background — dark theme only. */
 [data-theme="light"] body::after { display: none; }
 
-/* ── Scrollbar ── */
+/* Scrollbar */
 ::-webkit-scrollbar       { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 99px; }
@@ -257,9 +257,9 @@ body::after {
 /* Firefox — ::-webkit-* is ignored there, so the thumb needs its own colour. */
 html { scrollbar-color: var(--scrollbar-thumb) transparent; }
 
-/* ── Input / Select / Textarea ── */
+/* Input / Select / Textarea */
 /* `width: 100%` deliberately excludes checkboxes and radios — it used to hit
-/* ponytail: use comma list inside :not() to avoid runaway specificity (0,1,1 vs 0,3,1) */
+/* Use comma list inside :not() to avoid runaway specificity (0,1,1 vs 0,3,1) */
 input:not([type="checkbox"], [type="radio"], [type="file"]),
 select, textarea {
   background: var(--bg-elevated);
@@ -287,7 +287,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 select option { background: var(--bg-elevated); color: var(--text-primary); }
 
-/* ── Buttons ── */
+/* Buttons */
 button.btn-primary, button[type="submit"] {
   background: #2563eb;
   border: none;
@@ -320,7 +320,7 @@ button:focus-visible {
   box-shadow: none;
 }
 
-/* ponytail: border set to transparent to eliminate unwanted outline boxes in both light & dark mode */
+/* Border set to transparent to eliminate unwanted outline boxes in both light & dark mode */
 button.secondary {
   background: transparent;
   border: 1px solid transparent;
@@ -355,13 +355,10 @@ button.danger:hover {
 
 button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
 
-/* ══════════════════════════════════════════
-   TWO-TONE ICON BUTTONS (Anti-Slop Unified)
-   Harmonious semantic two-tone SVG iconography:
+/* Two-Tone Icon Buttons
    - Tone 1 (Stroke): Solid semantic stroke
    - Tone 2 (Fill): Translucent tinted fill (fill-opacity: 0.18 - 0.22)
-   - Translucent tinted container matching each semantic color
-   ══════════════════════════════════════════ */
+   - Translucent tinted container matching each semantic color */
 .icon-btn {
   display: inline-flex;
   align-items: center;
@@ -437,7 +434,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
   box-shadow: none !important;
 }
 
-/* ── Sizes ── */
+/* Sizes */
 .icon-btn--sm {
   width: 28px;
   height: 28px;
@@ -456,7 +453,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
   border-radius: var(--radius-sm);
 }
 
-/* ── Semantic Two-Tone Color Variants ── */
+/* Semantic Two-Tone Color Variants */
 /* Accent (Blue) — Immediate check, edit, active tabs */
 .icon-btn--accent {
   --ib-color: var(--accent);
@@ -606,13 +603,9 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
   --ib-border-hover: rgba(0, 0, 0, 0.24);
 }
 
-/* ══════════════════════════════════════════
-   APP LAYOUT
-   ══════════════════════════════════════════ */
+/* App Layout */
 
-/* ══════════════════════════════════════════
-   SIDEBAR
-   ══════════════════════════════════════════ */
+/* Sidebar */
 .sidebar {
   width: var(--sidebar-width);
   background: var(--bg-secondary);
@@ -630,11 +623,9 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
    desktop, and `visibility` (not just opacity) so it can never eat clicks. */
 .sidebar-scrim { display: none; pointer-events: none; }
 
-/* ══════════════════════════════════════════
-   SIDEBAR AS OFF-CANVAS DRAWER
+/* Sidebar as Off-Canvas Drawer:
    Below this width a 280px fixed column would take ~75% of the viewport, so
-   the sidebar leaves the flow entirely and the main panel goes full width.
-   ══════════════════════════════════════════ */
+   the sidebar leaves the flow entirely and the main panel goes full width. */
 @media (max-width: 900px) {
   .sidebar-drawer-toggle {
     display: inline-flex;
@@ -775,7 +766,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
 .search-wrapper {
   position: relative;
 }
-/* ponytail: explicit padding-left so placeholder and input text never overlap the 14px search icon */
+/* Explicit padding-left so placeholder and input text never overlap the 14px search icon */
 .sidebar-search input,
 .search-wrapper input {
   padding-left: 34px !important;
@@ -860,9 +851,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
   flex: 1;
 }
 
-/* ══════════════════════════════════════════
-   MAIN CONTENT
-   ══════════════════════════════════════════ */
+/* Main Content */
 .main-content {
   flex: 1;
   background: var(--bg-primary);
@@ -875,7 +864,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* ── Detail Header ── */
+/* Detail Header */
 .monitor-detail-header {
   padding: 22px 28px;
   border-bottom: 1px solid var(--border);
@@ -960,7 +949,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
   letter-spacing: 0.3px;
 }
 
-/* ── Detail Sections ── */
+/* Detail Sections */
 .detail-section {
   padding: 20px 28px;
   border-bottom: 1px solid var(--border);
@@ -978,7 +967,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
   text-transform: uppercase;
 }
 
-/* ── Heartbeat Timeline ── */
+/* Heartbeat Timeline */
 .heartbeat-timeline {
   display: flex;
   gap: 3px;
@@ -1012,7 +1001,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
   letter-spacing: 0.3px;
 }
 
-/* ── Metrics Grid — Simplemon style radial ── */
+/* Metrics Grid — Radial gauges */
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -1174,7 +1163,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
   text-align: center;
 }
 
-/* ── Latency indicator ── */
+/* Latency indicator */
 .latency-pill {
   font-size: 12px;
   font-family: var(--font-mono);
@@ -1185,7 +1174,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
   color: var(--text-secondary);
 }
 
-/* ── Chart section ── */
+/* Chart section */
 .chart-section {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
@@ -1211,7 +1200,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
   flex-shrink: 0;
 }
 
-/* ── Empty state ── */
+/* Empty state */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -1246,7 +1235,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
   line-height: 1.6;
 }
 
-/* ── Incidents feed ── */
+/* Incidents feed */
 .incidents-list {
   display: flex;
   flex-direction: column;
@@ -1276,7 +1265,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
 .incident-transition { color: var(--text-secondary); margin-left: 4px; }
 .incident-time { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
-/* ── Error alert ── */
+/* Error alert */
 .error-alert {
   border: 1px solid rgba(237,66,69,0.25);
   background: rgba(237,66,69,0.05);
@@ -1305,7 +1294,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
   overflow: hidden;
 }
 
-/* ── Push docs card ── */
+/* Push docs card */
 .push-info-card {
   border: 1px solid rgba(var(--accent-rgb), 0.2);
   background: rgba(var(--accent-rgb), 0.04);
@@ -1338,7 +1327,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
   line-height: 1.7;
 }
 
-/* ── Modal ── */
+/* Modal */
 dialog.modal-content {
   margin: auto;
   overscroll-behavior: contain;
@@ -1401,7 +1390,7 @@ dialog::backdrop {
   border-top: 1px solid var(--border);
 }
 
-/* ── Animations ── */
+/* Animations */
 /* opacity/transform only — animating box-shadow repaints every frame. */
 @keyframes pulse-up {
   0%, 100% { opacity: 1; }
@@ -1434,7 +1423,7 @@ dialog::backdrop {
 
 .pulse-up { animation: pulse-up 2s infinite; }
 
-/* ── Login card — glassmorphism & Split Layout ── */
+/* Login Card & Split Layout */
 .login-wrap.split-layout {
   min-height: 100dvh;
   display: grid;
@@ -1601,7 +1590,7 @@ dialog::backdrop {
   outline-offset: 2px;
 }
 
-/* ── Login Visual Pane (Liquid Glass Approx & Typography) ── */
+/* Login Visual Pane */
 .login-visual-pane {
   position: relative;
   display: flex;
@@ -1681,9 +1670,7 @@ dialog::backdrop {
   color: var(--accent);
 }
 
-/* ══════════════════════════════════════════
-   TOP NAVBAR
-   ══════════════════════════════════════════ */
+/* Top Navbar */
 /* No backdrop-filter here on purpose.
  *
  * The navbar is a flex sibling stacked ABOVE .app-layout (which is sized
@@ -1740,7 +1727,7 @@ dialog::backdrop {
   padding: 6px 14px;
   border-radius: var(--radius-sm);
   font-size: 13px; font-weight: 700;
-  /* ponytail: #051f0f on #3fb950 gives 13.8:1 AAA contrast (fixes audit V5) */
+  /* #051f0f on #3fb950 gives 13.8:1 AAA contrast */
   color: #051f0f; background: var(--color-up);
   border: none; cursor: pointer;
   transition: background-color var(--t-fast), border-color var(--t-fast), color var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
@@ -1778,9 +1765,7 @@ dialog::backdrop {
   overflow: hidden;
 }
 
-/* ══════════════════════════════════════════
-   SIDEBAR MONITOR ROWS
-   ══════════════════════════════════════════ */
+/* Sidebar Monitor Rows */
 /* Canonical rule — previously split across two blocks in this file. */
 .monitor-row {
   display: flex;
@@ -1945,9 +1930,7 @@ dialog::backdrop {
 }
 
 /* Filter chips row */
-/* ══════════════════════════════════════════
-   HOMEPAGE DRILL-DOWN ROWS
-   ══════════════════════════════════════════ */
+/* Homepage Drill-Down Rows */
 /* Both lists show monitors; both now navigate to them. */
 .outage-row,
 .infra-row {
@@ -1989,7 +1972,7 @@ dialog::backdrop {
   text-transform: uppercase; flex-shrink: 0; text-align: right;
   max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-/* ponytail: warning and high-latency variant for dashboard alert rows */
+/* Warning and high-latency variant for dashboard alert rows */
 .outage-row.warning {
   background: var(--color-warning-glow);
   border-color: var(--color-warning);
@@ -2033,9 +2016,7 @@ dialog::backdrop {
   font-variant-numeric: tabular-nums;
 }
 
-/* ══════════════════════════════════════════
-   EXECUTIVE DASHBOARD
-   ══════════════════════════════════════════ */
+/* Executive Dashboard */
 /* No own height/overflow: the parent .main-content is already the scroll
    container. It previously set `height: calc(100vh - 60px)` while the navbar is
    52px and .app-layout uses 100dvh — producing nested scrollbars and an 8px
@@ -2274,7 +2255,7 @@ dialog::backdrop {
 }
 
 /* `hidden` must win over the flex/grid display rules below it. */
-/* ponytail: add bottom breathing room so tag filter chips don't crowd the status cards below */
+/* Add bottom breathing room so tag filter chips don't crowd the status cards below */
 #sidebar-filter-panel {
   padding-top: var(--space-2);
   padding-bottom: var(--space-3);
@@ -2321,9 +2302,7 @@ dialog::backdrop {
   opacity: 1; box-shadow: none;
 }
 
-/* ══════════════════════════════════════════
-   STATUS PAGES VIEW
-   ══════════════════════════════════════════ */
+/* Status Pages View */
 .status-pages-view {
   flex: 1; padding: 28px;
   overflow-y: auto; background: var(--bg-primary);
@@ -2474,9 +2453,7 @@ dialog::backdrop {
   font-weight: 500;
   color: var(--text-muted);
 }
-/* ══════════════════════════════════════════
-   PRINT STYLESHEET FOR PDF EXPORT
-   ══════════════════════════════════════════ */
+/* Print Stylesheet for PDF Export */
 @media print {
   /* Re-point the theme tokens at ink colours.
      `body { color: #000 }` alone is not enough: it only changes the INHERITED
@@ -2634,9 +2611,7 @@ dialog::backdrop {
   width: 184mm;
 }
 
-/* ══════════════════════════════════════════
-   ADDITIONAL REFINEMENTS
-   ══════════════════════════════════════════ */
+/* Additional Refinements */
 
 
 /* Status page header refinement */
@@ -2658,9 +2633,7 @@ dialog::backdrop {
   }
 }
 
-/* ══════════════════════════════════════════
-   REPORT MODAL & TAB SWITCHER
-   ══════════════════════════════════════════ */
+/* Report Modal & Tab Switcher */
 .report-tab-switcher {
   display: flex;
   background: var(--surface-raised);

@@ -71,7 +71,6 @@ class RoleChecker:
             )
         return current_user
 
-# Access control dependencies
 require_admin = RoleChecker(["admin"])
 require_editor = RoleChecker(["admin", "editor"])
 require_viewer = RoleChecker(["admin", "editor", "viewer"])

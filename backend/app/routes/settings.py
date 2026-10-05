@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/settings", tags=["Settings"])
 
 
-# ── Schemas ──
 # Validation lives here rather than in the client so a direct API caller cannot
 # store a set of thresholds the UI would refuse to accept.
 
@@ -130,8 +129,6 @@ class SettingsUpdate(BaseModel):
     defaults: Optional[dict[str, Any]] = None
     appearance: Optional[dict[str, Any]] = None
 
-
-# ── Routes ──
 
 @router.get("/")
 def read_settings(

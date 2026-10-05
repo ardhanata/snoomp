@@ -38,9 +38,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-# --------------------------------------------------------------------------
 # Constants
-# --------------------------------------------------------------------------
 SEVERITY_CRITICAL = "critical"
 SEVERITY_WARNING = "warning"
 SEVERITY_RECOVERED = "recovered"
@@ -91,9 +89,7 @@ _WEBHOOK_RE = re.compile(
 )
 
 
-# --------------------------------------------------------------------------
-# Config
-# --------------------------------------------------------------------------
+# Configuration helpers
 def _env_flag(name: str, default: bool = False) -> bool:
     raw = os.getenv(name)
     if raw is None:
@@ -181,9 +177,7 @@ def channel_for(severity: str) -> str:
     return _SEVERITY_CHANNEL.get(severity, "warning")
 
 
-# --------------------------------------------------------------------------
 # Alert payload
-# --------------------------------------------------------------------------
 @dataclass
 class DiscordAlert:
     target_name: str
@@ -212,7 +206,6 @@ class DiscordAlert:
             raw = raw.decode("utf-8")
         return cls(**json.loads(raw))
 
-    # ---------------------------------------------------------------- embed
     def to_embed(self) -> dict[str, Any]:
         sev = self.severity
         tag = _TITLE_TAG[sev]
@@ -272,9 +265,7 @@ def _human_duration(seconds: float) -> str:
     return f"{seconds // 3600}h {(seconds % 3600) // 60}m"
 
 
-# --------------------------------------------------------------------------
 # Message assembly
-# --------------------------------------------------------------------------
 def build_message(alerts: list[DiscordAlert]) -> dict[str, Any]:
     """
     Pack up to MAX_EMBEDS_PER_MESSAGE alerts into one webhook payload.
@@ -302,9 +293,7 @@ def build_message(alerts: list[DiscordAlert]) -> dict[str, Any]:
     return payload
 
 
-# --------------------------------------------------------------------------
 # Transport
-# --------------------------------------------------------------------------
 def _post(url: str, payload: dict[str, Any], client: httpx.Client | None = None) -> bool:
     owns = client is None
     client = client or httpx.Client(timeout=10.0)
@@ -334,9 +323,7 @@ def _post(url: str, payload: dict[str, Any], client: httpx.Client | None = None)
             client.close()
 
 
-# --------------------------------------------------------------------------
 # Queue
-# --------------------------------------------------------------------------
 def _redis():
     """Return a Redis client, or None if unreachable (native Windows mode)."""
     try:
@@ -489,9 +476,6 @@ def queue_depth() -> dict[str, int]:
     return out
 
 
-# --------------------------------------------------------------------------
-# Convenience used by the worker
-# --------------------------------------------------------------------------
 def notify_status_change(
     *,
     target_name: str,

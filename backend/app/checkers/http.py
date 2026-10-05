@@ -67,7 +67,7 @@ async def check_http(
     ttfb_ms = 0.0
     transfer_ms = 0.0
 
-    # 1. Measure DNS & Socket Connection Phases (TCP + TLS)
+    # Measure DNS & socket connection phases (TCP + TLS)
     loop = asyncio.get_running_loop()
     resolved_ip = host
     

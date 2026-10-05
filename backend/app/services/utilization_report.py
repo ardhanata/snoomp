@@ -141,7 +141,6 @@ def get_target_utilization_report(target_id: str, hours: int = 168, db: Session 
         if r.details_json and isinstance(r.details_json, dict):
             latest_details = r.details_json
 
-        # CPU
         if r.cpu_percent is not None:
             c = max(0.0, float(r.cpu_percent))
             cpu_samples.append((c, ts))
@@ -166,7 +165,6 @@ def get_target_utilization_report(target_id: str, hours: int = 168, db: Session 
                     "note": f"Elevated CPU load: {c:.1f}%",
                 })
 
-        # Memory
         if r.mem_percent is not None:
             m = max(0.0, float(r.mem_percent))
             mem_samples.append((m, ts))
@@ -191,7 +189,6 @@ def get_target_utilization_report(target_id: str, hours: int = 168, db: Session 
                     "note": f"Elevated Memory consumption: {m:.1f}%",
                 })
 
-        # Disk
         if r.disk_percent is not None:
             d = max(0.0, float(r.disk_percent))
             disk_samples.append((d, ts))
@@ -238,7 +235,6 @@ def get_target_utilization_report(target_id: str, hours: int = 168, db: Session 
 
     total_n = len(rows)
 
-    # Host info
     from app.checkers.ssh import parse_uptime_str
     raw_uptime = latest_uptime or latest_details.get("uptime") or "Active"
     host_uptime = parse_uptime_str(raw_uptime) if raw_uptime != "Active" else "Active"
@@ -252,7 +248,6 @@ def get_target_utilization_report(target_id: str, hours: int = 168, db: Session 
         "os_type": latest_details.get("os_type") or ("Windows" if "Windows" in str(raw_uptime) else "Linux/POSIX"),
     }
 
-    # Disk partitions
     partitions: List[Dict[str, Any]] = []
     raw_disks = latest_details.get("disks") or []
     if isinstance(raw_disks, list):
@@ -297,7 +292,6 @@ def get_target_utilization_report(target_id: str, hours: int = 168, db: Session 
                 })
         partitions.sort(key=lambda p: float(p.get("use_pct") or 0.0), reverse=True)
 
-    # Database summary
     database_summary = None
     if target.type.lower() in ["db", "mongodb", "redis"] or db_conns or db_cache_hits:
         database_summary = {
@@ -308,7 +302,6 @@ def get_target_utilization_report(target_id: str, hours: int = 168, db: Session 
             "keyspace_keys": latest_details.get("keyspace_keys"),
         }
 
-    # Saturation metrics
     saturation = {
         "cpu_warning_pct": round(cpu_warn_count / total_n * 100, 2) if total_n else 0.0,
         "cpu_critical_pct": round(cpu_crit_count / total_n * 100, 2) if total_n else 0.0,
@@ -319,7 +312,6 @@ def get_target_utilization_report(target_id: str, hours: int = 168, db: Session 
         "total_spikes": len(spikes),
     }
 
-    # Capacity Verdict
     peak_cpu = cpu_stats["max"] if cpu_stats else 0.0
     peak_mem = mem_stats["max"] if mem_stats else 0.0
     peak_disk = disk_stats["max"] if disk_stats else 0.0

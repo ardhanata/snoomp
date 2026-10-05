@@ -22,12 +22,11 @@ from app.routes import auth, targets, dashboard
 from app.routes import status_pages, settings, notifications, backup, reports, system
 from app import websockets
 
-# Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# ponytail: retry init_db so a slow DB container start doesn't crash the app
+# Retry database connection during container orchestration startup
 def _init_db_with_retry(max_retries: int = 10, base_delay: float = 2.0):
     for attempt in range(1, max_retries + 1):
         try:
@@ -42,10 +41,10 @@ def _init_db_with_retry(max_retries: int = 10, base_delay: float = 2.0):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 1. Initialize Database & TimescaleDB (with retry for container orchestration)
+    # Database & TimescaleDB initialization with retry for container orchestration
     _init_db_with_retry()
     
-    # 2. Seed Default User if empty
+    # Seed default admin user on first run if database is empty
     db = SessionLocal()
     try:
         user_count = db.query(User).count()
@@ -73,7 +72,7 @@ async def lifespan(app: FastAPI):
             print(f"{'='*60}\n")
             logger.info("Default admin user created (password printed to stdout)")
         elif admin_email:
-            # ponytail: automatically set admin email if configured in .env and admin has no email
+            # Set admin email if configured in .env and admin has no email
             admin_user = db.query(User).filter(User.username == "admin", User.email == None).first()
             if admin_user:
                 admin_user.email = admin_email
@@ -82,15 +81,15 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
         
-    # 3. Start APScheduler (queues jobs via Celery)
+    # Start APScheduler to queue monitor checks via Celery
     app.state.scheduler = start_scheduler()
     
-    # 4. Start Redis pub/sub background listener
+    # Start Redis pub/sub listener for live WebSocket broadcast
     listener_task = asyncio.create_task(websockets.redis_listener())
     
     yield
     
-    # 5. Shutdown processes
+    # Teardown scheduler and background listener on app shutdown
     stop_scheduler(app.state.scheduler)
     listener_task.cancel()
     try:

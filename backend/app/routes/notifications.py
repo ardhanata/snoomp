@@ -88,7 +88,7 @@ def create_notification(
     db.add(notif)
     db.flush()
 
-    # ponytail: apply_existing updates all existing targets in place
+    # Apply new notification channel to all existing targets if requested
     if payload.apply_existing:
         targets = db.query(Target).all()
         for t in targets:

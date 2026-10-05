@@ -20,7 +20,7 @@ services:
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}"
       POSTGRES_DB: "${POSTGRES_DB:-snoomp_db}"
     volumes:
-      # ponytail: bind mount to host directory so database is permanent and immune to docker volume prune
+      # Bind mount to host directory so database is permanent and immune to docker volume prune
       - "${SNOOMP_DATA_DIR:-./data}/postgres:/var/lib/postgresql/data"
     # Not published to the host — only the app containers need it. Uncomment
     # to attach a SQL client from outside.
@@ -88,7 +88,7 @@ services:
         max-file: "5"
 
   worker:
-    # ponytail: reuse image built by api service to avoid duplicate multi-stage build overhead
+    # Reuse image built by api service to avoid duplicate multi-stage build overhead
     image: snoomp:${SNOOMP_VERSION:-local}
     container_name: snoomp-worker
     restart: unless-stopped
@@ -105,7 +105,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    # ponytail: the image's baked HTTP healthcheck checks port 8000 (api only); disable on worker
+    # Disable container HTTP healthcheck because worker does not expose HTTP port 8000
     healthcheck:
       disable: true
     logging: *logging

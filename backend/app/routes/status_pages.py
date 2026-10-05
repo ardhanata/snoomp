@@ -13,7 +13,6 @@ from app.auth.security import require_viewer, require_editor, get_current_user
 
 router = APIRouter(prefix="/api/status-pages", tags=["Status Pages"])
 
-# ── Pydantic schemas ──
 
 class StatusPageCreate(BaseModel):
     name: str
@@ -27,8 +26,6 @@ class StatusPageCreate(BaseModel):
 class StatusPageUpdate(StatusPageCreate):
     pass
 
-
-# ── CRUD endpoints (auth required) ──
 
 @router.get("/", dependencies=[Depends(require_viewer)])
 def list_status_pages(db: Session = Depends(get_db)):
@@ -96,8 +93,6 @@ def delete_status_page(page_id: str, db: Session = Depends(get_db)):
     db.commit()
     return {"detail": "Deleted."}
 
-
-# ── Public endpoint (no auth) ──
 
 @router.get("/public/{slug}")
 def get_public_status_page(slug: str, db: Session = Depends(get_db)):

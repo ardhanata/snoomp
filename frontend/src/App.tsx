@@ -49,10 +49,6 @@ const API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ?
 const WS_PROTOCOL = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const WS_URL = import.meta.env.VITE_WS_URL || (typeof window !== 'undefined' ? `${WS_PROTOCOL}//${window.location.host}` : '');
 
-
-
-// ── Helpers ──
-
 /**
  * Copy text to the clipboard, working in non-secure contexts.
  *
@@ -115,7 +111,7 @@ function visibleVolumes(disks: any[] | undefined | null): any[] {
   });
 }
 
-// ponytail: clean uptime extractor; strips legacy load averages/users and normalizes HH:MM
+// Clean uptime extractor; strips legacy load averages/users and normalizes HH:MM
 function formatUptime(raw?: string | null): string {
   if (!raw || raw.toLowerCase() === 'unknown') return '—';
   const match = raw.match(/\bup\s+(.*?)(?:,\s+\d+\s+user|,\s+load average|$)/);
@@ -123,7 +119,7 @@ function formatUptime(raw?: string | null): string {
   return clean.replace(/\b(\d{1,2}):(\d{2})\b/, (_, h) => `${parseInt(h, 10)} hours`) || '—';
 }
 
-// ponytail: clear inline styles on default accent so CSS data-theme tokens resolve naturally
+// Clear inline styles on default accent so CSS data-theme tokens resolve naturally
 function applyAccent(color: string, currentTheme?: string) {
   const isLight = (currentTheme || document.documentElement.getAttribute('data-theme')) === 'light';
   if (!color || color.toLowerCase() === '#3b82f6') {
@@ -213,7 +209,6 @@ function statusBucket(status: string | undefined | null): StatusFilter {
   }
 }
 
-// ── Status Page Types ──
 interface StatusPageData {
   id: string;
   name: string;
@@ -236,11 +231,7 @@ const DEFAULT_SP_FORM: StatusPageForm = {
   name: '', slug: '', description: '', monitor_ids: [], is_public: true
 };
 
-// ══════════════════════════════════════════
-//  MAIN APP
-// ══════════════════════════════════════════
 function App() {
-  // ── Accent ──
   const [accentColor, setAccentColor] = useState(() => localStorage.getItem('snoomp_accent') || '#3b82f6');
   const changeAccent = (color: string) => {
     setAccentColor(color);
@@ -249,14 +240,12 @@ function App() {
   };
   useEffect(() => { applyAccent(accentColor, theme); }, []); // eslint-disable-line
 
-  // ── Auth ──
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('snoomp_token'));
   const [role, setRole] = useState<string | null>(() => localStorage.getItem('snoomp_role'));
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
-  // ── Password Recovery States ──
   const [authMode, setAuthMode] = useState<'login' | 'forgot' | 'reset'>('login');
   const [forgotIdentifier, setForgotIdentifier] = useState('');
   const [forgotSubmitting, setForgotSubmitting] = useState(false);
@@ -271,7 +260,7 @@ function App() {
   const [resetNotice, setResetNotice] = useState('');
   const [resetError, setResetError] = useState('');
 
-  // ponytail: detect password reset token from query string or /reset-password pathname on boot
+  // Detect password reset token from query string or /reset-password pathname on boot
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tokenParam = params.get('token') || params.get('reset_token');
@@ -300,7 +289,6 @@ function App() {
     }
   }, []);
 
-  // ── Theme ──
   const [theme, setTheme] = useState(() => localStorage.getItem('snoomp_theme') || 'dark');
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -308,17 +296,14 @@ function App() {
     applyAccent(accentColor, theme);
   }, [theme, accentColor]);
 
-  // ── Toasts ──
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3000);
   };
 
-  // ── URL Params Initialization ──
   const searchParams = new URLSearchParams(window.location.search);
 
-  // ── View state ──
   const [view, setView] = useState<'dashboard' | 'status-pages' | 'executive'>(
     (searchParams.get('view') as any) || 'dashboard'
   );
@@ -452,16 +437,13 @@ function App() {
     });
   };
 
-  // ── Batch Operation & Tag Management States ──
   const [isBatchMode, setIsBatchMode] = useState(false);
   const [selectedMonitorIds, setSelectedMonitorIds] = useState<string[]>([]);
   const [isBatchEditModalOpen, setIsBatchEditModalOpen] = useState(false);
 
-  // ── Monitor Modal ──
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMonitor, setEditingMonitor] = useState<any>(null);
 
-  // ── Status Pages ──
   const [statusPages, setStatusPages] = useState<StatusPageData[]>([]);
   const [showSpModal, setShowSpModal] = useState(false);
   const [editingPage, setEditingPage] = useState<StatusPageData | null>(null);
@@ -472,7 +454,6 @@ function App() {
   const deepLinkResolved = useRef(false);
   const [spSearch, setSpSearch] = useState('');
 
-  // ── Grouping ──
   const [groupBy, setGroupBy] = useState<'none' | 'tags' | 'type'>(
     (searchParams.get('groupBy') as any) || (localStorage.getItem('snoomp_group_by') as 'none' | 'tags' | 'type') || (localStorage.getItem('snoomp_group_by_tags') === 'true' ? 'tags' : 'none')
   );
@@ -528,7 +509,6 @@ function App() {
     };
   }, [sidebarOpen]);
 
-  // ── URL State Synchronization ──
   //
   // Gated on `initialLoading` for a reason: this effect writes `selectedMonitor`
   // (null on mount) into the query string. If it ran before the monitor list
@@ -565,7 +545,6 @@ function App() {
     return () => clearTimeout(timer);
   }, [initialLoading, searchTerm, selectedGroupTag, selectedEnvTag, statusFilter, groupBy, dbActiveTab, view, selectedMonitor]);
 
-  // ── Availability & Utilization Reports ──
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportTab, setReportTab] = useState<'availability' | 'utilization'>('availability');
   const [reportTarget, setReportTarget] = useState<any>(null);
@@ -678,7 +657,6 @@ function App() {
 
   const wsRef = useRef<WebSocket | null>(null);
 
-  // ── Manual refresh ──
   const handleRefreshMonitor = async (id: string) => {
     try {
       const res = await fetch(`${API_URL}/api/targets/${encodeURIComponent(id)}/refresh`, {
@@ -695,7 +673,6 @@ function App() {
     }
   };
 
-  // ── Auth handlers ──
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault(); setAuthError('');
     try {
@@ -785,7 +762,6 @@ function App() {
     setToken(null); setRole(null); wsRef.current?.close();
   };
 
-  // ── Fetch helpers ──
   const authHeaders = () => ({ Authorization: `Bearer ${token}` });
 
   const handleApiResponseError = async (res: Response, defaultMsg: string = 'Operation failed') => {
@@ -895,7 +871,6 @@ function App() {
     }, wait);
   };
 
-  // ── WebSocket & Data Fetching ──
   useEffect(() => {
     fetchVersion();
     if (!token) return;
@@ -966,7 +941,7 @@ function App() {
           };
         });
 
-        // ponytail: live-update heartbeats and metricsHistory for active monitor without manual page refresh
+        // Live-update heartbeats and metricsHistory for active monitor without manual page refresh
         const currentSel = selectedMonitorRef.current;
         if (currentSel?.id) {
           const selUps = batch.get(currentSel.id);
@@ -1041,7 +1016,7 @@ function App() {
           const msg = JSON.parse(event.data);
           if (msg.type === 'initial_state') {
             const monitorData = msg.data || msg.targets || [];
-            // ponytail: guarantee array shape
+            // Guarantee array shape
             setMonitors(Array.isArray(monitorData) ? monitorData : []);
           } else if (msg.type === 'target_update' || msg.type === 'target_updated') {
             const u = msg.data || msg.target;
@@ -1134,7 +1109,6 @@ function App() {
     ));
   }, []);
 
-  // ── CRUD monitors ──
   const handleSaveMonitor = async (data: any) => {
     try {
       const h = { 'Content-Type': 'application/json', ...authHeaders() };
@@ -1174,7 +1148,7 @@ function App() {
       const res = await fetch(`${API_URL}/api/targets`, { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
-        // ponytail: guarantee array shape to avoid G.flatMap runtime error
+        // Guarantee array shape to avoid runtime error
         const list = Array.isArray(data) ? data : (Array.isArray(data?.targets) ? data.targets : (Array.isArray(data?.data) ? data.data : []));
         setMonitors(list);
 
@@ -1199,7 +1173,6 @@ function App() {
     }
   };
 
-  // ── CRUD Status Pages ──
   const openSpModal = (page?: StatusPageData) => {
     if (monitors.length === 0) {
       fetchMonitorsDirectly();
@@ -1246,7 +1219,6 @@ function App() {
     setTimeout(() => setCopiedSlug(null), 2000);
   };
 
-  // ── Tag Management Handlers ──
   const handleRenameTag = async (oldTag: string, newTag: string) => {
     if (!oldTag || !newTag || tagEquals(oldTag, newTag)) return;
     const trimmedNew = normalizeTag(newTag);
@@ -1305,7 +1277,6 @@ function App() {
 
   const handleAddTag = (_newTag: string) => { };
 
-  // ── Batch Operation Handlers ──
   const handleApplyBatchEdit = async (data: {
     tagAction: 'add' | 'replace' | 'remove' | 'keep';
     tagsStr: string;
@@ -1400,11 +1371,10 @@ function App() {
     }
   };
 
-  // ── Derived state ──
   const ENV_KEYWORDS = ['prod', 'production', 'staging', 'stag', 'dev', 'development', 'test', 'uat'];
   const isEnvTagHelper = (tag: string) => ENV_KEYWORDS.includes(tag.toLowerCase());
 
-  // ponytail: safe list to ensure no non-array can crash the dashboard
+  // Safe list to ensure no non-array can crash the dashboard
   const safeMonitors = Array.isArray(monitors) ? monitors : [];
   const allTags = normalizeTags(safeMonitors.map(m => normalizeTags(m?.tags)).flat());
   const groupTags = allTags.filter(t => !isEnvTagHelper(t));
@@ -1469,7 +1439,7 @@ function App() {
    * wrong. The sidebar uses `sidebarCounts` below instead.
    */
   const downCount = (stats.status_summary?.down || 0) + (stats.status_summary?.critical || 0);
-  // ponytail: track warnings and latency >= 1000ms for status banner and alerts
+  // Track warnings and latency >= 1000ms for status banner and alerts
   const warnCount = (stats.status_summary?.warning || 0);
 
   /**
@@ -1508,7 +1478,7 @@ function App() {
         uptimeSum += m.uptime_24h ?? 100;
         uptimeCount++;
       }
-      // ponytail: include outages, warnings, and latency >= 1000ms in alerts feed
+      // Include outages, warnings, and latency >= 1000ms in alerts feed
       const isSlow = m.response_time_ms != null && m.response_time_ms >= 1000;
       if (isSlow) slowCount++;
       if (m.status === 'down' || m.status === 'critical' || m.status === 'warning' || isSlow) {
@@ -1533,18 +1503,14 @@ function App() {
   const isHostMetricType = sm && ['snmp', 'ssh', 'push'].includes(sm.type?.toLowerCase());
   const isDatabaseType = sm && ['db', 'mongodb', 'redis'].includes(sm.type?.toLowerCase());
 
-  // ═══════════════════════════════════════════
-  //  ROUTING OVERRIDE FOR PUBLIC STATUS PAGES
-  // ═══════════════════════════════════════════
+  // Routing override for public status pages
   const pathname = window.location.pathname;
   if (pathname.startsWith('/status/')) {
     const slug = pathname.replace('/status/', '');
     return <PublicStatusPage slug={slug} />;
   }
 
-  // ═══════════════════════════════════════════
-  //  LOGIN PAGE (Asymmetric Split)
-  // ═══════════════════════════════════════════
+  // Login page (split layout)
   if (!token) {
     return (
       <div className="login-wrap split-layout">
@@ -1753,12 +1719,9 @@ function App() {
     );
   }
 
-  // ═══════════════════════════════════════════
-  //  MAIN DASHBOARD
-  // ═══════════════════════════════════════════
   return (
     <div className="app-root" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-      {/* ponytail: accessible high-contrast skip link in both dark and light themes (WCAG 1.4.3) */}
+      {/* Accessible high-contrast skip link in both dark and light themes (WCAG 1.4.3) */}
       <a href="#main-content" style={{ position: 'absolute', top: '-999px', left: '12px', background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '2px solid var(--accent)', padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontWeight: 600, fontSize: '13px', zIndex: 10000, boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }} onFocus={e => e.currentTarget.style.top = '12px'} onBlur={e => e.currentTarget.style.top = '-999px'}>Skip to main content</a>
       {toastMsg && (
         <div role="status" aria-live="polite" className="toast-notification">
@@ -2311,7 +2274,6 @@ function App() {
 
                     return (
                       <div key={groupName} style={{ marginBottom: '8px' }}>
-                        {/* ponytail: rely on .sidebar-group-header CSS for width and alignment without right-side gap */}
                         <button
                           type="button"
                           className="sidebar-group-header"
@@ -2390,7 +2352,6 @@ function App() {
 
           <main id="main-content" className="main-content" ref={mainContentRef}>
 
-            {/* ═══ EXECUTIVE DASHBOARD VIEW ═══ */}
             {view === 'executive' ? (
               <React.Suspense fallback={<ChartSkeleton height={360} />}>
                 <ExecutiveDashboard
@@ -2519,7 +2480,6 @@ function App() {
               </div>
 
             ) : sm ? (
-              /* ═══ MONITOR DETAIL VIEW ═══ */
               <div className="anim-fade-in">
 
                 {/* Sticky header */}
@@ -2683,7 +2643,7 @@ function App() {
                       <RadialGauge
                         key={`${sm.id}-disk`}
                         value={sm.metrics.disk_percent || 0}
-                        /* ponytail: simpler, correct label for total utilization */
+                        /* Simpler, correct label for total utilization */
                         label="Total Disk"
                         sublabel={sm.metrics.disks && sm.metrics.disks.length > 1 ? `${sm.metrics.disks.length} volumes monitored` : "partition usage"}
                       />
@@ -2726,7 +2686,7 @@ function App() {
                       <HttpLatencyProfiler monitor={sm} />
                     )}
 
-                    {/* ponytail: cold connection latency phase diagnostics (SSH) */}
+                    {/* Cold connection latency phase diagnostics (SSH) */}
                     {sm.type === 'ssh' && sm.metrics?.timing?.connect_ms != null && (
                       <div style={{ marginTop: '16px', background: 'var(--bg-elevated)', border: '1px solid ' + (sm.response_time_ms >= 1000 ? 'var(--color-warning)' : 'var(--border)'), borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -3267,7 +3227,6 @@ curl -X POST -H "Content-Type: application/json" \\
                 )}
               </div>
             ) : (
-              /* ═══ EXECUTIVE DASHBOARD (HOMEPAGE) ═══ */
               <div className="anim-fade-in" style={{ padding: '24px' }}>
                 {/* Executive Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>

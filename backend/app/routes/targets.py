@@ -143,7 +143,7 @@ async def test_target_connection(
     db: Session = Depends(get_db)
 ):
     """Executes a one-off immediate test connection without saving to the DB."""
-    # ponytail: merge redacted secrets if testing an existing saved target
+    # Merge redacted secrets if testing an existing saved target
     cfg = dict(target_in.config_json or {})
     if target_id:
         existing = db.query(Target).filter(Target.id == target_id).first()
@@ -166,7 +166,7 @@ async def test_target_connection(
     )
     
     try:
-        # ponytail: prevent one-off connection tests from hanging the HTTP request
+        # Cap test timeout to prevent long-running probes from hanging the request
         res = await asyncio.wait_for(execute_checker(temp_target), timeout=18.0)
         return res
     except asyncio.TimeoutError:

@@ -6,7 +6,6 @@ import redis
 from celery import Celery
 from sqlalchemy.orm import Session
 
-# Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -25,7 +24,6 @@ if REDIS_URL and REDIS_URL.lower() not in ("none", "false", ""):
 else:
     redis_client = None
 
-# Add backend directory to path if needed for imports
 import sys
 sys.path.append("/workspace")
 
@@ -170,7 +168,7 @@ def trigger_alerts(
     Fan a status transition out to configured notification channels.
     Dispatches via Apprise multi-channel alert engine.
     """
-    # --- 1. Notification Model Channels (Apprise Alert Engine) ------------
+    # Notification channels dispatch (Apprise engine)
     try:
         from app.models.notification import Notification
         from app.services.notification_service import dispatch_notification
@@ -241,7 +239,7 @@ def trigger_alerts(
     except Exception as e:
         logger.error(f"Notification channels dispatch failed for {target.name}: {e}")
 
-    # --- 2. Discord (Global Webhook fallback) ------------------------------
+    # Discord fallback webhook
     try:
         discord.notify_status_change(
             target_name=target.name,
@@ -256,7 +254,7 @@ def trigger_alerts(
     except Exception as e:
         logger.error(f"Discord notification failed for {target.name}: {e}")
 
-    # --- 3. Apprise (Legacy / One-Off per-target URIs) --------------------
+    # Legacy per-target Apprise URIs
     try:
         from app.services.notification_service import send_apprise_notification
         cfg = target.config_json or {}
@@ -294,7 +292,6 @@ def run_check_task(target_id: str):
         if not target or not target.enabled:
             return
             
-        # 1. Execute check
         # As Celery runs in a sync execution block, we run the async method executing
         # checkers in a new event loop.
         loop = asyncio.new_event_loop()
@@ -309,7 +306,7 @@ def run_check_task(target_id: str):
         error = res_dict.get("error")
         details = res_dict.get("details", {})
 
-        # 1b. Apply alarm thresholds.
+        # Apply alarm thresholds.
         #
         # Done here rather than inside each checker for three reasons: every
         # checker signature stays untouched, latency ceilings get a home (a
@@ -343,7 +340,7 @@ def run_check_task(target_id: str):
         except Exception as exc:  # noqa: BLE001 — never drop a check over this
             logger.warning("Threshold evaluation skipped for %s: %s", target_id, exc)
 
-        # 2. Query previous status
+        # Query previous status
         prev_hb = (
             db.query(Heartbeat)
             .filter_by(target_id=target_id)
@@ -352,7 +349,7 @@ def run_check_task(target_id: str):
         )
         prev_status = prev_hb.status if prev_hb else "up" # Default assuming UP
         
-        # 3. Create Heartbeat log
+        # Record heartbeat log
         hb = Heartbeat(
             target_id=target_id,
             status=status,
@@ -363,7 +360,7 @@ def run_check_task(target_id: str):
         db.add(hb)
         db.flush()
         
-        # 4. Handle time-series Metrics for SNMP, SSH, Databases, & HTTP
+        # Store time-series metrics for host and database monitors
         if target.type.lower() in ["snmp", "ssh", "db", "mongodb", "redis", "http"] and status in ["up", "warning", "critical", "degraded"]:
             # Extract CPU/RAM/Disk & DB details
             cpu = details.get("cpu_percent")
@@ -395,7 +392,7 @@ def run_check_task(target_id: str):
                 )
                 db.add(metric_row)
                 
-        # 5. Handle Incident transitions
+        # Handle incident transitions
         if prev_status != status:
             now = datetime.datetime.utcnow()
             
@@ -458,7 +455,7 @@ def run_check_task(target_id: str):
         else:
             db.commit()
             
-        # 6. Publish WebSocket update to Redis channel (with in-memory fallback)
+        # Broadcast WebSocket update via Redis channel
         update_payload = {
             "target_id": target_id,
             "status": status,

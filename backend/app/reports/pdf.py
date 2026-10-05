@@ -42,7 +42,7 @@ from reportlab.platypus import (
     Paragraph, Spacer, Table, TableStyle,
 )
 
-# ── Palette ───────────────────────────────────────────────────────────────
+# Color palette constants
 INK = colors.HexColor("#111418")
 MUTED = colors.HexColor("#57606a")
 RULE = colors.HexColor("#d8dee4")
@@ -139,8 +139,7 @@ def _parse(ts: Optional[str]) -> Optional[datetime.datetime]:
         return None
 
 
-# ── Flowables ─────────────────────────────────────────────────────────────
-
+# Custom ReportLab flowables
 class Rule(Flowable):
     """Full-width hairline."""
 
@@ -551,8 +550,7 @@ class ResourceTrendChart(Flowable):
         return self.width, self.height
 
 
-# ── Document shell ────────────────────────────────────────────────────────
-
+# Document template shell
 class _Doc(BaseDocTemplate):
     """Adds the running masthead and 'Page n of m' footer."""
 
@@ -727,8 +725,7 @@ def _fmt_storage(val_gb: Optional[float], is_size: bool = False) -> str:
     return "< 100 MB" if is_size else "0.0 GB"
 
 
-# ── Reports ───────────────────────────────────────────────────────────────
-
+# Report document builders
 def build_monitor_report(target: Any, report: Dict[str, Any], sla_target: float = 99.9) -> bytes:
     hours = report.get("range_hours", 168)
     period = ("last 24 hours" if hours <= 24 else

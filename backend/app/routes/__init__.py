@@ -1,1 +1,1 @@
-# Initialize routes package
+"""API route handlers."""

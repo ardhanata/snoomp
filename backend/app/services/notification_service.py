@@ -384,7 +384,7 @@ def dispatch_notification(
     color_hex = "#10b981" if status.lower() == "up" else ("#f59e0b" if status.lower() == "warning" else "#ef4444")
     color_int = 0x10b981 if status.lower() == "up" else (0xf59e0b if status.lower() == "warning" else 0xef4444)
 
-    # 1. Attempt direct delivery for custom formatted webhooks
+    # Direct delivery for native supported endpoints
     try:
         if t == "discord":
             webhook_url = cfg.get("discordWebhookUrl", "").strip()
@@ -409,7 +409,7 @@ def dispatch_notification(
     except Exception as e:
         logger.warning("Direct delivery failed for %s, falling back to Apprise engine: %s", t, e)
 
-    # 2. Universal Apprise Engine dispatch
+    # Apprise multi-channel engine fallback
     apprise_uri = build_apprise_uri(notif_type, cfg)
     if apprise_uri:
         custom_prefix = cfg.get("title", "").strip()

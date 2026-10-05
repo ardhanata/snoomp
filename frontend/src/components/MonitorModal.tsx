@@ -36,7 +36,6 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
   const [enabled, setEnabled] = useState(true);
   const [tagsStr, setTagsStr] = useState('');
   
-  // Custom Config JSON parameters
   const [scheme, setScheme] = useState('http');
   const [method, setMethod] = useState('GET');
   const [ignoreTls, setIgnoreTls] = useState(false);
@@ -52,26 +51,22 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
      fleet value" rather than being coerced to 0. */
   const [thresholds, setThresholds] = useState<Record<string, string>>({});
   
-  // Alerts config
   const [appriseUri, setAppriseUri] = useState('');
-  // Apprise Notification channels
   const [availableNotifications, setAvailableNotifications] = useState<NotificationItem[]>([]);
   const [selectedNotificationIds, setSelectedNotificationIds] = useState<string[]>([]);
   const [isNotifDialogOpen, setIsNotifDialogOpen] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
   const [showAdvancedApprise, setShowAdvancedApprise] = useState(false);
 
-  // Test connection state
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
   const [testMessage, setTestMessage] = useState('');
   
-  // CSV Import State
   const csvFileRef = React.useRef<HTMLInputElement>(null);
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvMonitors, setCsvMonitors] = useState<any[]>([]);
   const [csvLoadedInfo, setCsvLoadedInfo] = useState<string | null>(null);
 
-  // ponytail: helper resolves effective host across standard host input and URI-based DB monitors
+  // Helper resolves effective host across standard host input and URI-based DB monitors
   const parseHostFromUri = (uri: string, defaultHost: string) => {
     try {
       const match = uri.match(/@([^/:]+)/) || uri.match(/:\/\/([^/:]+)/);
@@ -99,7 +94,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
     handleClearCsv();
   };
 
-  // ponytail: static CSV schema map replaces redundant switch statements
+  // Static CSV schema map per monitor type
   const CSV_CONFIG: Record<string, { formatText: string; headers: string; sample: string }> = {
     snmp: { formatText: 'name, ip/hostname, port, snmp_community_string, check_interval', headers: 'name,host,port,community,check_interval', sample: 'Router SNMP,192.168.1.1,161,public,60' },
     ssh: { formatText: 'name, ip/hostname, port, ssh_username, ssh_password, check_interval', headers: 'name,host,port,username,password,check_interval', sample: 'Linux VM,10.0.0.5,22,root,secretpassword,60' },
@@ -180,7 +175,6 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
         ),
       );
       
-      // Load notifications if exists
       const alerts = cfg.notifications || [];
       if (alerts.length > 0) {
         const primary = alerts[0];
@@ -189,7 +183,6 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
         setAppriseUri('');
       }
     } else {
-      // Clear inputs
       setName('');
       setType('http');
       setHost('');
@@ -212,7 +205,6 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
       setAppriseUri('');
     }
 
-    // Reset test connection state & CSV state
     setTestStatus('idle');
     setTestMessage('');
     setCsvMonitors([]);
@@ -225,11 +217,10 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
           if (Array.isArray(cfg.notification_ids)) {
             setSelectedNotificationIds(cfg.notification_ids);
           } else {
-            // Default to channels with is_default == true
+            // Fall back to globally default channels
             setSelectedNotificationIds(notifs.filter(n => n.is_default && n.id).map(n => n.id!));
           }
         } else {
-          // Brand new monitor: auto-select default channels
           setSelectedNotificationIds(notifs.filter(n => n.is_default && n.id).map(n => n.id!));
         }
       });
@@ -379,7 +370,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
       config_json.connection_string = dbConnStr;
       config_json.query = dbQuery;
     }
-    // ponytail: getEffectiveHost extracts host string even for URI-based database monitors
+    // Extract host string even for URI-based database monitors
     const effectiveHost = getEffectiveHost();
     const payload = {
       name,
@@ -511,7 +502,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
     }
   };
 
-  // ponytail: early return guard must be after all hooks to prevent conditional hook crash
+  // Guard must remain after all hooks to prevent conditional render violations
   if (!isOpen) return null;
 
   return (

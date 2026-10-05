@@ -11,7 +11,7 @@ export interface DialogProps {
 
 export default function Dialog({ isOpen, onClose, children, className, style, 'aria-labelledby': ariaLabelledBy }: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  // ponytail: capture trigger element before open and restore focus upon close (WCAG 2.4.3)
+  // Restore focus to trigger element upon dialog close (WCAG 2.4.3)
   const lastActiveElementRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {

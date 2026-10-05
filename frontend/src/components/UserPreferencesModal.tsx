@@ -82,26 +82,22 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
   const [appearance, setAppearance] = useState(DEFAULT_SETTINGS.appearance);
   const [testing, setTesting] = useState(false);
 
-  // Apprise notification channels state
   const [notificationsList, setNotificationsList] = useState<NotificationItem[]>([]);
   const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
   const [isNotifDialogOpen, setIsNotifDialogOpen] = useState(false);
 
-  // Backup & Restore state
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
   const [importFile, setImportFile] = useState<File | null>(null);
   const [backupMsg, setBackupMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Updates state
   const [checkingUpdates, setCheckingUpdates] = useState(false);
   const [updateData, setUpdateData] = useState<any | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [copiedDockerCmd, setCopiedDockerCmd] = useState(false);
   const [copiedInstallerCmd, setCopiedInstallerCmd] = useState(false);
 
-  // Account profile state
   const [userProfile, setUserProfile] = useState<{ username: string; email: string | null; role: string } | null>(null);
   const [accountEmail, setAccountEmail] = useState('');
   const [accountPassword, setAccountPassword] = useState('');
@@ -229,7 +225,6 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      // ponytail: inform user precisely where the file was saved on their local system
       const sizeKb = (blob.size / 1024).toFixed(1);
       setBackupMsg({
         type: 'success',
@@ -318,7 +313,6 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
     return () => { cancelled = true; };
   }, [isOpen, apiUrl, token]);
 
-  // ── Live SLA validation ──
   // Runs on every keystroke rather than on submit. The old modal validated only
   // on save, which is how warning=90 / critical=95 got stored and then rendered
   // as the self-contradicting summary "Critical: < 90% (Breach: < 95%)".
@@ -1235,7 +1229,6 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                       <span>{backupMsg.text}</span>
                       {backupMsg.type === 'success' && (
                         <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                          {/* ponytail: inline platform shortcut to reveal the downloaded backup without leaving the app */}
                           Press <kbd style={{ background: 'var(--surface)', padding: '1px 5px', borderRadius: '3px', border: '1px solid var(--border)', fontSize: '10px' }}>Ctrl + J</kbd> (or <kbd style={{ background: 'var(--surface)', padding: '1px 5px', borderRadius: '3px', border: '1px solid var(--border)', fontSize: '10px' }}>Cmd + Option + L</kbd>) in your browser to view the saved file.
                         </span>
                       )}
@@ -1257,7 +1250,6 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                     <p style={{ margin: '0 0 var(--space-3)', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                       Export all targets, notification channels, status pages, and system settings into a portable, database-agnostic JSON file.
                     </p>
-                    {/* ponytail: transparently show default download location before export */}
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',

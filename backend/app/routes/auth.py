@@ -25,12 +25,12 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
-# ponytail: rate limit failed attempts only, resolve real client IP behind proxy, clear on success
+# Rate limit failed attempts per IP (max 5 per 5 minutes)
 _LOGIN_WINDOW = 5 * 60  # 5 minutes
 _LOGIN_MAX = 5
 _login_attempts: dict[str, list[float]] = defaultdict(list)
 
-# ponytail: rate limit reset requests per IP to prevent email spam (max 5 per 15 minutes)
+# Rate limit password reset requests per IP to prevent spam (max 5 per 15 minutes)
 _FORGOT_WINDOW = 15 * 60
 _FORGOT_MAX = 5
 _forgot_attempts: dict[str, list[float]] = defaultdict(list)
@@ -123,7 +123,6 @@ def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db
             detail="Inactive user"
         )
         
-    # Clear failed attempt history upon successful authentication
     _clear_rate_limit(client_ip)
 
     access_token = create_access_token(data={"sub": user.username})
@@ -193,7 +192,7 @@ def forgot_password(request: Request, body: ForgotPasswordRequest, db: Session =
         (User.username == identifier) | (User.email == identifier.lower())
     ).first()
 
-    # ponytail: constant generic message to prevent account and email enumeration attacks
+    # Constant generic message to prevent account and email enumeration
     generic_msg = (
         "Jika akun dengan informasi tersebut terdaftar dan memiliki email valid, "
         "tautan reset password telah dikirim ke email Anda."
@@ -202,13 +201,11 @@ def forgot_password(request: Request, body: ForgotPasswordRequest, db: Session =
     if not user or not user.is_active or not user.email:
         return {"message": generic_msg}
 
-    # Generate secure 32-byte reset token valid for 1 hour
     token = secrets.token_urlsafe(32)
     user.reset_token = token
     user.reset_token_expires = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
     db.commit()
 
-    # Resolve application origin URL
     app_url = os.environ.get("APP_URL", "").strip().rstrip("/")
     if not app_url:
         origin = request.headers.get("origin")

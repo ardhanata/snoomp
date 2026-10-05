@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Anti-Slop Copywriting Hard Gate (`R-02`):** Removed raw em dashes (`—`) from operator UI text in `UserPreferencesModal.tsx` and `ErrorBoundary.tsx`.
   - **IPv6 Pre-Flight Socket Probes:** Updated socket inspection in `app/checkers/http.py` to dynamically detect address family (`AF_INET` / `AF_INET6`), eliminating probe socket errors on IPv6 endpoints. Replaced deprecated `datetime.utcnow()` with timezone-aware UTC datetime.
   - **Architecture Import Cleanup:** Replaced circular re-export import `from app.main import compile_initial_data` with direct `from app.services.dashboard import compile_initial_data` in `app/routes/targets.py`.
-- **Ponytail Repo Optimization:**
+- **Repository Optimization & Code Hygiene:**
   - Removed dead in-process WebSocket broadcast fallback in Celery worker task (`worker/tasks.py`).
   - Deleted obsolete 1-line empty stylesheet `frontend/src/styles/theme.css` and its unreferenced import in `main.tsx`.
   - Removed legacy SQLite database file `backend/snoomp.db` from repository.

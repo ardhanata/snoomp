@@ -1,4 +1,3 @@
-# ponytail: standard library smtplib + email.message handles password reset delivery with zero extra dependencies
 import os
 import smtplib
 from email.message import EmailMessage

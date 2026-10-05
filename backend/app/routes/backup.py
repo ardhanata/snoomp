@@ -1,6 +1,6 @@
 """
 Backup and restore router for Snoomp.
-# ponytail: Zero-dependency JSON export/import using Python stdlib and atomic DB transactions.
+Atomic JSON export and import using standard library tools.
 """
 import datetime
 import json
@@ -26,7 +26,6 @@ router = APIRouter(prefix="/api/backup", tags=["Backup & Restore"])
 def export_backup(db: Session = Depends(get_db), _user=Depends(require_admin)):
     """
     Export all Snoomp configurations (targets, notifications, status pages, settings) as JSON.
-    # ponytail: Dump directly from SQLAlchemy models without intermediary DTO boilerplate.
     """
     targets = db.query(Target).all()
     notifications = db.query(Notification).all()
@@ -112,7 +111,6 @@ async def import_backup(
     Import and restore Snoomp configurations from backup JSON.
     mode="merge": upserts records without deleting unreferenced items.
     mode="replace": wipes existing targets, notifications, status pages, settings and loads backup.
-    # ponytail: Handled inside an atomic DB transaction with full rollback on validation error.
     """
     if not file:
         raise HTTPException(status_code=400, detail="Backup file is required")
@@ -130,16 +128,15 @@ async def import_backup(
     imported_counts = {"targets": 0, "notifications": 0, "status_pages": 0, "settings": 0}
 
     try:
-        # 1. Clean existing records if replace mode
+        # Clean existing records if replace mode
         if mode == "replace":
-            # ponytail: In replace mode, wipe existing records first
             db.query(StatusPage).delete()
             db.query(Target).delete()
             db.query(Notification).delete()
             db.query(Setting).delete()
             db.flush()
 
-        # 2. Restore Notifications
+        # Restore notifications
         for n_data in data.get("notifications", []):
             nid = n_data.get("id")
             notif = db.query(Notification).filter_by(id=nid).first() if nid else None
@@ -163,7 +160,7 @@ async def import_backup(
 
         db.flush()
 
-        # 3. Restore Targets
+        # Restore targets
         for t_data in data.get("targets", []):
             tid = t_data.get("id")
             target = db.query(Target).filter_by(id=tid).first() if tid else None
@@ -195,7 +192,7 @@ async def import_backup(
 
         db.flush()
 
-        # 4. Restore Status Pages
+        # Restore status pages
         for sp_data in data.get("status_pages", []):
             spid = sp_data.get("id")
             slug = sp_data.get("slug", "restored-page")
@@ -224,7 +221,7 @@ async def import_backup(
 
         db.flush()
 
-        # 5. Restore Settings
+        # Restore settings
         for s_data in data.get("settings", []):
             key = s_data.get("key")
             if not key:

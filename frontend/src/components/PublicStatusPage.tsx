@@ -79,12 +79,10 @@ const PublicStatusPage: React.FC<PublicStatusPageProps> = ({ slug }) => {
   const monitorsList: any[] = data.monitors || [];
   const allUp = monitorsList.length > 0 && monitorsList.every((m: any) => m.status === 'up');
 
-  // Compute average 24h uptime
   const avgUptime = monitorsList.length > 0
     ? monitorsList.reduce((acc: number, m: any) => acc + (m.uptime_24h ?? 100), 0) / monitorsList.length
     : 100;
 
-  // Group monitors by first tag
   const groupedMonitors: Record<string, any[]> = {};
   monitorsList.forEach((m: any) => {
     const norm = normalizeTags(m.tags);

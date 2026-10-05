@@ -22,7 +22,6 @@ router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 @router.get("/stats", dependencies=[Depends(require_viewer)])
 def get_stats(db: Session = Depends(get_db)):
     """Returns aggregated stats for all monitor targets."""
-    # Fetch all targets
     targets = db.query(Target).all()
     
     total = len(targets)
@@ -106,7 +105,6 @@ def get_target_heartbeats(
     effective_limit = max(1, min(limit, _MAX_HEARTBEAT_ROWS))
     heartbeats = query.order_by(Heartbeat.checked_at.desc()).limit(effective_limit).all()
 
-    # Reverse to keep chronological order
     return [hb.to_dict() for hb in reversed(heartbeats)]
 
 @router.get("/targets/{target_id}/metrics", dependencies=[Depends(require_viewer)])
@@ -131,7 +129,7 @@ def get_target_metrics(target_id: str, hours: int = 24, db: Session = Depends(ge
             return [m.to_dict() for m in raw_metrics]
         bucket_seconds = max(60, (hours * 3600) // _MAX_METRIC_POINTS)
     else:
-        # ponytail: downsample metrics for multi-day timeframes (1h buckets for 7d, 6h buckets for 30d)
+        # Downsample metrics for multi-day timeframes (1h buckets for 7d, 6h buckets for 30d)
         bucket_seconds = 3600 if hours <= 168 else 21600
     buckets: Dict[int, Dict[str, List[float]]] = {}
     for m in raw_metrics:
@@ -597,11 +595,11 @@ def get_db_engine_status(target_id: str, db: Session = Depends(get_db)):
             import psycopg2.extras
             with psycopg2.connect(conn_str, connect_timeout=5) as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-                    # 1. Version
+                    # Version
                     cursor.execute("SELECT version()")
                     version_full = cursor.fetchone()["version"]
                     
-                    # 2. Uptime
+                    # Uptime
                     cursor.execute("SELECT pg_postmaster_start_time()")
                     uptime_start = cursor.fetchone()["pg_postmaster_start_time"]
                     uptime_seconds = None
@@ -609,7 +607,7 @@ def get_db_engine_status(target_id: str, db: Session = Depends(get_db)):
                         import datetime as dt
                         uptime_seconds = (dt.datetime.now(uptime_start.tzinfo) - uptime_start).total_seconds()
                     
-                    # 3. Total server size (ALL databases)
+                    # Total server size across all databases
                     cursor.execute("""
                         SELECT sum(pg_database_size(datname)) / (1024.0 * 1024.0) AS total_mb,
                                count(*) AS db_count
@@ -619,13 +617,13 @@ def get_db_engine_status(target_id: str, db: Session = Depends(get_db)):
                     total_server_mb = round(float(size_row["total_mb"] or 0), 2)
                     db_count = size_row["db_count"]
                     
-                    # 4. Connection stats
+                    # Connection statistics
                     cursor.execute("SELECT count(*) AS active FROM pg_stat_activity WHERE state IS NOT NULL")
                     active_conns = cursor.fetchone()["active"]
                     cursor.execute("SELECT setting::int FROM pg_settings WHERE name = 'max_connections'")
                     max_conns = cursor.fetchone()["setting"]
                     
-                    # 5. Server config
+                    # Server configuration parameters
                     cursor.execute("""
                         SELECT name, setting, unit FROM pg_settings 
                         WHERE name IN ('shared_buffers', 'effective_cache_size', 'work_mem', 'maintenance_work_mem')
@@ -642,7 +640,7 @@ def get_db_engine_status(target_id: str, db: Session = Depends(get_db)):
                         else:
                             server_config[cr["name"]] = f"{val} {unit}".strip()
                     
-                    # 6. Active Slow Queries (> 1s) & Idle-in-Transaction / Long-Idle Connection Leaks (> 3m)
+                    # Active slow queries (> 1s) and long-idle connection leaks (> 3m)
                     cursor.execute("""
                         SELECT pid, usename, datname, client_addr, application_name, state, 
                                COALESCE(now() - query_start, now() - state_change) AS duration, query 
@@ -664,7 +662,7 @@ def get_db_engine_status(target_id: str, db: Session = Depends(get_db)):
                         if sq.get("client_addr"):
                             sq["client_addr"] = str(sq["client_addr"])
                             
-                    # 7. List ALL databases with sizes
+                    # List all databases with sizes
                     cursor.execute("""
                         SELECT d.datname AS table_name,
                                pg_size_pretty(pg_database_size(d.datname)) AS total_size,
@@ -677,7 +675,7 @@ def get_db_engine_status(target_id: str, db: Session = Depends(get_db)):
                     for db_row in databases:
                         db_row.pop("size_bytes", None)
 
-                    # 8. List Tablespaces with size and location
+                    # List tablespaces with size and location
                     tablespaces = []
                     try:
                         cursor.execute("""

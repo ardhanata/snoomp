@@ -81,7 +81,7 @@ def _migrate_lowercase_tags():
 
 
 def _ensure_user_columns():
-    """# ponytail: ensure email and password reset columns exist on users table without external migrations"""
+    """Ensure email and password reset columns exist on users table without external migrations."""
     db = SessionLocal()
     try:
         from sqlalchemy import inspect
@@ -130,7 +130,7 @@ def init_db():
     _ensure_user_columns()
     _migrate_lowercase_tags()
 
-    # ponytail: TimescaleDB extension/hypertable queries are Postgres-only
+    # TimescaleDB extension/hypertable queries are Postgres-only
     if engine.dialect.name == "postgresql":
         db = SessionLocal()
         try:

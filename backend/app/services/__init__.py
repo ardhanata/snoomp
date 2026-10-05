@@ -1,1 +1,1 @@
-# Services module
+"""Backend business logic and analytics services."""

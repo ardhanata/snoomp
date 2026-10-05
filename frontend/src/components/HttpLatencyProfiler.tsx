@@ -135,7 +135,6 @@ export const HttpLatencyProfiler: React.FC<HttpLatencyProfilerProps> = ({ monito
 
   const sumMs = phases.reduce((acc, p) => acc + p.ms, 0) || 1;
 
-  // Latency Grade evaluation
   const latencyGrade = React.useMemo(() => {
     if (totalTime <= 0) return { label: 'PENDING', color: 'var(--text-muted)' };
     if (totalTime < 500) return { label: '⚡ FAST (<500ms)', color: 'var(--color-up)' };

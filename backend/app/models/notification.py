@@ -27,7 +27,7 @@ class Notification(Base):
     })
 
     def to_dict(self):
-        # ponytail: Redact secrets in API responses so credentials are never leaked
+        # Redact secrets in API responses so credentials are never leaked
         raw_cfg = self.config_json or {}
         safe_cfg = {}
         for k, v in raw_cfg.items():
