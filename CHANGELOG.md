@@ -5,6 +5,11 @@ All notable changes to Snoomp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-10-15
+
+### Added
+- **Site location tags (DC / DRC):** `dc` and `drc` are reserved tags. The monitor form gets a single-select Site picker, and the sidebar gets a Site filter synced to `?site=`. Site tags no longer show up as System Group chips. Stored as ordinary tags, so no schema change (`frontend/src/utils/tags.ts`, `App.tsx`, `MonitorModal.tsx`).
+
 ## [1.4.4] - 2026-10-05
 
 ### Added

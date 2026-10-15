@@ -3,6 +3,12 @@
  * Ensures tag handling across Snoomp is strictly case-insensitive.
  */
 
+// Site location is a reserved tag; a monitor carries at most one.
+export const SITE_TAGS = ['dc', 'drc'] as const;
+
+export const isSiteTag = (tag: string): boolean =>
+  (SITE_TAGS as readonly string[]).includes((tag || '').trim().toLowerCase());
+
 /**
  * Normalizes a single tag: trims whitespace and converts to lowercase.
  */

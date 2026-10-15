@@ -21,7 +21,7 @@ import IconButton from './components/IconButton';
 import { HttpLatencyProfiler } from './components/HttpLatencyProfiler';
 import { InstanceSettings, readCache, fetchSettings, applyAppearance } from './lib/settings';
 import { downloadPdf } from './lib/downloadPdf';
-import { normalizeTags, normalizeTag, tagEquals, tagIncludes, mergeTags, removeTags } from './utils/tags';
+import { normalizeTags, normalizeTag, tagEquals, tagIncludes, mergeTags, removeTags, SITE_TAGS, isSiteTag } from './utils/tags';
 
 const MonitorModal = React.lazy(() => import('./components/MonitorModal'));
 const BatchEditModal = React.lazy(() => import('./components/BatchEditModal'));
@@ -413,6 +413,7 @@ function App() {
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
   const [selectedGroupTag, setSelectedGroupTag] = useState<string | null>(searchParams.get('group'));
   const [selectedEnvTag, setSelectedEnvTag] = useState<string | null>(searchParams.get('env'));
+  const [selectedSiteTag, setSelectedSiteTag] = useState<string | null>(searchParams.get('site'));
 
   /** Status filter driven by the stats strip. `null` = show everything. */
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(
@@ -531,6 +532,7 @@ function App() {
       setOrDelete('q', searchTerm);
       setOrDelete('group', selectedGroupTag);
       setOrDelete('env', selectedEnvTag);
+      setOrDelete('site', selectedSiteTag);
       setOrDelete('status', statusFilter);
       setOrDelete('groupBy', groupBy !== 'none' ? groupBy : null);
       setOrDelete('dbTab', dbActiveTab !== 'slow_queries' ? dbActiveTab : null);
@@ -543,7 +545,7 @@ function App() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [initialLoading, searchTerm, selectedGroupTag, selectedEnvTag, statusFilter, groupBy, dbActiveTab, view, selectedMonitor?.id]);
+  }, [initialLoading, searchTerm, selectedGroupTag, selectedEnvTag, selectedSiteTag, statusFilter, groupBy, dbActiveTab, view, selectedMonitor?.id]);
 
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportTab, setReportTab] = useState<'availability' | 'utilization'>('availability');
@@ -1421,7 +1423,7 @@ function App() {
 
   const { allTags, groupTags, envTags, filteredMonitors, sidebarCounts } = useMemo(() => {
     const all = normalizeTags(safeMonitors.map(m => normalizeTags(m?.tags)).flat());
-    const grp = all.filter(t => !isEnvTagHelper(t));
+    const grp = all.filter(t => !isEnvTagHelper(t) && !isSiteTag(t));
     const presentEnv = all.filter(t => isEnvTagHelper(t));
     const env = normalizeTags(['prod', 'staging', 'dev', ...presentEnv]);
 
@@ -1445,7 +1447,9 @@ function App() {
         })
         : true;
 
-      return matchSearch && matchGroup && matchEnv;
+      const matchSite = selectedSiteTag ? tagIncludes(targetTags, selectedSiteTag) : true;
+
+      return matchSearch && matchGroup && matchEnv && matchSite;
     });
 
     const filtered = statusFilter
@@ -1465,19 +1469,20 @@ function App() {
       filteredMonitors: filtered,
       sidebarCounts: counts
     };
-  }, [safeMonitors, searchTerm, selectedGroupTag, selectedEnvTag, statusFilter]);
+  }, [safeMonitors, searchTerm, selectedGroupTag, selectedEnvTag, selectedSiteTag, statusFilter]);
 
   /** True when anything is narrowing the sidebar list. */
-  const isListFiltered = Boolean(searchTerm || selectedGroupTag || selectedEnvTag || statusFilter);
+  const isListFiltered = Boolean(searchTerm || selectedGroupTag || selectedEnvTag || selectedSiteTag || statusFilter);
 
   /** Count of active chip/status filters, surfaced on the disclosure header. */
   const activeFilterCount =
-    (selectedGroupTag ? 1 : 0) + (selectedEnvTag ? 1 : 0) + (statusFilter ? 1 : 0);
+    (selectedGroupTag ? 1 : 0) + (selectedEnvTag ? 1 : 0) + (selectedSiteTag ? 1 : 0) + (statusFilter ? 1 : 0);
 
   const clearAllFilters = () => {
     setSearchTerm('');
     setSelectedGroupTag(null);
     setSelectedEnvTag(null);
+    setSelectedSiteTag(null);
     setStatusFilter(null);
   };
 
@@ -2104,6 +2109,32 @@ function App() {
                         aria-pressed={selectedEnvTag === tag}
                       >
                         {tag}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="sidebar-section-label" style={{ marginTop: 'var(--space-3)' }}>
+                    Site
+                  </div>
+                  <div className="sidebar-filter-row" role="group" aria-label="Site Filters">
+                    <button
+                      type="button"
+                      className={`filter-chip ${!selectedSiteTag ? 'active' : ''}`}
+                      onClick={() => setSelectedSiteTag(null)}
+                      aria-pressed={!selectedSiteTag}
+                    >
+                      All Sites
+                    </button>
+                    {SITE_TAGS.map(tag => (
+                      <button
+                        key={tag}
+                        id={`sidebar-site-${tag}`}
+                        type="button"
+                        className={`filter-chip ${selectedSiteTag === tag ? 'active' : ''}`}
+                        onClick={() => setSelectedSiteTag(selectedSiteTag === tag ? null : tag)}
+                        aria-pressed={selectedSiteTag === tag}
+                      >
+                        {tag.toUpperCase()}
                       </button>
                     ))}
                   </div>

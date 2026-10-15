@@ -3,7 +3,7 @@ import { Bell, Plus, X } from 'lucide-react';
 import Dialog from './Dialog';
 import IconButton from './IconButton';
 import NotificationDialog, { NotificationItem } from './NotificationDialog';
-import { normalizeTags, normalizeTag, tagEquals, tagIncludes } from '../utils/tags';
+import { normalizeTags, normalizeTag, tagEquals, tagIncludes, SITE_TAGS, isSiteTag } from '../utils/tags';
 
 interface MonitorModalProps {
   isOpen: boolean;
@@ -317,7 +317,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
   };
 
   const ENV_TAG_KEYWORDS = ['prod', 'production', 'staging', 'stag', 'dev', 'development', 'test', 'uat'];
-  const isEnvTag = (t: string) => ENV_TAG_KEYWORDS.includes(t.toLowerCase());
+  const isReservedTag = (t: string) => ENV_TAG_KEYWORDS.includes(t.toLowerCase()) || isSiteTag(t);
 
   const getCurrentTagsList = () => normalizeTags(tagsStr);
 
@@ -331,6 +331,14 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
       list.push(normEnv);
     }
     setTagsStr(list.join(', '));
+  };
+
+  const handleToggleSiteTag = (site: string) => {
+    const list = getCurrentTagsList();
+    const wasActive = tagIncludes(list, site);
+    const next = list.filter(t => !isSiteTag(t));
+    if (!wasActive) next.push(site);
+    setTagsStr(next.join(', '));
   };
 
   const handleToggleGroupTag = (groupTag: string) => {
@@ -972,14 +980,48 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
                 </div>
               </div>
 
+              <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                  Site:
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }} role="group" aria-label="Site location">
+                  {SITE_TAGS.map(site => {
+                    const isActive = tagIncludes(getCurrentTagsList(), site);
+                    return (
+                      <button
+                        type="button"
+                        key={site}
+                        id={`monitor-site-${site}`}
+                        aria-pressed={isActive}
+                        className={`tag-badge-btn ${isActive ? 'active' : ''}`}
+                        onClick={() => handleToggleSiteTag(site)}
+                        style={{
+                          fontSize: '12px',
+                          padding: '3px 11px',
+                          background: isActive ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.05)',
+                          border: isActive ? '1px solid var(--accent)' : '1px solid var(--border)',
+                          borderRadius: '12px',
+                          color: isActive ? 'var(--accent)' : 'var(--text-primary)',
+                          cursor: 'pointer',
+                          fontWeight: isActive ? '600' : 'normal',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {isActive ? `✓ ${site.toUpperCase()}` : `+ ${site.toUpperCase()}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* System / Application Group Tags */}
-              {((existingTags && existingTags.length > 0) ? normalizeTags(existingTags.filter(t => !isEnvTag(t))) : ['soa', 'mis', 'db', 'http', 'server']).length > 0 && (
+              {((existingTags && existingTags.length > 0) ? normalizeTags(existingTags.filter(t => !isReservedTag(t))) : ['soa', 'mis', 'db', 'http', 'server']).length > 0 && (
                 <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>
                     Suggested System / Application Group Tags:
                   </span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {((existingTags && existingTags.length > 0) ? normalizeTags(existingTags.filter(t => !isEnvTag(t))) : ['soa', 'mis', 'db', 'http', 'server']).map(tag => {
+                    {((existingTags && existingTags.length > 0) ? normalizeTags(existingTags.filter(t => !isReservedTag(t))) : ['soa', 'mis', 'db', 'http', 'server']).map(tag => {
                       const currentList = getCurrentTagsList();
                       const isActive = tagIncludes(currentList, tag);
                       return (
