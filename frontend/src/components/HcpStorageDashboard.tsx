@@ -14,9 +14,11 @@ import {
   Check,
   ArrowUpDown,
   Lock,
-  Info
+  Info,
+  FileText
 } from 'lucide-react';
 import { HcpTenantModal, deriveTenantHost } from './HcpTenantModal';
+import { HcpReportModal } from './HcpReportModal';
 
 interface HcpStorageDashboardProps {
   token: string | null;
@@ -43,6 +45,8 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
   const [sortField, setSortField] = useState<'used' | 'name' | 'quota' | 'objects' | 'tenant'>('used');
   const [sortAsc, setSortAsc] = useState(false);
   const [copiedNamespace, setCopiedNamespace] = useState<string | null>(null);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportTenantName, setReportTenantName] = useState<string | undefined>(undefined);
 
   const fetchTenants = async (isManualRefresh: boolean = false) => {
     if (isManualRefresh) setRefreshing(true);
@@ -378,9 +382,22 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
               })}
             </div>
 
-            {/* Tenant Actions (Edit, Delete) */}
+            {/* Tenant Actions (Report, Edit, Delete) */}
             {activeTenant && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    setReportTenantName(undefined);
+                    setReportModalOpen(true);
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}
+                  title="Export PDF Report"
+                >
+                  <FileText size={13} aria-hidden="true" />
+                  <span>Export PDF</span>
+                </button>
                 <button
                   type="button"
                   className="secondary"
@@ -952,6 +969,19 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                                       type="button"
                                       className="secondary"
                                       onClick={() => {
+                                        setReportTenantName(t.name);
+                                        setReportModalOpen(true);
+                                      }}
+                                      title={`Export PDF audit report for ${t.name}`}
+                                      style={{ padding: '4px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                    >
+                                      <FileText size={11} aria-hidden="true" />
+                                      <span>Report</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="secondary"
+                                      onClick={() => {
                                         setEditingTenant(null);
                                         setPrefillData({
                                           tenantName: t.name,
@@ -1243,6 +1273,20 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
           fetchTenants();
           setSelectedTenantId(savedTenant.id);
         }}
+        token={token}
+        apiUrl={apiUrl}
+      />
+
+      {/* ── PDF Report Modal ── */}
+      <HcpReportModal
+        isOpen={reportModalOpen}
+        onClose={() => {
+          setReportModalOpen(false);
+          setReportTenantName(undefined);
+        }}
+        activeTenant={activeTenant}
+        subTenants={subTenants}
+        initialTenantName={reportTenantName}
         token={token}
         apiUrl={apiUrl}
       />

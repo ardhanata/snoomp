@@ -9,23 +9,27 @@ the document and the screen cannot disagree.
 
 import datetime
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from app.auth.security import require_viewer
 from app.database import get_db
+from app.models.hcp import HcpTenant
 from app.models.incident import Incident
 from app.models.target import Target
 from app.reports import (
     build_executive_report,
     build_fleet_report,
+    build_hcp_cluster_report,
+    build_hcp_tenant_report,
     build_monitor_report,
     build_utilization_report,
 )
 from app.routes.dashboard import get_sla_trend, get_target_report
 from app.services.dashboard import compile_initial_data
+from app.services.hcp_service import query_hcp_cluster_mapi, query_hcp_tenant_mapi
 from app.services.utilization_report import get_target_utilization_report
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
@@ -135,3 +139,105 @@ def executive_report_pdf(months: int = 6, db: Session = Depends(get_db)):
 
     pdf = build_executive_report(monitors, trend, _sla_target(db))
     return _pdf(pdf, _filename("executive-summary"))
+
+
+@router.get("/hcp/{hcp_id}/cluster.pdf", dependencies=[Depends(require_viewer)])
+async def hcp_cluster_report_pdf(hcp_id: str, db: Session = Depends(get_db)):
+    """Cluster-wide capacity, quota threshold watchlist, and tenant directory PDF report."""
+    hcp = db.query(HcpTenant).filter_by(id=hcp_id).first()
+    if not hcp:
+        raise HTTPException(status_code=404, detail="HCP endpoint not found")
+
+    cluster_data = hcp.metrics_cache
+    if not cluster_data:
+        try:
+            if hcp.is_cluster:
+                cluster_data = await query_hcp_cluster_mapi(
+                    host=hcp.host,
+                    port=hcp.port,
+                    username=hcp.username,
+                    password=hcp.password,
+                    ignore_tls=hcp.ignore_tls,
+                    timeout_sec=8.0,
+                )
+            else:
+                single_data = await query_hcp_tenant_mapi(
+                    host=hcp.host,
+                    port=hcp.port,
+                    tenant_name=hcp.tenant_name,
+                    username=hcp.username,
+                    password=hcp.password,
+                    ignore_tls=hcp.ignore_tls,
+                    timeout_sec=8.0,
+                )
+                t_info = single_data.get("tenant", {})
+                cluster_data = {
+                    "status": single_data.get("status", "ok"),
+                    "cluster": {
+                        "storage_used_formatted": t_info.get("storage_used_formatted", "0 B"),
+                        "object_count": t_info.get("object_count", 0),
+                    },
+                    "tenants_summary": {"total_count": 1, "healthy_count": 1, "warning_count": 0, "critical_count": 0},
+                    "tenants": [t_info],
+                    "namespaces": single_data.get("namespaces", []),
+                }
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Failed querying HCP cluster data: {e}")
+
+    pdf = build_hcp_cluster_report(hcp, cluster_data)
+    return _pdf(pdf, _filename("hcp-cluster", hcp.name or hcp.host))
+
+
+@router.get("/hcp/{hcp_id}/tenant.pdf", dependencies=[Depends(require_viewer)])
+async def hcp_tenant_report_pdf(
+    hcp_id: str,
+    tenant_name: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """Tenant S3 quota envelope, bucket breakdown, and object statistics PDF report."""
+    hcp = db.query(HcpTenant).filter_by(id=hcp_id).first()
+    if not hcp:
+        raise HTTPException(status_code=404, detail="HCP endpoint not found")
+
+    target_tenant = (tenant_name or "").strip()
+    if not target_tenant:
+        if not hcp.is_cluster:
+            target_tenant = hcp.tenant_name
+        else:
+            raise HTTPException(status_code=400, detail="tenant_name parameter is required for cluster endpoints")
+
+    tenant_data = None
+    if hcp.metrics_cache:
+        if not hcp.is_cluster and (hcp.tenant_name.lower() == target_tenant.lower()):
+            tenant_data = hcp.metrics_cache
+        elif hcp.is_cluster:
+            cached_tenants = hcp.metrics_cache.get("tenants", [])
+            match = next((t for t in cached_tenants if (t.get("name") or "").lower() == target_tenant.lower()), None)
+            if match:
+                matched_namespaces = [
+                    ns for ns in hcp.metrics_cache.get("namespaces", [])
+                    if (ns.get("tenant_name") or "").lower() == target_tenant.lower()
+                ]
+                tenant_data = {
+                    "status": match.get("status", "ok"),
+                    "tenant": match,
+                    "namespaces": matched_namespaces,
+                }
+
+    if not tenant_data or not tenant_data.get("namespaces"):
+        try:
+            tenant_data = await query_hcp_tenant_mapi(
+                host=hcp.host,
+                port=hcp.port,
+                tenant_name=target_tenant,
+                username=hcp.username,
+                password=hcp.password,
+                ignore_tls=hcp.ignore_tls,
+                timeout_sec=8.0,
+            )
+        except Exception as e:
+            if not tenant_data:
+                raise HTTPException(status_code=502, detail=f"Failed querying HCP tenant '{target_tenant}': {e}")
+
+    pdf = build_hcp_tenant_report(hcp, target_tenant, tenant_data)
+    return _pdf(pdf, _filename("hcp-tenant", target_tenant))
