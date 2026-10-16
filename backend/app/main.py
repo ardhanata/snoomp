@@ -19,7 +19,7 @@ from app.models.status_page import StatusPage
 from app.auth.security import get_password_hash
 from app.scheduler import start_scheduler, stop_scheduler
 from app.routes import auth, targets, dashboard
-from app.routes import status_pages, settings, notifications, backup, reports, system
+from app.routes import status_pages, settings, notifications, backup, reports, system, hcp
 from app import websockets
 
 logging.basicConfig(level=logging.INFO)
@@ -125,6 +125,7 @@ app.include_router(backup.router)
 app.include_router(reports.router)
 app.include_router(websockets.router)
 app.include_router(system.router)
+app.include_router(hcp.router)
 
 def get_app_version() -> str:
     """Read the version baked into the image at /VERSION (see Dockerfile)."""

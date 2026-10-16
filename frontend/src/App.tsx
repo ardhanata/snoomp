@@ -27,6 +27,7 @@ const MonitorModal = React.lazy(() => import('./components/MonitorModal'));
 const BatchEditModal = React.lazy(() => import('./components/BatchEditModal'));
 const UserPreferencesModal = React.lazy(() => import('./components/UserPreferencesModal'));
 const UpdateModal = React.lazy(() => import('./components/UpdateModal'));
+const HcpStorageDashboard = React.lazy(() => import('./components/HcpStorageDashboard'));
 
 /* Every recharts consumer is lazy so the library (~110KB gzipped) stays out of
    the entry chunk. Adding a top-level recharts import to this file would undo
@@ -304,7 +305,7 @@ function App() {
 
   const searchParams = new URLSearchParams(window.location.search);
 
-  const [view, setView] = useState<'dashboard' | 'status-pages' | 'executive'>(
+  const [view, setView] = useState<'dashboard' | 'status-pages' | 'executive' | 'hcp'>(
     (searchParams.get('view') as any) || 'dashboard'
   );
   const [initialLoading, setInitialLoading] = useState(true);
@@ -468,6 +469,7 @@ function App() {
   useEffect(() => {
     if (view === 'executive') document.title = 'Executive Dashboard - Snoomp';
     else if (view === 'status-pages') document.title = 'Status Pages - Snoomp';
+    else if (view === 'hcp') document.title = 'HCP Storage - Snoomp';
     else if (view === 'dashboard' && selectedMonitor) document.title = `${selectedMonitor.name} - Snoomp`;
     else document.title = 'Snoomp';
   }, [view, selectedMonitor]);
@@ -1808,6 +1810,16 @@ function App() {
           </button>
 
           <button
+            id="nav-hcp-storage"
+            className={`nav-link-btn ${view === 'hcp' ? 'active' : ''}`}
+            onClick={() => { setSelectedMonitor(null); setView('hcp'); }}
+            style={{ color: view === 'hcp' ? 'var(--accent)' : 'var(--text-secondary)' }}
+          >
+            <Database size={14} />
+            HCP Storage
+          </button>
+
+          <button
             className={`nav-cta-btn ${view === 'dashboard' && !selectedMonitor ? 'active' : ''}`}
             onClick={() => { setSelectedMonitor(null); setView('dashboard'); }}
           >
@@ -2530,6 +2542,10 @@ function App() {
                 )}
               </div>
 
+            ) : view === 'hcp' ? (
+              <React.Suspense fallback={<ChartSkeleton height={360} />}>
+                <HcpStorageDashboard token={token} apiUrl={API_URL} />
+              </React.Suspense>
             ) : sm ? (
               <div className="anim-fade-in">
 

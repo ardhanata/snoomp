@@ -110,6 +110,24 @@ def _ensure_user_columns():
         db.close()
 
 
+def _ensure_hcp_columns():
+    """Ensure is_cluster column exists on hcp_tenants table without external migrations."""
+    db = SessionLocal()
+    try:
+        from sqlalchemy import inspect
+        inspector = inspect(engine)
+        if "hcp_tenants" in inspector.get_table_names():
+            cols = {c["name"] for c in inspector.get_columns("hcp_tenants")}
+            if "is_cluster" not in cols:
+                db.execute(text("ALTER TABLE hcp_tenants ADD COLUMN is_cluster BOOLEAN DEFAULT FALSE;"))
+                db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.warning("HCP tenants table column verification skipped: %s", e)
+    finally:
+        db.close()
+
+
 def init_db():
     # Import models to ensure they are registered on Base
     from app.models.user import User
@@ -119,15 +137,14 @@ def init_db():
     from app.models.incident import Incident
     from app.models.setting import Setting
     from app.models.notification import Notification
+    from app.models.hcp import HcpTenant
 
     Base.metadata.create_all(bind=engine)
     logger.info("Database tables created successfully.")
 
-    # create_all() is a no-op for tables that already exist — including their
-    # indexes — so a declarative Index() never reaches a live deployment.
-    # These are issued explicitly and are safe to re-run.
     _ensure_indexes()
     _ensure_user_columns()
+    _ensure_hcp_columns()
     _migrate_lowercase_tags()
 
     # TimescaleDB extension/hypertable queries are Postgres-only

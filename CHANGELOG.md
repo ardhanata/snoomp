@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.5.0] - 2026-10-15
 
 ### Added
+- **Hitachi Content Platform (HCP) Storage & Quota Monitoring:**
+  - **HCP Management REST API (MAPI) Integration (`backend/app/services/hcp_service.py`):** Native asynchronous client querying HCP tenant storage statistics, tenant-level hard/soft quotas, namespace enumeration, and per-namespace capacity and ingestion metrics over HTTP/HTTPS with `HCP base64(username):md5(password)` authentication and sub-second timeout guards.
+  - **Cluster-Wide Auto-Discovery:** System administrators can toggle "Cluster-Wide Mode" (`is_cluster: true`) to automatically discover all active tenants on the HCP cluster via `GET /mapi/tenants`, aggregating cluster-level capacity and listing all namespaces across every tenant in a single unified view with per-tenant filtering.
+  - **Tenant & Namespace Data Models (`backend/app/models/hcp.py`, `backend/app/database.py`):** Created `HcpTenant` model with credential redaction (`••••••••`), metric caching, and automatic schema initialization on startup.
+  - **REST API Endpoints (`backend/app/routes/hcp.py`):** Added endpoints under `/api/hcp` for CRUD operations, live test connection validation (`POST /api/hcp/test`), and on-demand synchronization (`POST /api/hcp/tenants/{id}/sync`).
+  - **Storage Dashboard View (`frontend/src/components/HcpStorageDashboard.tsx`, `HcpTenantModal.tsx`):** Added dedicated "HCP Storage" section to Snoomp navigation bar with double-bezel KPI overview cards, soft/hard quota warning indicators, searchable and sortable namespace/bucket table with quota utilization progress bars, S3 endpoint helper copy buttons, and accessible tenant management dialogs.
 - **Site location tags (DC / DRC):** `dc` and `drc` are reserved tags. The monitor form gets a single-select Site picker, and the sidebar gets a Site filter synced to `?site=`. Site tags no longer show up as System Group chips. Stored as ordinary tags, so no schema change (`frontend/src/utils/tags.ts`, `App.tsx`, `MonitorModal.tsx`).
 
 ## [1.4.4] - 2026-10-05
