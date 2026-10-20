@@ -138,6 +138,12 @@ def init_db():
     from app.models.setting import Setting
     from app.models.notification import Notification
     from app.models.hcp import HcpTenant
+    from app.models.hcp_stream import (
+        HcpNodeMetric,
+        HcpSyntheticProbeResult,
+        HcpStreamAggregate,
+        HcpLogIngestJob,
+    )
 
     Base.metadata.create_all(bind=engine)
     logger.info("Database tables created successfully.")

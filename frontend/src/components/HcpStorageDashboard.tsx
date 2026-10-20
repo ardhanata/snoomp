@@ -15,10 +15,12 @@ import {
   ArrowUpDown,
   Lock,
   Info,
-  FileText
+  FileText,
+  Activity
 } from 'lucide-react';
 import { HcpTenantModal, deriveTenantHost } from './HcpTenantModal';
 import { HcpReportModal } from './HcpReportModal';
+import { HcpDataStreamDashboard } from './HcpDataStreamDashboard';
 
 interface HcpStorageDashboardProps {
   token: string | null;
@@ -47,6 +49,7 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
   const [copiedNamespace, setCopiedNamespace] = useState<string | null>(null);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [reportTenantName, setReportTenantName] = useState<string | undefined>(undefined);
+  const [dashboardMode, setDashboardMode] = useState<'capacity' | 'stream'>('capacity');
 
   const fetchTenants = async (isManualRefresh: boolean = false) => {
     if (isManualRefresh) setRefreshing(true);
@@ -424,8 +427,55 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
             )}
           </div>
 
-          {/* ── Error Banner (If tenant check failed) ── */}
-          {activeTenant?.last_error && (
+          {/* Mode switcher: Capacity vs Data Stream */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+            <button
+              type="button"
+              onClick={() => setDashboardMode('capacity')}
+              className={`filter-chip ${dashboardMode === 'capacity' ? 'active' : ''}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: dashboardMode === 'capacity' ? 600 : 500
+              }}
+            >
+              <HardDrive size={15} />
+              <span>Storage Quota &amp; Capacity</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDashboardMode('stream')}
+              className={`filter-chip ${dashboardMode === 'stream' ? 'active' : ''}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: dashboardMode === 'stream' ? 600 : 500
+              }}
+            >
+              <Activity size={15} />
+              <span>Data Streams &amp; Node Health</span>
+            </button>
+          </div>
+
+          {dashboardMode === 'stream' && activeTenant ? (
+            <HcpDataStreamDashboard
+              token={token}
+              apiUrl={apiUrl}
+              selectedHcpId={activeTenant.id}
+              hcpEndpointName={activeTenant.name}
+            />
+          ) : (
+            <>
+              {/* ── Error Banner (If tenant check failed) ── */}
+              {activeTenant?.last_error && (
             <div
               className="double-bezel-outer"
               style={{
@@ -829,27 +879,19 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                         <thead>
-                          <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 600 }}>
                             <th style={{ padding: '10px 12px', cursor: 'pointer' }} onClick={() => toggleSort('name')}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <span>Tenant Name</span>
                                 <ArrowUpDown size={12} aria-hidden="true" />
                               </div>
                             </th>
-                            <th style={{ padding: '10px 12px', cursor: 'pointer' }} onClick={() => toggleSort('used')}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <span>Storage Used</span>
-                                <ArrowUpDown size={12} aria-hidden="true" />
-                              </div>
-                            </th>
-                            <th style={{ padding: '10px 12px' }}>Hard Quota</th>
                             <th style={{ padding: '10px 12px', cursor: 'pointer', minWidth: '180px' }} onClick={() => toggleSort('quota')}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <span>Utilization</span>
+                                <span>Storage &amp; Quota</span>
                                 <ArrowUpDown size={12} aria-hidden="true" />
                               </div>
                             </th>
-                            <th style={{ padding: '10px 12px' }}>Soft Quota</th>
                             <th style={{ padding: '10px 12px', cursor: 'pointer' }} onClick={() => toggleSort('objects')}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <span>Objects</span>
@@ -889,15 +931,13 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                                     </span>
                                   </div>
                                 </td>
-                                <td style={{ padding: '12px', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: 'var(--text-primary)' }}>
-                                  {t.storage_used_formatted}
-                                </td>
-                                <td style={{ padding: '12px', fontVariantNumeric: 'tabular-nums', color: 'var(--text-muted)' }}>
-                                  {t.hard_quota_formatted}
-                                </td>
-                                <td style={{ padding: '12px' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <div style={{ flex: 1, height: '6px', background: 'var(--border)', borderRadius: '3px', overflow: 'hidden' }}>
+                                <td style={{ padding: '12px', minWidth: '180px' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontVariantNumeric: 'tabular-nums' }}>
+                                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{t.storage_used_formatted}</span>
+                                      <span style={{ color: 'var(--text-muted)' }}>/ {t.hard_quota_formatted} ({t.used_percent ?? 0}%)</span>
+                                    </div>
+                                    <div style={{ width: '100%', height: '5px', background: 'var(--border)', borderRadius: '3px', overflow: 'hidden' }}>
                                       <div
                                         style={{
                                           width: `${Math.min(100, t.used_percent || 0)}%`,
@@ -907,16 +947,10 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                                         }}
                                       />
                                     </div>
-                                    <span style={{ fontSize: '12px', fontVariantNumeric: 'tabular-nums', fontWeight: 600, minWidth: '42px', color: statusColor }}>
-                                      {t.used_percent ?? 0}%
-                                    </span>
                                   </div>
                                 </td>
-                                <td style={{ padding: '12px', fontVariantNumeric: 'tabular-nums', color: 'var(--text-muted)' }}>
-                                  {t.soft_quota_pct}%
-                                </td>
                                 <td style={{ padding: '12px', fontVariantNumeric: 'tabular-nums', color: 'var(--text-primary)' }}>
-                                  {(t.object_count || 0).toLocaleString()}
+                                  {(t?.object_count ?? 0).toLocaleString()}
                                 </td>
                                 <td style={{ padding: '12px' }}>
                                   {t.namespaces_accessible ? (
@@ -1117,35 +1151,19 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                         <thead>
-                          <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '11px', letterSpacing: '0.05em' }}>
                             <th style={{ padding: '10px 12px', cursor: 'pointer' }} onClick={() => toggleSort('name')}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <span>Namespace</span>
                                 <ArrowUpDown size={12} aria-hidden="true" />
                               </div>
                             </th>
-                            {isCluster && (
-                              <th style={{ padding: '10px 12px', cursor: 'pointer' }} onClick={() => toggleSort('tenant')}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <span>Tenant</span>
-                                  <ArrowUpDown size={12} aria-hidden="true" />
-                                </div>
-                              </th>
-                            )}
-                            <th style={{ padding: '10px 12px', cursor: 'pointer' }} onClick={() => toggleSort('used')}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <span>Capacity Used</span>
-                                <ArrowUpDown size={12} aria-hidden="true" />
-                              </div>
-                            </th>
-                            <th style={{ padding: '10px 12px' }}>Hard Quota</th>
                             <th style={{ padding: '10px 12px', cursor: 'pointer', minWidth: '180px' }} onClick={() => toggleSort('quota')}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <span>Utilization</span>
+                                <span>Storage &amp; Quota</span>
                                 <ArrowUpDown size={12} aria-hidden="true" />
                               </div>
                             </th>
-                            <th style={{ padding: '10px 12px' }}>Soft Quota</th>
                             <th style={{ padding: '10px 12px', cursor: 'pointer' }} onClick={() => toggleSort('objects')}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <span>Objects</span>
@@ -1178,55 +1196,40 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                                         flexShrink: 0
                                       }}
                                     />
-                                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                                      {ns.name}
-                                    </span>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                                        {ns.name}
+                                      </span>
+                                      {isCluster && (
+                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                          {ns.tenant_name || 'default'}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 </td>
-                                {isCluster && (
-                                  <td style={{ padding: '12px' }}>
-                                    <span
-                                      style={{
-                                        fontSize: '11px',
-                                        padding: '2px 8px',
-                                        borderRadius: '4px',
-                                        background: 'rgba(59, 130, 246, 0.12)',
-                                        color: 'var(--accent)',
-                                        fontWeight: 600
-                                      }}
-                                    >
-                                      {ns.tenant_name || 'default'}
-                                    </span>
-                                  </td>
-                                )}
-                                <td style={{ padding: '12px', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: 'var(--text-primary)' }}>
-                                  {ns.storage_used_formatted}
-                                </td>
-                                <td style={{ padding: '12px', fontVariantNumeric: 'tabular-nums', color: 'var(--text-muted)' }}>
-                                  {ns.hard_quota_formatted}
-                                </td>
                                 <td style={{ padding: '12px' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <div style={{ flex: 1, height: '6px', background: 'var(--border)', borderRadius: '3px', overflow: 'hidden' }}>
-                                      <div
-                                        style={{
-                                          width: `${Math.min(100, ns.used_percent || 0)}%`,
-                                          height: '100%',
-                                          background: statusColor,
-                                          borderRadius: '3px'
-                                        }}
-                                      />
-                                    </div>
-                                    <span style={{ fontSize: '12px', fontVariantNumeric: 'tabular-nums', fontWeight: 600, minWidth: '42px', color: statusColor }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '4px', fontSize: '12px' }}>
+                                    <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                                      {ns.storage_used_formatted} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>/ {ns.hard_quota_formatted}</span>
+                                    </span>
+                                    <span style={{ fontSize: '11px', fontWeight: 600, color: statusColor, fontVariantNumeric: 'tabular-nums' }}>
                                       {ns.used_percent ?? 0}%
                                     </span>
                                   </div>
-                                </td>
-                                <td style={{ padding: '12px', fontVariantNumeric: 'tabular-nums', color: 'var(--text-muted)' }}>
-                                  {ns.soft_quota_pct}%
+                                  <div style={{ width: '100%', height: '5px', background: 'var(--border)', borderRadius: '3px', overflow: 'hidden' }}>
+                                    <div
+                                      style={{
+                                        width: `${Math.min(100, ns.used_percent || 0)}%`,
+                                        height: '100%',
+                                        background: statusColor,
+                                        borderRadius: '3px'
+                                      }}
+                                    />
+                                  </div>
                                 </td>
                                 <td style={{ padding: '12px', fontVariantNumeric: 'tabular-nums', color: 'var(--text-primary)' }}>
-                                  {(ns.object_count || 0).toLocaleString()}
+                                  {(ns?.object_count ?? 0).toLocaleString()}
                                 </td>
                                 <td style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '12px' }}>
                                   {ns.service_plan || 'Default'}
@@ -1254,6 +1257,8 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
               )}
             </div>
           </div>
+            </>
+          )}
         </>
       )}
 

@@ -41,12 +41,52 @@ def _flush_discord_alerts() -> None:
 
 
 def _purge_old_data() -> None:
-    """Apply the retention window. Housekeeping — never fatal."""
+    """Apply the retention window. Housekeeping: never fatal."""
     try:
         from app.services.retention import purge_old_data
         purge_old_data()
     except Exception as e:
         logger.error(f"Retention purge failed: {e}")
+
+
+def _poll_all_hcp_nodes() -> None:
+    try:
+        import asyncio
+        from app.database import SessionLocal
+        from app.models.hcp import HcpTenant
+        from app.services.hcp_stream_service import fetch_hcp_node_statistics
+        db = SessionLocal()
+        try:
+            endpoints = db.query(HcpTenant).filter_by(enabled=True).all()
+            for ep in endpoints:
+                try:
+                    asyncio.run(fetch_hcp_node_statistics(ep, db))
+                except Exception as ex:
+                    logger.warning("Failed to poll HCP node stats for endpoint %s: %s", ep.id, ex)
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error("HCP node statistics polling job error: %s", e)
+
+
+def _run_all_hcp_probes() -> None:
+    try:
+        import asyncio
+        from app.database import SessionLocal
+        from app.models.hcp import HcpTenant
+        from app.services.hcp_stream_service import run_all_synthetic_probes
+        db = SessionLocal()
+        try:
+            endpoints = db.query(HcpTenant).filter_by(enabled=True).all()
+            for ep in endpoints:
+                try:
+                    asyncio.run(run_all_synthetic_probes(ep, db))
+                except Exception as ex:
+                    logger.warning("Failed to run HCP synthetic probes for endpoint %s: %s", ep.id, ex)
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error("HCP synthetic probes job error: %s", e)
 
 
 def start_scheduler() -> BackgroundScheduler:
@@ -93,8 +133,7 @@ def start_scheduler() -> BackgroundScheduler:
 
     # Retention purge. Hourly rather than daily so a busy instance never builds
     # up a backlog large enough to make one run expensive; the job is a cheap
-    # no-op once the table is inside the window. Deliberately not run at boot —
-    # a restart loop would otherwise trigger a purge every time.
+    # no-op once the table is inside the window. Deliberately not run at boot.
     import datetime as _dt
     scheduler.add_job(
         func=_purge_old_data,
@@ -107,6 +146,32 @@ def start_scheduler() -> BackgroundScheduler:
         next_run_time=_dt.datetime.now() + _dt.timedelta(minutes=5),
     )
     logger.info("Scheduled retention purge every hour")
+
+    # HCP Node Metrics Polling (every 60s)
+    scheduler.add_job(
+        func=_poll_all_hcp_nodes,
+        trigger=IntervalTrigger(seconds=60),
+        id="hcp_node_metrics_poll",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=30,
+        coalesce=True,
+        next_run_time=_dt.datetime.now() + _dt.timedelta(seconds=15),
+    )
+    logger.info("Scheduled HCP node statistics polling every 60s")
+
+    # HCP Synthetic Probes (every 300s)
+    scheduler.add_job(
+        func=_run_all_hcp_probes,
+        trigger=IntervalTrigger(seconds=300),
+        id="hcp_synthetic_probes_run",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=60,
+        coalesce=True,
+        next_run_time=_dt.datetime.now() + _dt.timedelta(seconds=30),
+    )
+    logger.info("Scheduled HCP synthetic namespace probes every 300s")
 
     scheduler.start()
     logger.info(f"Scheduler started with {len(scheduler.get_jobs())} jobs.")

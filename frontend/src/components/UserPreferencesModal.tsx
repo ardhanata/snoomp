@@ -1658,6 +1658,26 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                     </div>
                   </div>
                 ) : null}
+
+                {/* Open Source & Icon Attribution */}
+                <div style={{
+                  padding: '12px 14px',
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '11px',
+                  color: 'var(--text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '8px'
+                }}>
+                  <span>Icon attribution: <strong>Phosphor Icons</strong> (MIT License) &amp; <strong>Iconamoon</strong> by Denis Sazonov (CC-BY-4.0).</span>
+                  <a href="https://iconamoon.com" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>
+                    iconamoon.com &rarr;
+                  </a>
+                </div>
               </div>
             )}
 

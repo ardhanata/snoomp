@@ -10,11 +10,13 @@
     "lint:colors": "node scripts/check-inline-colors.cjs"
   },
   "dependencies": {
+    "@iconify-json/iconamoon": "^1.2.2",
+    "@phosphor-icons/react": "^2.1.10",
+    "framer-motion": "^11.0.3",
+    "lucide-react": "^0.331.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "recharts": "^2.12.0",
-    "lucide-react": "^0.331.0",
-    "framer-motion": "^11.0.3"
+    "recharts": "^2.12.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.18",

@@ -91,7 +91,7 @@
    - **Double-Bezel Enclosures:** Hardware-inspired dual-bordered card surfaces (`.double-bezel-outer`).
    - **Tabular Figures:** Apply `font-variant-numeric: tabular-nums` to numerical metric counters to prevent layout shifts during WebSocket updates.
    - **Zero Emoji In Source Code:** Clean Lucide SVG icons and professional text tags in UI and CLI scripts.
-   - **Universal Accessibility:** AAA contrast in both Light Mode (`#F4F6F8`) and Dark Mode (`#0c0d12`).
+   - **Universal Accessibility:** WCAG AA contrast compliance (>= 4.5:1 across surface levels) in both Light Mode (`#F8FAFC`) and Dark Mode (`#0c0d12`).
 
 ---
 

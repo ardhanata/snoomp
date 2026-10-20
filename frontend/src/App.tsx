@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Pencil, Check, ChevronDown, FileText,
   Database, RefreshCw, Server, Activity, Sun, Moon, TrendingUp, Sliders,
   CheckSquare, Share2, Printer, Menu,
-  Download, ArrowUpCircle
+  Download, ArrowUpCircle, MoreVertical
 } from 'lucide-react';
 
 import './styles/dashboard.css';
@@ -114,10 +114,10 @@ function visibleVolumes(disks: any[] | undefined | null): any[] {
 
 // Clean uptime extractor; strips legacy load averages/users and normalizes HH:MM
 function formatUptime(raw?: string | null): string {
-  if (!raw || raw.toLowerCase() === 'unknown') return '—';
+  if (!raw || raw.toLowerCase() === 'unknown') return 'n/a';
   const match = raw.match(/\bup\s+(.*?)(?:,\s+\d+\s+user|,\s+load average|$)/);
   const clean = (match ? match[1] : raw).trim();
-  return clean.replace(/\b(\d{1,2}):(\d{2})\b/, (_, h) => `${parseInt(h, 10)} hours`) || '—';
+  return clean.replace(/\b(\d{1,2}):(\d{2})\b/, (_, h) => `${parseInt(h, 10)} hours`) || 'n/a';
 }
 
 // Clear inline styles on default accent so CSS data-theme tokens resolve naturally
@@ -453,6 +453,27 @@ function App() {
   const [spSaving, setSpSaving] = useState(false);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [shareState, setShareState] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const [detailMenuOpen, setDetailMenuOpen] = useState(false);
+  const detailMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!detailMenuOpen) return;
+    const handleDocumentClick = (e: MouseEvent) => {
+      if (detailMenuRef.current && !detailMenuRef.current.contains(e.target as Node)) {
+        setDetailMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDetailMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleDocumentClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleDocumentClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [detailMenuOpen]);
+
   const deepLinkResolved = useRef(false);
   const [spSearch, setSpSearch] = useState('');
 
@@ -1544,7 +1565,7 @@ function App() {
         {/* Left Side: Form */}
         <div className="login-form-pane">
           <div className="login-logo">
-            <div className="login-logo-icon pulse-up">
+            <div className="login-logo-icon">
               <Shield size={24} />
             </div>
             <h2>SNOOMP</h2>
@@ -1798,7 +1819,7 @@ function App() {
             style={{ color: view === 'executive' ? 'var(--accent)' : 'var(--text-secondary)' }}
           >
             <TrendingUp size={14} />
-            Executive View
+            Executive Summary
           </button>
 
           <button
@@ -1824,7 +1845,7 @@ function App() {
             onClick={() => { setSelectedMonitor(null); setView('dashboard'); }}
           >
             <LayoutDashboard size={14} />
-            Dashboard
+            Live Cockpit
           </button>
 
           {/* Live Connection Status Pill — Theme Tokens & ARIA Announcement */}
@@ -2150,6 +2171,27 @@ function App() {
                       </button>
                     ))}
                   </div>
+
+                  <div className="sidebar-section-label" style={{ marginTop: 'var(--space-3)' }}>
+                    Group By
+                  </div>
+                  <div style={{ padding: '0 4px 6px' }}>
+                    <select
+                      id="sidebar-group-by-select"
+                      aria-label="Group monitors by"
+                      value={groupBy}
+                      onChange={(e) => {
+                        const val = e.target.value as 'none' | 'tags' | 'type';
+                        setGroupBy(val);
+                        localStorage.setItem('snoomp_group_by', val);
+                      }}
+                      style={{ width: '100%', padding: '5px 8px', fontSize: '12px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                    >
+                      <option value="none">Ungrouped</option>
+                      <option value="tags">Group by tags</option>
+                      <option value="type">Group by type</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -2231,25 +2273,6 @@ function App() {
                   )}
                 </div>
               )}
-
-              {/* Grouping toggle */}
-              <div className="sidebar-toggle-row">
-                <label className="sidebar-toggle-label" htmlFor="monitor-group-by-select">Group by</label>
-                <select
-                  id="monitor-group-by-select"
-                  aria-label="Group monitors by"
-                  value={groupBy}
-                  onChange={(e) => {
-                    setGroupBy(e.target.value as 'none' | 'tags' | 'type');
-                    localStorage.setItem('snoomp_group_by', e.target.value);
-                  }}
-                  style={{ width: 'auto', padding: '2px 24px 2px 8px', fontSize: '11px', height: '22px', borderRadius: '4px', background: 'var(--bg-void)' }}
-                >
-                  <option value="none">None</option>
-                  <option value="tags">Tags</option>
-                  <option value="type">Type</option>
-                </select>
-              </div>
 
               {/* Monitor list — flat, or grouped into collapsible sections */}
               <div className="sidebar-list">
@@ -2582,91 +2605,141 @@ function App() {
 
                   <div className="monitor-detail-actions">
                     {role !== 'viewer' && (
-                      <IconButton
-                        icon={<Zap size={14} />}
-                        variant="accent"
-                        size="md"
+                      <button
+                        type="button"
+                        className="primary"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '6px 14px',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          borderRadius: 'var(--radius-sm)'
+                        }}
                         onClick={() => handleRefreshMonitor(sm.id)}
                         title="Trigger immediate check (Pull/Refresh)"
                         aria-label="Trigger immediate check"
+                      >
+                        <Zap size={14} />
+                        <span>Check now</span>
+                      </button>
+                    )}
+
+                    <div style={{ position: 'relative' }} ref={detailMenuRef}>
+                      <IconButton
+                        icon={<MoreVertical size={16} />}
+                        variant="neutral"
+                        size="md"
+                        title="More options"
+                        aria-label="More options"
+                        aria-expanded={detailMenuOpen}
+                        onClick={() => setDetailMenuOpen(prev => !prev)}
                       />
-                    )}
-                    {/* Web Share where available, clipboard otherwise. Both paths are
-                      secure-context-safe via copyToClipboard(). */}
-                    <IconButton
-                      icon={shareState === 'copied' ? <Check size={14} /> : <Share2 size={14} />}
-                      variant={shareState === 'copied' ? 'success' : 'cyan'}
-                      size="md"
-                      aria-label={`Share ${sm.name}`}
-                      title={shareState === 'copied' ? 'Link copied to clipboard' : 'Copy a link to this monitor'}
-                      onClick={async () => {
-                        const url = monitorShareUrl(sm.id);
-                        const summary = `${sm.name} is ${(sm.status || 'unknown').toUpperCase()} — Snoomp`;
 
-                        if (navigator.share) {
-                          try {
-                            await navigator.share({ title: sm.name, text: summary, url });
-                            return;
-                          } catch (err: any) {
-                            // User dismissed the sheet — not an error, don't fall through.
-                            if (err?.name === 'AbortError') return;
-                          }
-                        }
+                      {detailMenuOpen && (
+                        <div className="overflow-dropdown-menu" role="menu" aria-label="Monitor actions">
+                          <button
+                            type="button"
+                            className="dropdown-item"
+                            role="menuitem"
+                            onClick={async () => {
+                              setDetailMenuOpen(false);
+                              const url = monitorShareUrl(sm.id);
+                              const summary = `${sm.name} is ${(sm.status || 'unknown').toUpperCase()} - Snoomp`;
 
-                        const ok = await copyToClipboard(url);
-                        setShareState(ok ? 'copied' : 'failed');
-                        setTimeout(() => setShareState('idle'), 2500);
-                      }}
-                    />
-                    <span role="status" aria-live="polite" className="sr-only">
-                      {shareState === 'copied' ? 'Link copied to clipboard'
-                        : shareState === 'failed' ? 'Could not copy the link. Select the address bar and copy it manually.'
-                          : ''}
-                    </span>
-                    <IconButton
-                      icon={<FileText size={14} />}
-                      variant="purple"
-                      size="md"
-                      onClick={() => handleGenerateReport(sm, 168)}
-                      title="Generate Availability Report"
-                      aria-label="Generate Availability Report"
-                    />
-                    <IconButton
-                      icon={<Activity size={14} />}
-                      variant="warning"
-                      size="md"
-                      onClick={() => handleGenerateUtilizationReport(sm, 168)}
-                      title="Generate Metric Utilization Report"
-                      aria-label="Generate Metric Utilization Report"
-                    />
-                    {role !== 'viewer' && (
-                      <>
-                        <IconButton
-                          icon={<Edit3 size={14} />}
-                          variant="accent"
-                          size="md"
-                          onClick={() => { setEditingMonitor(sm); setIsModalOpen(true); }}
-                          title="Edit Monitor"
-                          aria-label="Edit Monitor"
-                        />
-                        <IconButton
-                          icon={<Power size={14} />}
-                          variant={sm.enabled ? 'success' : 'neutral'}
-                          size="md"
-                          onClick={() => handleToggleMonitor(sm)}
-                          title={sm.enabled ? 'Pause Monitor' : 'Resume Monitor'}
-                          aria-label={sm.enabled ? 'Pause' : 'Resume'}
-                        />
-                        <IconButton
-                          icon={<Trash2 size={14} />}
-                          variant="danger"
-                          size="md"
-                          onClick={() => handleDeleteMonitor(sm.id)}
-                          title="Delete Monitor"
-                          aria-label="Delete Monitor"
-                        />
-                      </>
-                    )}
+                              if (navigator.share) {
+                                try {
+                                  await navigator.share({ title: sm.name, text: summary, url });
+                                  return;
+                                } catch (err: any) {
+                                  if (err?.name === 'AbortError') return;
+                                }
+                              }
+
+                              const ok = await copyToClipboard(url);
+                              setShareState(ok ? 'copied' : 'failed');
+                              setTimeout(() => setShareState('idle'), 2500);
+                            }}
+                          >
+                            {shareState === 'copied' ? <Check size={14} /> : <Share2 size={14} />}
+                            <span>{shareState === 'copied' ? 'Link copied' : 'Share link'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            className="dropdown-item"
+                            role="menuitem"
+                            onClick={() => {
+                              setDetailMenuOpen(false);
+                              handleGenerateReport(sm, 168);
+                            }}
+                          >
+                            <FileText size={14} />
+                            <span>Availability report (7d)</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            className="dropdown-item"
+                            role="menuitem"
+                            onClick={() => {
+                              setDetailMenuOpen(false);
+                              handleGenerateUtilizationReport(sm, 168);
+                            }}
+                          >
+                            <Activity size={14} />
+                            <span>Metric utilization report (7d)</span>
+                          </button>
+
+                          {role !== 'viewer' && (
+                            <>
+                              <div className="dropdown-divider" role="separator" />
+                              <button
+                                type="button"
+                                className="dropdown-item"
+                                role="menuitem"
+                                onClick={() => {
+                                  setDetailMenuOpen(false);
+                                  setEditingMonitor(sm);
+                                  setIsModalOpen(true);
+                                }}
+                              >
+                                <Edit3 size={14} />
+                                <span>Edit monitor</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                className="dropdown-item"
+                                role="menuitem"
+                                onClick={() => {
+                                  setDetailMenuOpen(false);
+                                  handleToggleMonitor(sm);
+                                }}
+                              >
+                                <Power size={14} />
+                                <span>{sm.enabled ? 'Pause monitor' : 'Resume monitor'}</span>
+                              </button>
+
+                              <div className="dropdown-divider" role="separator" />
+                              <button
+                                type="button"
+                                className="dropdown-item dropdown-item--danger"
+                                role="menuitem"
+                                onClick={() => {
+                                  setDetailMenuOpen(false);
+                                  handleDeleteMonitor(sm.id);
+                                }}
+                              >
+                                <Trash2 size={14} />
+                                <span>Delete monitor</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -2702,18 +2775,11 @@ function App() {
                   <div className="detail-section">
                     <div className="section-title">
                       <h2 style={{ fontSize: 'inherit', margin: 0, fontWeight: 'inherit' }}>System Resource Metrics</h2>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Live · every {sm.check_interval}s</span>
                     </div>
                     <div className="metrics-grid">
-                      <RadialGauge key={`${sm.id}-cpu`} value={sm.metrics.cpu_percent || 0} label="CPU Usage" sublabel="user + sys" />
-                      <RadialGauge key={`${sm.id}-mem`} value={sm.metrics.mem_percent || 0} label="Memory" sublabel="used / total" />
-                      <RadialGauge
-                        key={`${sm.id}-disk`}
-                        value={sm.metrics.disk_percent || 0}
-                        /* Simpler, correct label for total utilization */
-                        label="Total Disk"
-                        sublabel={sm.metrics.disks && sm.metrics.disks.length > 1 ? `${sm.metrics.disks.length} volumes monitored` : "partition usage"}
-                      />
+                      <RadialGauge key={`${sm.id}-cpu`} value={sm.metrics.cpu_percent || 0} label="CPU Usage" />
+                      <RadialGauge key={`${sm.id}-mem`} value={sm.metrics.mem_percent || 0} label="Memory" />
+                      <RadialGauge key={`${sm.id}-disk`} value={sm.metrics.disk_percent || 0} label="Disk Usage" />
                       <div className="uptime-card">
                         <span className="uptime-label">System Uptime</span>
                         <Clock size={20} style={{ color: 'var(--color-up)', opacity: 0.7 }} />
@@ -2753,35 +2819,33 @@ function App() {
                       <HttpLatencyProfiler monitor={sm} />
                     )}
 
-                    {/* Cold connection latency phase diagnostics (SSH) */}
-                    {sm.type === 'ssh' && sm.metrics?.timing?.connect_ms != null && (
-                      <div style={{ marginTop: '16px', background: 'var(--bg-elevated)', border: '1px solid ' + (sm.response_time_ms >= 1000 ? 'var(--color-warning)' : 'var(--border)'), borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                          <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Activity size={13} style={{ color: sm.response_time_ms >= 1000 ? 'var(--color-warning)' : 'var(--accent)' }} />
-                            Cold Connection Phase Diagnostics
+                    {/* Slow connection latency phase diagnostics (SSH >= 1000ms) */}
+                    {sm.type === 'ssh' && sm.response_time_ms >= 1000 && sm.metrics?.timing?.connect_ms != null && (
+                      <details style={{ marginTop: '16px', background: 'var(--bg-elevated)', border: '1px solid var(--color-warning)', borderRadius: 'var(--radius-md)', padding: '12px 16px' }}>
+                        <summary style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-warning)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <Activity size={13} />
+                            Latency Phase Diagnostics (Slow Check)
                           </span>
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: sm.response_time_ms >= 1000 ? 'var(--color-warning)' : 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-warning)', fontFamily: 'var(--font-mono)' }}>
                             Bottleneck: {sm.metrics.timing.bottleneck}
                           </span>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
-                          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 12px' }}>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Phase 1: TCP Handshake &amp; SSH Auth</div>
+                        </summary>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginTop: '12px' }}>
+                          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
+                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Phase 1: TCP Handshake &amp; Auth</div>
                             <div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: sm.metrics.timing.connect_ms >= 500 ? 'var(--color-warning)' : 'var(--text-primary)' }}>
                               {sm.metrics.timing.connect_ms} ms
                             </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Diffie-Hellman KEX, cipher negotiation &amp; credential verify</div>
                           </div>
-                          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 12px' }}>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Phase 2: Remote Shell &amp; Process Execution</div>
+                          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
+                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Phase 2: Remote Shell Execution</div>
                             <div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: sm.metrics.timing.exec_ms >= 500 ? 'var(--color-warning)' : 'var(--text-primary)' }}>
                               {sm.metrics.timing.exec_ms} ms
                             </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>uptime, free, df, /proc/stat, loadavg process forks</div>
                           </div>
                         </div>
-                      </div>
+                      </details>
                     )}
 
                     {/* Attached Storage & Filesystem Utilization Breakdown Panel */}
@@ -2795,10 +2859,11 @@ function App() {
                           <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <HardDrive size={13} style={{ color: 'var(--accent)' }} /> Attached Storage & Volume Utilization ({visibleDisks.length} Partitions)
                           </span>
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                            Total: {sm.metrics.disk_total_gb} GB
-                            {hiddenCount > 0 && <span style={{ opacity: 0.6 }}> · {hiddenCount} system volumes hidden</span>}
-                          </span>
+                          {hiddenCount > 0 && (
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', opacity: 0.7 }}>
+                              {hiddenCount} system volumes hidden
+                            </span>
+                          )}
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '11px' }}>
                           {visibleDisks.map((dk: any, idx: number) => {
@@ -2825,7 +2890,7 @@ function App() {
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
                                   <span style={{ fontFamily: 'var(--font-mono)', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={dk.filesystem}>{dk.filesystem}</span>
-                                  <span>{dk.size_gb ? `${dk.size_gb} GB` : '—'}</span>
+                                  <span>{dk.size_gb ? `${dk.size_gb} GB` : 'n/a'}</span>
                                 </div>
                               </div>
                             );
@@ -2918,29 +2983,29 @@ function App() {
                             <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '11px', padding: '12px', textAlign: 'center' }}>
                               <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Total Size</div>
                               <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
-                                {dbEngineStatus.info?.storage_size_mb ? (dbEngineStatus.info.storage_size_mb > 1024 ? `${(dbEngineStatus.info.storage_size_mb / 1024).toFixed(1)} GB` : `${dbEngineStatus.info.storage_size_mb} MB`) : '—'}
+                                {dbEngineStatus.info?.storage_size_mb ? (dbEngineStatus.info.storage_size_mb > 1024 ? `${(dbEngineStatus.info.storage_size_mb / 1024).toFixed(1)} GB` : `${dbEngineStatus.info.storage_size_mb} MB`) : 'n/a'}
                               </div>
-                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{dbEngineStatus.info?.database_count || '—'} databases</div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{dbEngineStatus.info?.database_count || 'n/a'} databases</div>
                             </div>
                             <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '11px', padding: '12px', textAlign: 'center' }}>
                               <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Connections</div>
                               <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
-                                {dbEngineStatus.info?.active_connections ?? '—'}
-                                <span style={{ fontSize: '12px', fontWeight: '400', color: 'var(--text-muted)' }}> / {dbEngineStatus.info?.max_connections ?? '—'}</span>
+                                {dbEngineStatus.info?.active_connections ?? 'n/a'}
+                                <span style={{ fontSize: '12px', fontWeight: '400', color: 'var(--text-muted)' }}> / {dbEngineStatus.info?.max_connections ?? 'n/a'}</span>
                               </div>
                               <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>active / max</div>
                             </div>
                             <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '11px', padding: '12px', textAlign: 'center' }}>
                               <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Shared Buffers</div>
                               <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
-                                {dbEngineStatus.info?.shared_buffers || '—'}
+                                {dbEngineStatus.info?.shared_buffers || 'n/a'}
                               </div>
-                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>cache: {dbEngineStatus.info?.effective_cache_size || '—'}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>cache: {dbEngineStatus.info?.effective_cache_size || 'n/a'}</div>
                             </div>
                             <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '11px', padding: '12px', textAlign: 'center' }}>
                               <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Uptime</div>
                               <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
-                                {dbEngineStatus.info?.uptime_seconds ? `${Math.floor(dbEngineStatus.info.uptime_seconds / 86400)}d` : '—'}
+                                {dbEngineStatus.info?.uptime_seconds ? `${Math.floor(dbEngineStatus.info.uptime_seconds / 86400)}d` : 'n/a'}
                               </div>
                               <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                                 {dbEngineStatus.info?.uptime_seconds ? `${Math.floor((dbEngineStatus.info.uptime_seconds % 86400) / 3600)}h ${Math.floor((dbEngineStatus.info.uptime_seconds % 3600) / 60)}m` : 'since boot'}
@@ -3020,8 +3085,8 @@ function App() {
                                           <td style={{ padding: '7px 11px', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{sq.pid}</td>
                                           <td style={{ padding: '7px 11px', fontWeight: '500' }}>{sq.usename}</td>
                                           <td style={{ padding: '7px 11px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--accent)' }}>{sq.client_addr || 'local'}</td>
-                                          <td style={{ padding: '7px 11px', fontSize: '11px', color: 'var(--text-secondary)' }}>{sq.application_name || '—'}</td>
-                                          <td style={{ padding: '7px 11px', fontSize: '11px', color: 'var(--text-secondary)' }}>{sq.datname || '—'}</td>
+                                          <td style={{ padding: '7px 11px', fontSize: '11px', color: 'var(--text-secondary)' }}>{sq.application_name || 'n/a'}</td>
+                                          <td style={{ padding: '7px 11px', fontSize: '11px', color: 'var(--text-secondary)' }}>{sq.datname || 'n/a'}</td>
                                           <td style={{ padding: '7px 11px' }}>
                                             {/* Neutral surface tint with semantic color text and indicator dot (WCAG AA >= 4.5:1, fixes P0.2) */}
                                             <span style={{
@@ -3299,10 +3364,10 @@ curl -X POST -H "Content-Type: application/json" \\
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
                   <div>
                     <h1 style={{ fontSize: '24px', fontWeight: 800, fontFamily: 'var(--font-header)', letterSpacing: '-0.8px', margin: 0 }}>
-                      System health
+                      Live Cockpit
                     </h1>
                     <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      All monitored services at a glance.
+                      Real-time fleet operations and incident triage. Select an endpoint to inspect detailed telemetry.
                     </p>
                   </div>
                   <button
@@ -3371,7 +3436,6 @@ curl -X POST -H "Content-Type: application/json" \\
                     <div style={{ fontSize: '28px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '8px', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px' }}>
                       {homeStats.avgUptime.toFixed(2)}%
                     </div>
-                    <span className="radial-sub">Average across active hosts</span>
                   </div>
 
                   <div className="metric-card" style={{ padding: '16px 20px' }}>
@@ -3415,7 +3479,6 @@ curl -X POST -H "Content-Type: application/json" \\
                     <div style={{ fontSize: '28px', fontWeight: 600, color: 'var(--text-primary)', marginTop: '8px', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px' }}>
                       {numberFmt.format(homeStats.avgLatency)} ms
                     </div>
-                    <span className="radial-sub">Overall system responsiveness</span>
                   </div>
                 </div>
 
@@ -3483,13 +3546,13 @@ curl -X POST -H "Content-Type: application/json" \\
                               className="infra-row-ms"
                               style={m.response_time_ms >= 1000 ? { color: 'var(--color-warning)', fontWeight: 600 } : undefined}
                             >
-                              {m.response_time_ms > 0 ? `${numberFmt.format(m.response_time_ms)} ms` : '—'}
+                              {m.response_time_ms > 0 ? `${numberFmt.format(m.response_time_ms)} ms` : 'n/a'}
                             </span>
                             <span
                               className="infra-row-uptime"
                               style={{ color: m.status === 'up' ? 'var(--color-up)' : 'var(--color-down)' }}
                             >
-                              {m.uptime_24h ? `${m.uptime_24h.toFixed(1)}%` : '—'}
+                              {m.uptime_24h ? `${m.uptime_24h.toFixed(1)}%` : 'n/a'}
                             </span>
                           </span>
                         </button>

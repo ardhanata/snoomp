@@ -24,7 +24,7 @@
   /* Text */
   --text-primary:   #f4f5fb;
   --text-secondary: #8b92aa;
-  --text-muted:     #7d85a3;
+  --text-muted:     #8c95b3;
 
   /* Status — desaturated for comfort (Anti-Slop Color Discipline) */
   /* #3fb950 clears WCAG AA >= 4.5:1 on dark canvas */
@@ -35,7 +35,7 @@
   --color-warning:     #d29922;
   --color-warning-glow:rgba(210, 153, 34, 0.30);
   --color-maintenance: #388bfd;
-  --color-off:         #768390;
+  --color-off:         #8593a3;
 
   /* Accent — selectable via JS */
   --accent:      #3b82f6;
@@ -53,23 +53,29 @@
   --border-hover: rgba(255, 255, 255, 0.12);
   --border-focus: var(--accent);
 
-  /* Shadows — tinted with background hue, not pure black */
+  /* Shadows — reserved for elevated menus, popovers, and dialogs */
   --shadow-sm:  0 1px 3px rgba(8, 9, 20, 0.6);
   --shadow-md:  0 4px 16px rgba(6, 7, 18, 0.7);
   --shadow-lg:  0 12px 40px rgba(4, 5, 14, 0.85);
-  --shadow-glow: 0 0 20px var(--accent-glow);
-  --shadow-card-hover: 0 4px 20px rgba(var(--accent-rgb), 0.08);
+  --shadow-glow: none;
+  --shadow-card-hover: none;
 
   /* Typography */
   --font-sans:   'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   --font-header: 'DM Sans', sans-serif;
   --font-mono:   'Noto Sans Mono', monospace;
 
-  /* Spacing & Radii (Shape Consistency Lock - Anti-Slop) */
-  --radius-sm: 6px;
-  --radius-md: 11px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
+  /* Spacing & Radii (Shape Consistency Lock - Anti-Slop V3) */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Type Scale — 4 core sizes only (Anti-Slop V1) */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-md: 18px;
+  --text-lg: 28px;
 
   /* Spacing scale. 4px base — use these instead of ad-hoc pixel values so
      sections keep a shared rhythm and a common left edge. */
@@ -151,24 +157,22 @@
   --shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.03);
   --shadow-md:  0 4px 12px rgba(0, 0, 0, 0.04);
   --shadow-lg:  0 8px 24px rgba(0, 0, 0, 0.06);
-  --shadow-glow: 0 0 15px var(--accent-glow);
-  --shadow-card-hover: 0 4px 16px rgba(0, 0, 0, 0.05);
+  --shadow-glow: none;
+  --shadow-card-hover: none;
 }
 
-/* Double-Bezel Hardware Enclosure Utilities */
+/* Unified Card Structure (Anti-Slop V4: One card language across the app) */
 .double-bezel-outer {
-  background: var(--bg-elevated);
+  background: var(--bg-card);
   border: 1px solid var(--border);
-  border-top: 1px solid var(--border-hover);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-sm);
-  transition: transform 0.2s var(--t-spring), box-shadow 0.2s var(--t-spring);
+  border-radius: var(--radius-md);
+  box-shadow: none;
 }
 
 .double-bezel-inner {
-  background: var(--bg-secondary);
-  border-radius: calc(var(--radius-xl) - 6px);
-  padding: 20px;
+  background: transparent;
+  border-radius: var(--radius-md);
+  padding: 16px;
 }
 
 code, pre, .font-mono, .uptime-value, .hw-spec-value, .metric-value, .latency-pill, .uptime-badge {
@@ -225,29 +229,6 @@ a, button, input, select {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
-
-/* Grain overlay — breaks digital flatness.
- *
- * Deliberately NOT using mix-blend-mode. A full-viewport fixed element with a
- * blend mode forces the entire page into a single composited group that has to
- * re-blend on every frame — with a blurred navbar above it and status dots
- * animating below it, that was the most expensive thing on the page. Plain
- * alpha gets a near-identical result at this opacity for none of the cost;
- * opacity is raised slightly to compensate for the lost blend.
- */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: var(--z-grain);
-  opacity: 0.03;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-size: 180px 180px;
-}
-/* The grain reads as dirt on a light background — dark theme only. */
-[data-theme="light"] body::after { display: none; }
 
 /* Scrollbar */
 ::-webkit-scrollbar       { width: 4px; height: 4px; }
@@ -880,6 +861,78 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
   transform: none !important;
 }
 
+.monitor-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.overflow-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 210px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 6px;
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.dropdown-item svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus-visible {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.dropdown-item--danger {
+  color: var(--color-down);
+}
+
+.dropdown-item--danger svg {
+  color: var(--color-down);
+}
+
+.dropdown-item--danger:hover,
+.dropdown-item--danger:focus-visible {
+  background: rgba(248, 81, 73, 0.12);
+  color: var(--color-down);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
 .detail-title-row {
   display: flex;
   align-items: center;
@@ -956,15 +1009,13 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
 }
 
 .section-title {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.5px;
   color: var(--text-muted);
   margin-bottom: 14px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  text-transform: uppercase;
 }
 
 /* Heartbeat Timeline */
@@ -1043,12 +1094,10 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
 .metric-card.status-good::before { background: var(--color-up); }
 
 .metric-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.5px;
   color: var(--text-muted);
   margin-bottom: 11px;
-  text-transform: uppercase;
 }
 
 /* Radial gauge */
@@ -1115,10 +1164,8 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
 }
 .hw-spec-item:last-child { border-right: none; }
 .hw-spec-label {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--text-muted);
 }
 .hw-spec-value {
@@ -1150,10 +1197,8 @@ button:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important;
   margin: 12px 0 6px;
 }
 .uptime-label {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.7px;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--text-muted);
   margin-bottom: 11px;
 }
@@ -1421,7 +1466,6 @@ dialog::backdrop {
 .anim-fade-in > *:nth-child(6) { animation-delay: 250ms; }
 .anim-fade-in > *:nth-child(n+7) { animation-delay: 300ms; }
 
-.pulse-up { animation: pulse-up 2s infinite; }
 
 /* Login Card & Split Layout */
 .login-wrap.split-layout {

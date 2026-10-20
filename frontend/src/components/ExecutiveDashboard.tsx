@@ -118,8 +118,8 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
 
       <div className="exec-header">
         <div>
-          <div className="exec-eyebrow">Operations Overview</div>
-          <h1 className="exec-title">Executive Command Center</h1>
+          <div className="exec-eyebrow">SLA &amp; Compliance</div>
+          <h1 className="exec-title">Executive Summary</h1>
         </div>
 
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -186,7 +186,7 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
             </div>
             <div className="exec-card-value">
               {slaTrendLoading ? (
-                <span className="exec-card-muted">—</span>
+                <span className="exec-card-muted">n/a</span>
               ) : mttrMinutes != null ? (
                 <>{numberFmt.format(mttrMinutes)} <span className="exec-card-unit">min</span></>
               ) : (

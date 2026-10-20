@@ -5,6 +5,31 @@ All notable changes to Snoomp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-10-19
+
+### Changed
+- **UI/UX Audit Remediation (Anti-Slop & Ponytail Cleanups):**
+  - **Pass 1 (T1, T2, T7):**
+    - Refactored monitor detail header actions (`App.tsx`): Replaced 8 rainbow icon-only action buttons with one primary action button ("Check now") and an accessible dropdown overflow menu (`MoreVertical`), with neutral icons, text labels, and a separated danger-styled delete action.
+    - Host detail metric deduplication (`App.tsx`): Deduplicated Total Disk (kept in hardware specs strip, removed from volume panel header) and check interval (kept in Heartbeat header, removed from Resource title).
+    - KPI card label cleanup (`App.tsx`): Removed redundant explanatory sub-captions in global overview cards that repeated card titles.
+  - **Pass 2 (T3, T4, T5, T6):**
+    - SSH diagnostic phase disclosure (`App.tsx`): Hidden on healthy checks (< 1000ms), collapsed behind `<details>` only when slow (>= 1000ms), and stripped of internal system process fork text.
+    - Radial gauge visual noise reduction (`App.tsx`): Stripped redundant "user + sys" and "used / total" captions from CPU and Memory gauges.
+    - Minimalist sidebar monitor rows (`MonitorRow.tsx`): Removed 20-bar mini heartbeat SVG from the sidebar list. Sidebar rows now strictly show status dot, monitor name, and a single metric value (latency ms or uptime %).
+    - Sidebar filter unification (`App.tsx`): Consolidated grouping dropdown into the collapsible Filters panel; removed redundant toggle row.
+  - **Pass 3 (V1, V2, V3, V4 & Icon Foundation):**
+    - Unified card language (`dashboard.css`): Flattened double-bezel card styling across Executive and HCP dashboards into a single, cohesive card language.
+    - Design tokens & radii (`dashboard.css`): Standardized on `--radius-sm` (4px), `--radius-md` (8px), `--radius-lg` (12px), and established a strict 4-step type scale (`--text-xs: 12px`, `--text-sm: 14px`, `--text-md: 18px`, `--text-lg: 28px`).
+    - Icon modernization (`Icon.tsx`, `MonitorRow.tsx`, `UserPreferencesModal.tsx`): Introduced unified `<Icon>` wrapper using `@phosphor-icons/react` as base set, accompanied by attribution credits for Phosphor and Iconamoon.
+  - **Pass 4 (C1, C2):**
+    - Anti-slop correctness (C1): Eliminated all visible em dashes (`—`) across dashboard views, empty states, MTTR cards, and share text in favor of "n/a" or standard hyphens.
+    - Dark mode contrast (C2): Increased dark mode `--text-muted` to `#8c95b3` and `--color-off` to `#8593a3`, guaranteeing WCAG AA >= 4.5:1 across dark card backgrounds.
+  - **Pass 5 (T8, T9, V5, V6, V7, V8):**
+    - Cockpit vs Executive role clarity (T8): Renamed navigation and overview headers to "Live Cockpit" (operational telemetry and incident response) and "Executive Summary" (high-level SLA compliance and MTTR tracking).
+    - HCP dashboard table condensation (T9): Condensed Tenant and Namespace tables down to 5 clean columns, consolidating capacity and quota metrics into a single progress-enabled column.
+    - Motion & depth noise reduction (V7, V8): Removed infinite `pulse-up` animations, eliminated fullscreen grain overlays, and removed decorative box-shadow glows.
+
 ## [1.5.0] - 2026-10-15
 
 ### Added

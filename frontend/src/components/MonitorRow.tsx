@@ -1,4 +1,6 @@
 import React from 'react';
+import { Check } from '@phosphor-icons/react';
+import { Icon } from './Icon';
 import { SlaConfig } from './UserPreferencesModal';
 
 export interface MonitorRowProps {
@@ -34,10 +36,6 @@ export const MonitorRow: React.FC<MonitorRowProps> = React.memo(({
   const uptime = m.uptime_24h ?? 0;
   const recentHbs = m.recent_heartbeats || [];
 
-  const upHbs = recentHbs.filter((h: any) => h.status === 'up').length;
-  const downHbs = recentHbs.filter((h: any) => h.status === 'down' || h.status === 'critical').length;
-  const hbSummary = recentHbs.length > 0 ? `Last ${recentHbs.length} checks: ${upHbs} up, ${downHbs} down` : 'No recent checks';
-
   return (
     <button
       key={m.id}
@@ -60,29 +58,15 @@ export const MonitorRow: React.FC<MonitorRowProps> = React.memo(({
     >
       <div className="monitor-row-top" style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
         {isBatchMode && (
-          <div style={{ width: '14px', height: '14px', border: '1px solid ' + (isSelected ? 'var(--accent)' : 'var(--border)'), borderRadius: '3px', background: isSelected ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+          <div style={{ width: '14px', height: '14px', border: '1px solid ' + (isSelected ? 'var(--accent)' : 'var(--border)'), borderRadius: 'var(--radius-sm)', background: isSelected ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            {isSelected && <Icon icon={Check} size={10} weight="bold" color="#fff" />}
           </div>
         )}
-        <span className="monitor-row-label" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div className={`status-dot ${m.status || 'off'}`} style={{ width: '7px', height: '7px', flexShrink: 0 }} />
+        <span className="monitor-row-label" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px', fontWeight: 500 }}>
           {m.name}
         </span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-        <span className={`uptime-badge ${uptimeBadgeClass(uptime, slaConfig)}`} style={{ flexShrink: 0, fontSize: '11px' }} title="24-hour average uptime">
-          {recentHbs.length > 0 ? `${uptime.toFixed(1)}%` : '—'}
-        </span>
-        <div className="mini-hb-row" style={{ flex: 1, minWidth: 0 }} role="img" aria-label={hbSummary} title={hbSummary}>
-          {recentHbs.length > 0
-            ? recentHbs.map((hb: any, i: number) => (
-              <div key={i} className={`mini-hb-bar ${hb.status || 'unknown'}`} aria-hidden="true" />
-            ))
-            : Array(20).fill(null).map((_, i) => (
-              <div key={i} className="mini-hb-bar unknown" aria-hidden="true" />
-            ))
-          }
-        </div>
-        {m.response_time_ms > 0 && (
+        {m.response_time_ms > 0 ? (
           <span style={{
             fontSize: '11px',
             fontFamily: 'var(--font-mono)',
@@ -91,6 +75,10 @@ export const MonitorRow: React.FC<MonitorRowProps> = React.memo(({
             flexShrink: 0
           }}>
             {m.response_time_ms.toFixed(0)}ms
+          </span>
+        ) : (
+          <span className={`uptime-badge ${uptimeBadgeClass(uptime, slaConfig)}`} style={{ flexShrink: 0, fontSize: '11px' }}>
+            {recentHbs.length > 0 ? `${uptime.toFixed(1)}%` : 'n/a'}
           </span>
         )}
       </div>
