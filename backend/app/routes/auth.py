@@ -4,7 +4,7 @@ import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import time as _time
 from collections import defaultdict
@@ -68,7 +68,7 @@ def _check_forgot_rate_limit(ip: str):
     if len(_forgot_attempts[ip]) >= _FORGOT_MAX:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Terlalu banyak permintaan reset password. Silakan coba lagi nanti.",
+            detail="Too many password reset requests. Please try again later.",
         )
     _forgot_attempts[ip].append(now)
 
@@ -89,8 +89,7 @@ class UserResponse(BaseModel):
     role: str
     is_active: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class Token(BaseModel):
     access_token: str
@@ -194,8 +193,8 @@ def forgot_password(request: Request, body: ForgotPasswordRequest, db: Session =
 
     # Constant generic message to prevent account and email enumeration
     generic_msg = (
-        "Jika akun dengan informasi tersebut terdaftar dan memiliki email valid, "
-        "tautan reset password telah dikirim ke email Anda."
+        "If an account matches what you entered, a reset link is on its way. "
+        "Open it on this device to choose a new password."
     )
 
     if not user or not user.is_active or not user.email:
@@ -227,13 +226,13 @@ def forgot_password(request: Request, body: ForgotPasswordRequest, db: Session =
 def verify_reset_token(token: str, db: Session = Depends(get_db)):
     clean_token = token.strip()
     if not clean_token:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token tidak valid")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The reset link is invalid or has already been used. Request a new one to continue.")
 
     user = db.query(User).filter(User.reset_token == clean_token).first()
     if not user or not user.reset_token_expires or user.reset_token_expires < datetime.datetime.utcnow():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tautan reset tidak valid atau sudah kedaluwarsa"
+            detail="The reset link is invalid or has already been used. Request a new one to continue."
         )
     return {"valid": True, "username": user.username}
 
@@ -248,7 +247,7 @@ def reset_password(request: Request, body: ResetPasswordRequest, db: Session = D
         _record_failed_attempt(client_ip)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tautan reset tidak valid atau sudah kedaluwarsa"
+            detail="The reset link is invalid or has already been used. Request a new one to continue."
         )
 
     user.hashed_password = get_password_hash(body.new_password)
@@ -257,7 +256,7 @@ def reset_password(request: Request, body: ResetPasswordRequest, db: Session = D
     db.commit()
 
     _clear_rate_limit(client_ip)
-    return {"message": "Password berhasil diperbarui. Silakan masuk menggunakan password baru."}
+    return {"message": "Password updated successfully. Sign in with your new password."}
 
 @router.get("/users", response_model=List[UserResponse], dependencies=[Depends(require_admin)])
 def list_users(db: Session = Depends(get_db)):

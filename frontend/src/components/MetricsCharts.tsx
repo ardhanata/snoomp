@@ -45,47 +45,40 @@ function ResourceHistoryChartImpl({ metricsHistory, resourceHours }: ResourceHis
   const now = Math.max(Date.now(), lastTs);
 
   return (
-    <>
-      <div className="chart-legend">
-        <span className="legend-item"><span className="legend-dot" style={{ background: 'var(--chart-1)' }} />CPU</span>
-        <span className="legend-item"><span className="legend-dot" style={{ background: 'var(--chart-2)' }} />Memory</span>
-        <span className="legend-item"><span className="legend-dot" style={{ background: 'var(--chart-3)' }} />Disk</span>
-      </div>
-      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-        <AreaChart data={data}>
-          <defs>
-            <linearGradient id="gCpu" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.25} /><stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} /></linearGradient>
-            <linearGradient id="gMem" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--chart-2)" stopOpacity={0.25} /><stop offset="95%" stopColor="var(--chart-2)" stopOpacity={0} /></linearGradient>
-            <linearGradient id="gDisk" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--chart-3)" stopOpacity={0.25} /><stop offset="95%" stopColor="var(--chart-3)" stopOpacity={0} /></linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-          <XAxis
-            dataKey="timestamp"
-            type="number"
-            domain={[now - resourceHours * 3600 * 1000, now]}
-            stroke="var(--text-muted)"
-            fontSize={10}
-            tick={AXIS_TICK}
-            interval="preserveStartEnd"
-            minTickGap={45}
-            tickFormatter={(ts: number) => {
-              const d = new Date(ts);
-              return resourceHours > 24
-                ? d.toLocaleDateString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            }}
-          />
-          <YAxis stroke="var(--text-muted)" fontSize={10} unit="%" domain={[0, 100]} tick={AXIS_TICK} />
-          <Tooltip
-            labelFormatter={(ts: any) => new Date(Number(ts)).toLocaleString()}
-            contentStyle={TOOLTIP_STYLE}
-          />
-          <Area type="monotone" dataKey="cpu" name="CPU" stroke="var(--chart-1)" fill="url(#gCpu)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
-          <Area type="monotone" dataKey="mem" name="Memory" stroke="var(--chart-2)" fill="url(#gMem)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
-          <Area type="monotone" dataKey="disk" name="Disk" stroke="var(--chart-3)" fill="url(#gDisk)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
-        </AreaChart>
-      </ResponsiveContainer>
-    </>
+    <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+      <AreaChart data={data}>
+        <defs>
+          <linearGradient id="gCpu" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--c1)" stopOpacity={0.25} /><stop offset="95%" stopColor="var(--c1)" stopOpacity={0} /></linearGradient>
+          <linearGradient id="gMem" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--c2)" stopOpacity={0.25} /><stop offset="95%" stopColor="var(--c2)" stopOpacity={0} /></linearGradient>
+          <linearGradient id="gDisk" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--c3)" stopOpacity={0.25} /><stop offset="95%" stopColor="var(--c3)" stopOpacity={0} /></linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+        <XAxis
+          dataKey="timestamp"
+          type="number"
+          domain={[now - resourceHours * 3600 * 1000, now]}
+          stroke="var(--text-muted)"
+          fontSize={10}
+          tick={AXIS_TICK}
+          interval="preserveStartEnd"
+          minTickGap={45}
+          tickFormatter={(ts: number) => {
+            const d = new Date(ts);
+            return resourceHours > 24
+              ? d.toLocaleDateString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+              : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          }}
+        />
+        <YAxis stroke="var(--text-muted)" fontSize={10} unit="%" domain={[0, 100]} tick={AXIS_TICK} />
+        <Tooltip
+          labelFormatter={(ts: any) => new Date(Number(ts)).toLocaleString()}
+          contentStyle={TOOLTIP_STYLE}
+        />
+        <Area type="monotone" dataKey="cpu" name="CPU" stroke="var(--c1)" fill="url(#gCpu)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+        <Area type="monotone" dataKey="mem" name="Memory" stroke="var(--c2)" fill="url(#gMem)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+        <Area type="monotone" dataKey="disk" name="Disk" stroke="var(--c3)" fill="url(#gDisk)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+      </AreaChart>
+    </ResponsiveContainer>
   );
 }
 

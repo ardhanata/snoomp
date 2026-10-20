@@ -74,6 +74,7 @@ DEFAULTS: dict[str, Any] = {
         "chart_1": "#8b5cf6",
         "chart_2": "#06b6d4",
         "chart_3": "#ec4899",
+        "tag_colors": {},
     },
 }
 

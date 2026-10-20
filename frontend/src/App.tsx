@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback, startTransition, useMemo } from 'react';
 import {
-  Shield, Power, Trash2, Edit3, Plus,
-  Search, Cpu, HardDrive, MemoryStick, Clock,
-  Zap, Globe, Copy, ExternalLink, X,
-  LayoutDashboard, Pencil, Check, ChevronDown, FileText,
-  Database, RefreshCw, Server, Activity, Sun, Moon, TrendingUp, Sliders,
-  CheckSquare, Share2, Printer, Menu,
-  Download, ArrowUpCircle, MoreVertical
+  Power, Trash2, Edit3, Plus,
+  Search, Cpu, HardDrive,
+  Globe, Copy, ExternalLink, X,
+  Pencil, Check, ChevronDown, FileText,
+  Database, RefreshCw, Server, Activity, Sun, Moon, Sliders,
+  Printer, Menu,
+  Download, ArrowUpCircle, Eye, EyeOff
 } from 'lucide-react';
 
 import './styles/dashboard.css';
 import './styles/toast.css';
-import RadialGauge from './components/RadialGauge';
 import PublicStatusPage from './components/PublicStatusPage';
 import Dialog from './components/Dialog';
 import { SnoompLogo } from './components/SnoompLogo';
@@ -19,6 +18,20 @@ import type { SlaTrend } from './components/ExecutiveDashboard';
 import MonitorRow from './components/MonitorRow';
 import IconButton from './components/IconButton';
 import { HttpLatencyProfiler } from './components/HttpLatencyProfiler';
+import { TagChip } from './components/TagChip';
+import { Icon } from './components/Icon';
+import {
+  ArrowsClockwise,
+  Pause as PhPause,
+  Play as PhPlay,
+  DotsThreeVertical,
+  Check as PhCheck,
+  Copy as PhCopy,
+  FileText as PhFileText,
+  Pulse as PhPulse,
+  PencilSimple as PhPencilSimple,
+  Trash as PhTrash,
+} from '@phosphor-icons/react';
 import { InstanceSettings, readCache, fetchSettings, applyAppearance } from './lib/settings';
 import { downloadPdf } from './lib/downloadPdf';
 import { normalizeTags, normalizeTag, tagEquals, tagIncludes, mergeTags, removeTags, SITE_TAGS, isSiteTag } from './utils/tags';
@@ -248,6 +261,13 @@ function App() {
   const [authError, setAuthError] = useState('');
 
   const [authMode, setAuthMode] = useState<'login' | 'forgot' | 'reset'>('login');
+  const [loginStatus, setLoginStatus] = useState<'idle' | 'signing-in' | 'failed' | 'success'>('idle');
+  const [stripFillIndex, setStripFillIndex] = useState(0);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [capsLockOn, setCapsLockOn] = useState(false);
+
   const [forgotIdentifier, setForgotIdentifier] = useState('');
   const [forgotSubmitting, setForgotSubmitting] = useState(false);
   const [forgotNotice, setForgotNotice] = useState('');
@@ -261,6 +281,23 @@ function App() {
   const [resetNotice, setResetNotice] = useState('');
   const [resetError, setResetError] = useState('');
 
+  // 60-block reactive strip fill interval during signing in
+  useEffect(() => {
+    if (loginStatus !== 'signing-in') {
+      setStripFillIndex(0);
+      return;
+    }
+    const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) {
+      setStripFillIndex(60);
+      return;
+    }
+    const timer = setInterval(() => {
+      setStripFillIndex(prev => (prev < 59 ? prev + 1 : prev));
+    }, 20);
+    return () => clearInterval(timer);
+  }, [loginStatus]);
+
   // Detect password reset token from query string or /reset-password pathname on boot
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -273,7 +310,7 @@ function App() {
         fetch(`${API_URL}/api/auth/verify-reset-token?token=${encodeURIComponent(tokenParam)}`)
           .then(res => {
             if (!res.ok) {
-              setResetError('Tautan reset password tidak valid atau sudah kedaluwarsa.');
+              setResetError('The reset link is invalid or has already been used. Request a new one to continue.');
               setResetTokenValid(false);
             } else {
               setResetTokenValid(true);
@@ -284,7 +321,7 @@ function App() {
           });
       } else {
         setAuthMode('reset');
-        setResetError('Tautan reset password tidak menyertakan token yang valid.');
+        setResetError('The reset link is invalid or has already been used. Request a new one to continue.');
         setResetTokenValid(false);
       }
     }
@@ -439,7 +476,7 @@ function App() {
     });
   };
 
-  const [isBatchMode, setIsBatchMode] = useState(false);
+  const [isBatchMode] = useState(false);
   const [selectedMonitorIds, setSelectedMonitorIds] = useState<string[]>([]);
   const [isBatchEditModalOpen, setIsBatchEditModalOpen] = useState(false);
 
@@ -455,6 +492,7 @@ function App() {
   const [shareState, setShareState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const [detailMenuOpen, setDetailMenuOpen] = useState(false);
   const detailMenuRef = useRef<HTMLDivElement>(null);
+  const detailMenuBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!detailMenuOpen) return;
@@ -464,7 +502,10 @@ function App() {
       }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setDetailMenuOpen(false);
+      if (e.key === 'Escape') {
+        setDetailMenuOpen(false);
+        detailMenuBtnRef.current?.focus();
+      }
     };
     document.addEventListener('mousedown', handleDocumentClick);
     document.addEventListener('keydown', handleKeyDown);
@@ -699,23 +740,42 @@ function App() {
   };
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault(); setAuthError('');
+    e.preventDefault();
+    setAuthError('');
+    setLoginStatus('signing-in');
     try {
       const fd = new URLSearchParams();
-      fd.append('username', username); fd.append('password', password);
+      fd.append('username', username);
+      fd.append('password', password);
       const res = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: fd,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: fd,
       });
       if (res.ok) {
         const d = await res.json();
-        localStorage.setItem('snoomp_token', d.access_token);
-        localStorage.setItem('snoomp_role', d.role);
-        setToken(d.access_token); setRole(d.role);
+        setLoginStatus('success');
+        setTimeout(() => {
+          localStorage.setItem('snoomp_token', d.access_token);
+          localStorage.setItem('snoomp_role', d.role);
+          setToken(d.access_token);
+          setRole(d.role);
+          setLoginStatus('idle');
+        }, 250);
       } else {
-        const err = await res.json();
-        setAuthError(err.detail || 'Invalid credentials');
+        setLoginStatus('failed');
+        if (res.status === 429) {
+          setAuthError('Too many attempts. Wait a few minutes and try again.');
+        } else if (res.status === 401) {
+          setAuthError('Username or password is incorrect. Check both and try again.');
+        } else {
+          setAuthError("Snoomp can't reach the server. Try again shortly.");
+        }
       }
-    } catch { setAuthError('Connection failed'); }
+    } catch {
+      setLoginStatus('failed');
+      setAuthError("Snoomp can't reach the server. Try again shortly.");
+    }
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -731,14 +791,13 @@ function App() {
         body: JSON.stringify({ identifier: forgotIdentifier.trim() }),
       });
       if (res.ok) {
-        const d = await res.json();
-        setForgotNotice(d.message || 'Tautan reset password telah dikirim ke email Anda.');
+        setForgotNotice('If an account matches what you entered, a reset link is on its way. Open it on this device to choose a new password.');
       } else {
         const err = await res.json().catch(() => ({}));
-        setForgotError(err.detail || 'Gagal mengirim permintaan reset password.');
+        setForgotError(err.detail || 'Failed to send reset link.');
       }
     } catch {
-      setForgotError('Gagal terhubung ke server.');
+      setForgotError('Failed to connect to server.');
     } finally {
       setForgotSubmitting(false);
     }
@@ -749,15 +808,15 @@ function App() {
     setResetError('');
     setResetNotice('');
     if (!resetToken.trim()) {
-      setResetError('Token reset tidak ditemukan.');
+      setResetError('The reset link is invalid or has already been used. Request a new one to continue.');
       return;
     }
     if (newPassword.length < 6) {
-      setResetError('Password baru minimal 6 karakter.');
+      setResetError('Use at least 6 characters.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setResetError('Konfirmasi password baru tidak cocok.');
+      setResetError('The two passwords do not match.');
       return;
     }
     setResetSubmitting(true);
@@ -768,15 +827,14 @@ function App() {
         body: JSON.stringify({ token: resetToken.trim(), new_password: newPassword }),
       });
       if (res.ok) {
-        const d = await res.json();
-        setResetNotice(d.message || 'Password berhasil diperbarui. Silakan login kembali.');
+        setResetNotice('Password updated');
         window.history.replaceState({}, document.title, window.location.pathname.startsWith('/reset-password') ? '/' : window.location.pathname);
       } else {
         const err = await res.json().catch(() => ({}));
-        setResetError(err.detail || 'Gagal mereset password.');
+        setResetError(err.detail || 'Failed to update password.');
       }
     } catch {
-      setResetError('Gagal terhubung ke server.');
+      setResetError('Failed to connect to server.');
     } finally {
       setResetSubmitting(false);
     }
@@ -882,7 +940,7 @@ function App() {
     } catch { }
   };
 
-  const [wsStatus, setWsStatus] = useState<'connected' | 'reconnecting' | 'disconnected'>('disconnected');
+  const [, setWsStatus] = useState<'connected' | 'reconnecting' | 'disconnected'>('disconnected');
   const statsDebounceRef = useRef<any>(null);
   const lastStatsFetchRef = useRef<number>(0);
 
@@ -1558,211 +1616,347 @@ function App() {
     return <PublicStatusPage slug={slug} />;
   }
 
-  // Login page (split layout)
+  // Redesigned Sign-in screen (Calm, Left-Aligned, 60-Block Reactive Strip)
   if (!token) {
+    const getStripBlockClass = (idx: number) => {
+      // 1. Signed in or Password updated: all green
+      if (loginStatus === 'success' || (authMode === 'reset' && resetNotice)) {
+        return 'signin-strip-block success';
+      }
+      // 2. Sign-in failed or Link expired: all idle, last block red
+      if (loginStatus === 'failed' || (authMode === 'reset' && resetTokenValid === false)) {
+        if (idx === 59) return 'signin-strip-block failure';
+        return 'signin-strip-block';
+      }
+      // 3. Signing in: blocks fill left to right
+      if (loginStatus === 'signing-in') {
+        if (idx < stripFillIndex) return 'signin-strip-block filling';
+        return 'signin-strip-block';
+      }
+      // 4. Idle
+      return 'signin-strip-block';
+    };
+
     return (
-      <div className="login-wrap split-layout">
-        {/* Left Side: Form */}
-        <div className="login-form-pane">
-          <div className="login-logo">
-            <div className="login-logo-icon">
-              <Shield size={24} />
-            </div>
-            <h2>SNOOMP</h2>
-            <p>Enterprise Health &amp; Resource Monitor</p>
-          </div>
+      <div className="signin-screen">
+        {/* Header: SnoompLogo mark (34x22px) and wordmark "snoomp" 20px/800 */}
+        <header className="signin-header">
+          <SnoompLogo size={34} showText={false} color="currentColor" />
+          <span className="signin-header-wordmark">snoomp</span>
+        </header>
 
-          {authMode === 'login' && (
-            <>
-              {authError && <div className="login-error" role="alert">{authError}</div>}
+        {/* Form Column: max-width 400px, left-aligned at 48px from edge */}
+        <main className="signin-body">
+          <div className="signin-form-col">
+            {authMode === 'login' && (
+              <>
+                <h1 className="signin-heading">Sign in to Snoomp</h1>
+                {authError && <div className="signin-alert" role="alert">{authError}</div>}
 
-              <form onSubmit={handleLogin} className="login-form">
-                <div className="form-group">
-                  <label htmlFor="login-username">Username</label>
-                  <input id="login-username" name="username" autoComplete="username" spellCheck={false} type="text" required placeholder="admin" value={username} onChange={e => setUsername(e.target.value)} />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="login-password">Password</label>
-                  <input id="login-password" name="password" autoComplete="current-password" type="password" required placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-4px', marginBottom: '12px' }}>
-                  <button
-                    type="button"
-                    className="login-forgot-link"
-                    onClick={() => {
-                      setAuthMode('forgot');
-                      setAuthError('');
-                      setForgotError('');
-                      setForgotNotice('');
-                    }}
-                  >
-                    Lupa password?
-                  </button>
-                </div>
-                <button type="submit" className="login-btn">
-                  Sign In
-                </button>
-              </form>
-            </>
-          )}
-
-          {authMode === 'forgot' && (
-            <>
-              {forgotError && <div className="login-error" role="alert">{forgotError}</div>}
-              {forgotNotice && <div className="login-success" role="status">{forgotNotice}</div>}
-
-              {forgotNotice ? (
-                <div className="login-form">
-                  <button
-                    type="button"
-                    className="login-btn"
-                    onClick={() => {
-                      setAuthMode('login');
-                      setForgotNotice('');
-                      setForgotError('');
-                    }}
-                  >
-                    Kembali ke Login
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleForgotPassword} className="login-form">
-                  <div style={{ marginBottom: '16px' }}>
-                    <h3 style={{ margin: '0 0 6px 0', fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      Lupa Password
-                    </h3>
-                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                      Masukkan username atau alamat email akun Anda untuk menerima tautan pemulihan.
-                    </p>
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="forgot-identifier">Username atau Email</label>
+                <form onSubmit={handleLogin} aria-busy={loginStatus === 'signing-in'}>
+                  <div className="signin-field-group">
+                    <label htmlFor="login-username" className="signin-label">Username</label>
                     <input
-                      id="forgot-identifier"
-                      name="identifier"
+                      id="login-username"
+                      name="username"
+                      autoComplete="username"
+                      spellCheck={false}
                       type="text"
                       required
-                      placeholder="admin atau user@example.com"
-                      value={forgotIdentifier}
-                      onChange={e => setForgotIdentifier(e.target.value)}
-                      disabled={forgotSubmitting}
-                      autoComplete="username email"
+                      className="signin-input"
+                      value={username}
+                      onChange={e => setUsername(e.target.value)}
+                      disabled={loginStatus === 'signing-in'}
                     />
                   </div>
-                  <button type="submit" className="login-btn" disabled={forgotSubmitting}>
-                    {forgotSubmitting ? 'Mengirim...' : 'Kirim Tautan Reset'}
-                  </button>
-                  <button
-                    type="button"
-                    className="login-back-btn"
-                    onClick={() => {
-                      setAuthMode('login');
-                      setForgotError('');
-                      setForgotNotice('');
-                    }}
-                  >
-                    Kembali ke Login
-                  </button>
-                </form>
-              )}
-            </>
-          )}
 
-          {authMode === 'reset' && (
-            <>
-              {resetError && <div className="login-error" role="alert">{resetError}</div>}
-              {resetNotice && <div className="login-success" role="status">{resetNotice}</div>}
+                  <div className="signin-field-group">
+                    <div className="signin-field-header">
+                      <label htmlFor="login-password" className="signin-label">Password</label>
+                      <button
+                        type="button"
+                        className="signin-link"
+                        onClick={() => {
+                          setAuthMode('forgot');
+                          setAuthError('');
+                          setForgotError('');
+                          setForgotNotice('');
+                          setLoginStatus('idle');
+                        }}
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                    <div className="signin-input-wrapper">
+                      <input
+                        id="login-password"
+                        name="password"
+                        autoComplete="current-password"
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        className="signin-input"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        onKeyDown={e => setCapsLockOn(Boolean(e.getModifierState && e.getModifierState('CapsLock')))}
+                        onKeyUp={e => setCapsLockOn(Boolean(e.getModifierState && e.getModifierState('CapsLock')))}
+                        disabled={loginStatus === 'signing-in'}
+                      />
+                      <button
+                        type="button"
+                        className="signin-input-toggle"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        onClick={() => setShowPassword(p => !p)}
+                        tabIndex={-1}
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    {capsLockOn && <div className="signin-caps-warn">Caps Lock is on</div>}
+                  </div>
 
-              {resetNotice ? (
-                <div className="login-form">
-                  <button
-                    type="button"
-                    className="login-btn"
-                    onClick={() => {
-                      setAuthMode('login');
-                      setResetNotice('');
-                      setResetError('');
-                      setNewPassword('');
-                      setConfirmPassword('');
-                    }}
-                  >
-                    Masuk Sekarang
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleResetPassword} className="login-form">
-                  <div style={{ marginBottom: '16px' }}>
-                    <h3 style={{ margin: '0 0 6px 0', fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      Reset Password
-                    </h3>
-                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                      Masukkan password baru yang aman untuk akun Anda (minimal 6 karakter).
-                    </p>
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="reset-new-password">Password Baru</label>
-                    <input
-                      id="reset-new-password"
-                      name="newPassword"
-                      type="password"
-                      required
-                      minLength={6}
-                      placeholder="Minimal 6 karakter"
-                      value={newPassword}
-                      onChange={e => setNewPassword(e.target.value)}
-                      disabled={resetSubmitting || resetTokenValid === false}
-                      autoComplete="new-password"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="reset-confirm-password">Konfirmasi Password Baru</label>
-                    <input
-                      id="reset-confirm-password"
-                      name="confirmPassword"
-                      type="password"
-                      required
-                      minLength={6}
-                      placeholder="Ulangi password baru"
-                      value={confirmPassword}
-                      onChange={e => setConfirmPassword(e.target.value)}
-                      disabled={resetSubmitting || resetTokenValid === false}
-                      autoComplete="new-password"
-                    />
-                  </div>
                   <button
                     type="submit"
-                    className="login-btn"
-                    disabled={resetSubmitting || resetTokenValid === false}
+                    className="signin-btn-primary"
+                    disabled={loginStatus === 'signing-in'}
                   >
-                    {resetSubmitting ? 'Menyimpan...' : 'Simpan Password Baru'}
-                  </button>
-                  <button
-                    type="button"
-                    className="login-back-btn"
-                    onClick={() => {
-                      setAuthMode('login');
-                      setResetError('');
-                      setResetNotice('');
-                    }}
-                  >
-                    Batal dan Kembali ke Login
+                    {loginStatus === 'signing-in' ? 'Signing in…' : 'Sign in'}
                   </button>
                 </form>
-              )}
-            </>
-          )}
+              </>
+            )}
+
+            {authMode === 'forgot' && (
+              <>
+                {forgotNotice ? (
+                  <>
+                    <h1 className="signin-heading">Check your email</h1>
+                    <p className="signin-subtext">
+                      If an account matches what you entered, a reset link is on its way. Open it on this device to choose a new password.
+                    </p>
+                    <button
+                      type="button"
+                      className="signin-link"
+                      onClick={() => {
+                        setAuthMode('login');
+                        setForgotNotice('');
+                        setForgotError('');
+                      }}
+                    >
+                      Back to sign in
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h1 className="signin-heading">Reset your password</h1>
+                    <p className="signin-subtext">
+                      Enter your username or email. We send a reset link to the email on your account.
+                    </p>
+                    {forgotError && <div className="signin-alert" role="alert">{forgotError}</div>}
+
+                    <form onSubmit={handleForgotPassword}>
+                      <div className="signin-field-group">
+                        <label htmlFor="forgot-identifier" className="signin-label">Username or email</label>
+                        <input
+                          id="forgot-identifier"
+                          name="identifier"
+                          type="text"
+                          required
+                          className="signin-input"
+                          value={forgotIdentifier}
+                          onChange={e => setForgotIdentifier(e.target.value)}
+                          disabled={forgotSubmitting}
+                          autoComplete="username email"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="signin-btn-primary"
+                        disabled={forgotSubmitting}
+                      >
+                        {forgotSubmitting ? 'Sending…' : 'Send reset link'}
+                      </button>
+
+                      <div style={{ marginTop: '16px', textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          className="signin-link"
+                          onClick={() => {
+                            setAuthMode('login');
+                            setForgotError('');
+                            setForgotNotice('');
+                          }}
+                        >
+                          Back to sign in
+                        </button>
+                      </div>
+                    </form>
+                  </>
+                )}
+              </>
+            )}
+
+            {authMode === 'reset' && (
+              <>
+                {resetTokenValid === false ? (
+                  <>
+                    <h1 className="signin-heading">This link has expired</h1>
+                    <div className="signin-alert" role="alert">
+                      The reset link is invalid or has already been used. Request a new one to continue.
+                    </div>
+                    <button
+                      type="button"
+                      className="signin-btn-primary"
+                      onClick={() => {
+                        setAuthMode('forgot');
+                        setResetError('');
+                        setResetTokenValid(null);
+                      }}
+                    >
+                      Request a new link
+                    </button>
+                    <div style={{ marginTop: '16px', textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        className="signin-link"
+                        onClick={() => {
+                          setAuthMode('login');
+                          setResetError('');
+                          setResetTokenValid(null);
+                        }}
+                      >
+                        Back to sign in
+                      </button>
+                    </div>
+                  </>
+                ) : resetNotice ? (
+                  <>
+                    <h1 className="signin-heading">Password updated</h1>
+                    <p className="signin-subtext">Sign in with your new password.</p>
+                    <button
+                      type="button"
+                      className="signin-btn-primary"
+                      onClick={() => {
+                        setAuthMode('login');
+                        setResetNotice('');
+                        setResetError('');
+                        setNewPassword('');
+                        setConfirmPassword('');
+                        setResetTokenValid(null);
+                      }}
+                    >
+                      Sign in
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h1 className="signin-heading">Choose a new password</h1>
+                    <p className="signin-subtext">Use at least 6 characters.</p>
+                    {resetError && <div className="signin-alert" role="alert">{resetError}</div>}
+
+                    <form onSubmit={handleResetPassword}>
+                      <div className="signin-field-group">
+                        <label htmlFor="reset-new-password" className="signin-label">New password</label>
+                        <div className="signin-input-wrapper">
+                          <input
+                            id="reset-new-password"
+                            name="newPassword"
+                            type={showNewPassword ? 'text' : 'password'}
+                            required
+                            minLength={6}
+                            className="signin-input"
+                            value={newPassword}
+                            onChange={e => setNewPassword(e.target.value)}
+                            disabled={resetSubmitting}
+                            autoComplete="new-password"
+                          />
+                          <button
+                            type="button"
+                            className="signin-input-toggle"
+                            aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                            onClick={() => setShowNewPassword(p => !p)}
+                            tabIndex={-1}
+                          >
+                            {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="signin-field-group">
+                        <label htmlFor="reset-confirm-password" className="signin-label">Confirm new password</label>
+                        <div className="signin-input-wrapper">
+                          <input
+                            id="reset-confirm-password"
+                            name="confirmPassword"
+                            type={showConfirmPassword ? 'text' : 'password'}
+                            required
+                            minLength={6}
+                            className="signin-input"
+                            value={confirmPassword}
+                            onChange={e => setConfirmPassword(e.target.value)}
+                            disabled={resetSubmitting}
+                            autoComplete="new-password"
+                          />
+                          <button
+                            type="button"
+                            className="signin-input-toggle"
+                            aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                            onClick={() => setShowConfirmPassword(p => !p)}
+                            tabIndex={-1}
+                          >
+                            {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="signin-btn-primary"
+                        disabled={resetSubmitting}
+                      >
+                        {resetSubmitting ? 'Saving…' : 'Save new password'}
+                      </button>
+
+                      <div style={{ marginTop: '16px', textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          className="signin-link"
+                          onClick={() => {
+                            setAuthMode('login');
+                            setResetError('');
+                            setResetNotice('');
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        </main>
+
+        {/* 60-Block Reactive Strip */}
+        <div className="signin-strip" aria-hidden="true">
+          {Array.from({ length: 60 }).map((_, idx) => (
+            <div key={idx} className={getStripBlockClass(idx)} />
+          ))}
         </div>
 
-        {/* Right Side: Visual Texture / Liquid Glass Approx */}
-        <div className="login-visual-pane">
-          <div className="login-visual-content">
-            <div className="liquid-glass-web-approx" />
-            <div className="login-visual-text">
-              <h3>SYSTEM<br />COCKPIT</h3>
-              <p>MONITORING · INCIDENTS · AVAILABILITY</p>
-            </div>
-          </div>
-        </div>
+        {/* Footer: Version on left, 36px Theme Toggle on right */}
+        <footer className="signin-footer">
+          <span className="signin-version">snoomp v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.5.1'}</span>
+          <button
+            type="button"
+            className="signin-theme-toggle"
+            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+        </footer>
       </div>
     );
   }
@@ -1797,124 +1991,72 @@ function App() {
           </button>
         )}
 
-        {/* Logo */}
+        {/* Logo and Wordmark */}
         <a
           href="#"
           className="navbar-logo"
           aria-label="Snoomp Dashboard Home"
-          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', textDecoration: 'none' }}
+          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}
           onClick={(e) => { e.preventDefault(); setSelectedMonitor(null); setView('dashboard'); }}
         >
-          <SnoompLogo size={26} color="var(--accent)" />
+          <SnoompLogo size={34} showText={false} color="var(--accent)" />
+          <span style={{ fontFamily: 'var(--font-header)', fontSize: '20px', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text)' }}>
+            snoomp
+          </span>
         </a>
 
         <div className="navbar-spacer" />
 
-        <div className="navbar-actions">
-
-          {/* Nav links */}
-          <button
-            className={`nav-link-btn ${view === 'executive' ? 'active' : ''}`}
-            onClick={() => setView('executive')}
-            style={{ color: view === 'executive' ? 'var(--accent)' : 'var(--text-secondary)' }}
-          >
-            <TrendingUp size={14} />
-            Executive Summary
-          </button>
-
-          <button
-            className={`nav-link-btn ${view === 'status-pages' ? 'active' : ''}`}
-            onClick={() => setView('status-pages')}
-          >
-            <Globe size={14} />
-            Status Pages
-          </button>
-
-          <button
-            id="nav-hcp-storage"
-            className={`nav-link-btn ${view === 'hcp' ? 'active' : ''}`}
-            onClick={() => { setSelectedMonitor(null); setView('hcp'); }}
-            style={{ color: view === 'hcp' ? 'var(--accent)' : 'var(--text-secondary)' }}
-          >
-            <Database size={14} />
-            HCP Storage
-          </button>
-
-          <button
-            className={`nav-cta-btn ${view === 'dashboard' && !selectedMonitor ? 'active' : ''}`}
-            onClick={() => { setSelectedMonitor(null); setView('dashboard'); }}
-          >
-            <LayoutDashboard size={14} />
-            Live Cockpit
-          </button>
-
-          {/* Live Connection Status Pill — Theme Tokens & ARIA Announcement */}
-          <div
-            role="status"
-            aria-live="polite"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '4px 11px',
-              borderRadius: '12px',
-              fontSize: '12px',
-              fontWeight: '700',
-              letterSpacing: '0.5px',
-              background: 'var(--bg-elevated)',
-              color: wsStatus === 'connected' ? 'var(--color-up)' : wsStatus === 'reconnecting' ? 'var(--color-warning)' : 'var(--color-down)',
-              border: `1px solid ${wsStatus === 'connected' ? 'var(--color-up)' : wsStatus === 'reconnecting' ? 'var(--color-warning)' : 'var(--color-down)'}`,
-              marginRight: '12px'
-            }}
-          >
-            <span style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              background: 'currentColor',
-              boxShadow: wsStatus === 'connected' ? '0 0 6px currentColor' : 'none'
-            }} />
-            <span>{wsStatus === 'connected' ? 'LIVE' : wsStatus === 'reconnecting' ? 'RECONNECTING' : 'OFFLINE'}</span>
-          </div>
-
-          {/* Theme Toggle Button */}
+        <div className="navbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Nav links: Cockpit, Executive summary, Status pages, HCP storage */}
           <button
             type="button"
-            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
-            aria-pressed={theme === 'light'}
-            title="Toggle theme"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              background: 'var(--bg-void)',
-              borderRadius: '99px',
-              padding: '3px',
-              cursor: 'pointer',
-              marginRight: '16px',
-              border: '1px solid var(--border)'
-            }}
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className={`top-nav-link ${view === 'dashboard' && !selectedMonitor ? 'active' : ''}`}
+            onClick={() => { setSelectedMonitor(null); setView('dashboard'); }}
           >
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: '24px', height: '24px', borderRadius: '50%',
-              background: theme === 'light' ? 'var(--bg-elevated)' : 'transparent',
-              color: theme === 'light' ? 'var(--color-warning)' : 'var(--text-muted)',
-              boxShadow: theme === 'light' ? 'var(--shadow-sm)' : 'none',
-              transition: 'all 0.2s'
-            }}>
-              <Sun size={14} strokeWidth={2.5} />
-            </div>
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: '24px', height: '24px', borderRadius: '50%',
-              background: theme === 'dark' ? 'var(--bg-elevated)' : 'transparent',
-              color: theme === 'dark' ? 'var(--accent)' : 'var(--text-muted)',
-              boxShadow: theme === 'dark' ? 'var(--shadow-sm)' : 'none',
-              transition: 'all 0.2s'
-            }}>
-              <Moon size={14} strokeWidth={2.5} />
-            </div>
+            Cockpit
+          </button>
+
+          <button
+            type="button"
+            className={`top-nav-link ${view === 'executive' ? 'active' : ''}`}
+            onClick={() => setView('executive')}
+          >
+            Executive summary
+          </button>
+
+          <button
+            type="button"
+            className={`top-nav-link ${view === 'status-pages' ? 'active' : ''}`}
+            onClick={() => setView('status-pages')}
+          >
+            Status pages
+          </button>
+
+          <button
+            type="button"
+            id="nav-hcp-storage"
+            className={`top-nav-link ${view === 'hcp' ? 'active' : ''}`}
+            onClick={() => { setSelectedMonitor(null); setView('hcp'); }}
+          >
+            HCP storage
+          </button>
+
+          {/* Static Live dot indicator */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 500, color: 'var(--muted)', marginLeft: '4px', marginRight: '4px' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--up)' }} aria-hidden="true" />
+            <span>Live</span>
+          </div>
+
+          {/* 36px Icon Theme Toggle */}
+          <button
+            type="button"
+            className="signin-theme-toggle"
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            style={{ marginRight: '8px' }}
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
 
           {/* User avatar */}
@@ -2003,179 +2145,127 @@ function App() {
               aria-label="Monitors"
             >
 
-              {/* Add Monitor — full width primary, with a meta row beneath.
-                  The primary action gets the whole row so its label can never
-                  wrap; batch selection drops to secondary weight below it,
-                  which matches how often each is actually used. */}
-              <div className="sidebar-primary-action">
-                {role !== 'viewer' && (
+              {/* Full-width "Add monitor" primary button */}
+              {role !== 'viewer' && (
+                <div style={{ padding: '0 var(--sidebar-gutter)', marginBottom: '8px' }}>
                   <button
+                    type="button"
+                    className="primary"
+                    style={{
+                      width: '100%',
+                      height: '36px',
+                      background: 'var(--accent)',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontWeight: 600,
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
                     onClick={() => { setEditingMonitor(null); setIsModalOpen(true); setView('dashboard'); }}
                   >
-                    <Plus size={14} aria-hidden="true" /> Add New Monitor
+                    <Plus size={16} /> Add monitor
                   </button>
-                )}
-
-                <div className="sidebar-meta-row">
-                  {/* Only shown while a filter is narrowing the list — the stats
-                      strip below already carries the unfiltered total. */}
-                  {isListFiltered && (
-                    <span className="sidebar-meta-count">
-                      {filteredMonitors.length} of {monitors.length} shown
-                    </span>
-                  )}
-                  {role !== 'viewer' && (
-                    <button
-                      type="button"
-                      className={`sidebar-select-btn ${isBatchMode ? 'active' : ''}`}
-                      aria-pressed={isBatchMode}
-                      onClick={() => {
-                        setIsBatchMode(!isBatchMode);
-                        setSelectedMonitorIds([]);
-                      }}
-                    >
-                      <CheckSquare size={12} aria-hidden="true" />
-                      {isBatchMode ? 'Cancel' : 'Select'}
-                    </button>
-                  )}
                 </div>
-              </div>
+              )}
 
               {/* Search */}
-              <div className="sidebar-search">
-                <div className="search-wrapper">
-                  <Search size={14} className="search-icon" aria-hidden="true" />
+              <div style={{ padding: '0 var(--sidebar-gutter)', marginBottom: '8px' }}>
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', pointerEvents: 'none' }} />
                   <input
                     type="search"
                     aria-label="Search monitors"
                     placeholder="Search monitors…"
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
+                    style={{
+                      width: '100%',
+                      height: '36px',
+                      background: 'var(--panel)',
+                      border: '1px solid var(--field)',
+                      borderRadius: '6px',
+                      paddingLeft: '32px',
+                      paddingRight: '10px',
+                      fontSize: '13px',
+                      color: 'var(--text)',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
                   />
                 </div>
               </div>
 
-              {/* Filters — collapsed behind a disclosure so the monitor list
-                  stays above the fold. Both chip groups live inside. */}
-              <div className="sidebar-section">
+              {/* Status filter: 4 equal buttons (All, Up, Down, Warn) */}
+              <div className="sidebar-status-filter-grid" role="group" aria-label="Filter by status">
                 <button
                   type="button"
-                  className="sidebar-disclosure"
-                  aria-expanded={filtersOpen}
-                  aria-controls="sidebar-filter-panel"
-                  onClick={toggleFilters}
+                  className={`sidebar-status-btn ${!statusFilter ? 'active' : ''}`}
+                  aria-pressed={!statusFilter}
+                  onClick={() => setStatusFilter(null)}
                 >
-                  <ChevronDown
-                    size={12}
-                    aria-hidden="true"
-                    className={filtersOpen ? '' : 'collapsed'}
-                  />
-                  <span>Filters</span>
-                  {activeFilterCount > 0 && (
-                    <span className="sidebar-disclosure-badge">{activeFilterCount}</span>
-                  )}
-                  {activeFilterCount > 0 && (
-                    /* Rendered as a sibling, not nested — a button inside a
-                       button is invalid and the inner one never receives clicks. */
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      className="sidebar-disclosure-clear"
-                      onClick={e => { e.stopPropagation(); clearAllFilters(); }}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          clearAllFilters();
-                        }
-                      }}
-                    >
-                      Clear
-                    </span>
-                  )}
+                  <span className="sidebar-status-count all">{monitors.length}</span>
+                  <span className="sidebar-status-label">All</span>
                 </button>
+                {STATUS_FILTERS.map(key => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`sidebar-status-btn ${statusFilter === key ? 'active' : ''}`}
+                    aria-pressed={statusFilter === key}
+                    onClick={() => setStatusFilter(statusFilter === key ? null : key)}
+                  >
+                    <span className={`sidebar-status-count ${key}`}>{sidebarCounts[key]}</span>
+                    <span className="sidebar-status-label">{key === 'warn' ? 'Warn' : key === 'up' ? 'Up' : 'Down'}</span>
+                  </button>
+                ))}
+              </div>
 
-                <div id="sidebar-filter-panel" hidden={!filtersOpen}>
-                  <div className="sidebar-section-label">
-                    System / Application Group
-                  </div>
-                  <div className="sidebar-filter-row" role="group" aria-label="System Group Filters">
-                    <button
-                      type="button"
-                      className={`filter-chip ${!selectedGroupTag ? 'active' : ''}`}
-                      onClick={() => setSelectedGroupTag(null)}
-                      aria-pressed={!selectedGroupTag}
-                    >
-                      All Systems
-                    </button>
-                    {groupTags.map(tag => (
-                      <button
-                        key={tag}
-                        type="button"
-                        className={`filter-chip ${selectedGroupTag === tag ? 'active' : ''}`}
-                        onClick={() => setSelectedGroupTag(selectedGroupTag === tag ? null : tag)}
-                        aria-pressed={selectedGroupTag === tag}
-                      >
-                        {tag}
-                      </button>
-                    ))}
-                  </div>
+              {/* Sidebar filters: one row with Filters disclosure and Group by select */}
+              <div style={{ padding: '0 var(--sidebar-gutter)', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className="sidebar-disclosure"
+                    aria-expanded={filtersOpen}
+                    aria-controls="sidebar-filter-panel"
+                    onClick={toggleFilters}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text)',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      padding: '4px 0'
+                    }}
+                  >
+                    <ChevronDown
+                      size={12}
+                      style={{
+                        transform: filtersOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+                        transition: 'transform var(--t-fast)'
+                      }}
+                    />
+                    <span>Filters</span>
+                    {activeFilterCount > 0 && (
+                      <span style={{ fontSize: '11px', background: 'var(--panel2)', color: 'var(--accent-text)', padding: '1px 6px', borderRadius: '10px', fontWeight: 600 }}>
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </button>
 
-                  <div className="sidebar-section-label" style={{ marginTop: 'var(--space-3)' }}>
-                    Environment
-                  </div>
-                  <div className="sidebar-filter-row" role="group" aria-label="Environment Filters">
-                    <button
-                      type="button"
-                      className={`filter-chip ${!selectedEnvTag ? 'active' : ''}`}
-                      onClick={() => setSelectedEnvTag(null)}
-                      aria-pressed={!selectedEnvTag}
-                    >
-                      All Envs
-                    </button>
-                    {envTags.map(tag => (
-                      <button
-                        key={tag}
-                        type="button"
-                        className={`filter-chip ${selectedEnvTag === tag ? 'active' : ''}`}
-                        onClick={() => setSelectedEnvTag(selectedEnvTag === tag ? null : tag)}
-                        aria-pressed={selectedEnvTag === tag}
-                      >
-                        {tag}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="sidebar-section-label" style={{ marginTop: 'var(--space-3)' }}>
-                    Site
-                  </div>
-                  <div className="sidebar-filter-row" role="group" aria-label="Site Filters">
-                    <button
-                      type="button"
-                      className={`filter-chip ${!selectedSiteTag ? 'active' : ''}`}
-                      onClick={() => setSelectedSiteTag(null)}
-                      aria-pressed={!selectedSiteTag}
-                    >
-                      All Sites
-                    </button>
-                    {SITE_TAGS.map(tag => (
-                      <button
-                        key={tag}
-                        id={`sidebar-site-${tag}`}
-                        type="button"
-                        className={`filter-chip ${selectedSiteTag === tag ? 'active' : ''}`}
-                        onClick={() => setSelectedSiteTag(selectedSiteTag === tag ? null : tag)}
-                        aria-pressed={selectedSiteTag === tag}
-                      >
-                        {tag.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="sidebar-section-label" style={{ marginTop: 'var(--space-3)' }}>
-                    Group By
-                  </div>
-                  <div style={{ padding: '0 4px 6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <label htmlFor="sidebar-group-by-select" style={{ fontSize: '12px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+                      Group by
+                    </label>
                     <select
                       id="sidebar-group-by-select"
                       aria-label="Group monitors by"
@@ -2185,42 +2275,106 @@ function App() {
                         setGroupBy(val);
                         localStorage.setItem('snoomp_group_by', val);
                       }}
-                      style={{ width: '100%', padding: '5px 8px', fontSize: '12px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                      style={{
+                        padding: '3px 8px',
+                        fontSize: '12px',
+                        borderRadius: '6px',
+                        background: 'var(--panel)',
+                        border: '1px solid var(--field)',
+                        color: 'var(--text)'
+                      }}
                     >
                       <option value="none">Ungrouped</option>
-                      <option value="tags">Group by tags</option>
-                      <option value="type">Group by type</option>
+                      <option value="tags">Tags</option>
+                      <option value="type">Type</option>
                     </select>
                   </div>
                 </div>
-              </div>
 
-              {/* Stats strip — doubles as the status filter. Counts come from
-                  the tag-filtered list so they stay stable while a status
-                  bucket is selected. */}
-              <div className="stats-summary-grid" role="group" aria-label="Filter by status">
-                <button
-                  type="button"
-                  className={`stat-item ${!statusFilter ? 'active' : ''}`}
-                  aria-pressed={!statusFilter}
-                  onClick={() => setStatusFilter(null)}
-                >
-                  <span className="stat-val total">{sidebarCounts.total}</span>
-                  <span className="stat-label">{isListFiltered ? 'Shown' : 'Total'}</span>
-                </button>
-                {STATUS_FILTERS.map(key => (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`stat-item ${statusFilter === key ? 'active' : ''}`}
-                    aria-pressed={statusFilter === key}
-                    aria-label={`Show only ${key === 'warn' ? 'warning' : key} monitors, ${sidebarCounts[key]} of ${sidebarCounts.total}`}
-                    onClick={() => setStatusFilter(statusFilter === key ? null : key)}
-                  >
-                    <span className={`stat-val ${key}`}>{sidebarCounts[key]}</span>
-                    <span className="stat-label">{key === 'warn' ? 'Warn' : key === 'up' ? 'Up' : 'Down'}</span>
-                  </button>
-                ))}
+                {filtersOpen && (
+                  <div id="sidebar-filter-panel" style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '10px', padding: '10px', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: '6px' }}>
+                    <div>
+                      <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>
+                        System or application group
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                        <button
+                          type="button"
+                          className={`filter-chip ${!selectedGroupTag ? 'active' : ''}`}
+                          onClick={() => setSelectedGroupTag(null)}
+                          aria-pressed={!selectedGroupTag}
+                          style={{ fontSize: '12px', height: '24px', minHeight: '24px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--border)', background: !selectedGroupTag ? 'var(--panel2)' : 'transparent', color: 'var(--text)', cursor: 'pointer' }}
+                        >
+                          All systems
+                        </button>
+                        {groupTags.map(tag => (
+                          <TagChip
+                            key={tag}
+                            tag={tag}
+                            isLight={theme === 'light'}
+                            tagColorsMap={instanceSettings?.appearance?.tag_colors}
+                            selected={selectedGroupTag === tag}
+                            onClick={() => setSelectedGroupTag(selectedGroupTag === tag ? null : tag)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>
+                        Environment
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                        <button
+                          type="button"
+                          className={`filter-chip ${!selectedEnvTag ? 'active' : ''}`}
+                          onClick={() => setSelectedEnvTag(null)}
+                          aria-pressed={!selectedEnvTag}
+                          style={{ fontSize: '12px', height: '24px', minHeight: '24px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--border)', background: !selectedEnvTag ? 'var(--panel2)' : 'transparent', color: 'var(--text)', cursor: 'pointer' }}
+                        >
+                          All environments
+                        </button>
+                        {envTags.map(tag => (
+                          <TagChip
+                            key={tag}
+                            tag={tag}
+                            isLight={theme === 'light'}
+                            tagColorsMap={instanceSettings?.appearance?.tag_colors}
+                            selected={selectedEnvTag === tag}
+                            onClick={() => setSelectedEnvTag(selectedEnvTag === tag ? null : tag)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>
+                        Site
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                        <button
+                          type="button"
+                          className={`filter-chip ${!selectedSiteTag ? 'active' : ''}`}
+                          onClick={() => setSelectedSiteTag(null)}
+                          aria-pressed={!selectedSiteTag}
+                          style={{ fontSize: '12px', height: '24px', minHeight: '24px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--border)', background: !selectedSiteTag ? 'var(--panel2)' : 'transparent', color: 'var(--text)', cursor: 'pointer' }}
+                        >
+                          All sites
+                        </button>
+                        {SITE_TAGS.map(tag => (
+                          <TagChip
+                            key={tag}
+                            tag={tag}
+                            isLight={theme === 'light'}
+                            tagColorsMap={instanceSettings?.appearance?.tag_colors}
+                            selected={selectedSiteTag === tag}
+                            onClick={() => setSelectedSiteTag(selectedSiteTag === tag ? null : tag)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Batch Action Bar */}
@@ -2486,7 +2640,7 @@ function App() {
                       <Globe size={24} style={{ color: 'var(--text-muted)' }} />
                     </div>
                     <h2>No Status Pages Yet</h2>
-                    <p>Create a public status page to share your system health with users, customers, or stakeholders — no login required.</p>
+                    <p>Create a public status page to share your system health with users, customers, or stakeholders (no login required).</p>
                     {role !== 'viewer' && (
                       <button onClick={() => openSpModal()} style={{ marginTop: '20px' }}>
                         <Plus size={14} /> Create First Status Page
@@ -2575,164 +2729,214 @@ function App() {
                 {/* Sticky header */}
                 <div className="monitor-detail-header">
                   <div>
-                    <div className="detail-title-row">
-                      <div className={`detail-status-badge ${sm.status || 'off'}`}>
-                        <div className={`status-dot ${sm.status || 'off'}`} style={{ width: '7px', height: '7px' }} />
-                        {(sm.status || 'off').toUpperCase()}
-                      </div>
-                      <h1 style={{ fontSize: '1.5em', margin: 0 }}>{sm.name}</h1>
+                    <div className="detail-title-row" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      {/* Status chip (dot + capitalized status e.g. "Up") */}
+                      {(() => {
+                        const rawStatus = (sm.status || 'off').toLowerCase();
+                        const statusKey = rawStatus === 'up' ? 'up' : rawStatus === 'down' ? 'down' : (rawStatus === 'warning' || rawStatus === 'warn') ? 'warn' : 'off';
+                        const dotColor = statusKey === 'up' ? 'var(--up)' : statusKey === 'down' ? 'var(--down)' : statusKey === 'warn' ? 'var(--warn)' : 'var(--muted)';
+                        const statusLabel = statusKey === 'up' ? 'Up' : statusKey === 'down' ? 'Down' : statusKey === 'warn' ? 'Warn' : 'Off';
+                        return (
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              background: 'var(--panel2)',
+                              border: '1px solid var(--border)',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              color: 'var(--text)'
+                            }}
+                          >
+                            <span
+                              style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                backgroundColor: dotColor,
+                                flexShrink: 0
+                              }}
+                              aria-hidden="true"
+                            />
+                            <span>{statusLabel}</span>
+                          </div>
+                        );
+                      })()}
+                      <h1 style={{ fontSize: '28px', fontWeight: 600, color: 'var(--text)', margin: 0, lineHeight: 1.2 }}>
+                        {sm.name}
+                      </h1>
                     </div>
-                    <div className="detail-meta">
-                      {sm.type?.toLowerCase().startsWith('http') ? (
-                        <a href={`${sm.type}://${sm.host}${sm.port ? `:${sm.port}` : ''}${sm.path || ''}`} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>
-                          {sm.host}{sm.port ? `:${sm.port}` : ''}{sm.path || ''}
-                        </a>
-                      ) : (
-                        <>{sm.host}{sm.port ? `:${sm.port}` : ''}{sm.path || ''}</>
-                      )}
-                      {sm.response_time_ms > 0 && (
-                        <span className="latency-pill" style={{ marginLeft: '11px' }}>
-                          {sm.response_time_ms.toFixed(1)} ms
-                        </span>
+                    {/* Meta line: host:port and latency in mono, then tag chips */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px', flexWrap: 'wrap' }}>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--muted)' }}>
+                        {sm.type?.toLowerCase().startsWith('http') ? (
+                          <a
+                            href={`${sm.type}://${sm.host}${sm.port ? `:${sm.port}` : ''}${sm.path || ''}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ color: 'var(--accent-text)', textDecoration: 'none' }}
+                          >
+                            {sm.host}{sm.port ? `:${sm.port}` : ''}{sm.path || ''}
+                          </a>
+                        ) : (
+                          <>{sm.host}{sm.port ? `:${sm.port}` : ''}{sm.path || ''}</>
+                        )}
+                        {sm.response_time_ms > 0 && (
+                          <span style={{ marginLeft: '12px', color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+                            {sm.response_time_ms.toFixed(1)} ms
+                          </span>
+                        )}
+                      </div>
+                      {sm.tags && sm.tags.length > 0 && (
+                        <div style={{ display: 'inline-flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                          {normalizeTags(sm.tags).map((t: string) => (
+                            <TagChip key={t} tag={t} isLight={theme === 'light'} tagColorsMap={instanceSettings.appearance?.tag_colors} />
+                          ))}
+                        </div>
                       )}
                     </div>
-                    {sm.tags?.length > 0 && (
-                      <div className="tag-container">
-                        {normalizeTags(sm.tags).map((t: string) => <span key={t} className="tag-badge">{t}</span>)}
-                      </div>
-                    )}
                   </div>
 
-                  <div className="monitor-detail-actions">
+                  <div className="monitor-detail-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {role !== 'viewer' && (
-                      <button
-                        type="button"
-                        className="primary"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '6px 14px',
-                          fontSize: '13px',
-                          fontWeight: 600,
-                          borderRadius: 'var(--radius-sm)'
-                        }}
-                        onClick={() => handleRefreshMonitor(sm.id)}
-                        title="Trigger immediate check (Pull/Refresh)"
-                        aria-label="Trigger immediate check"
-                      >
-                        <Zap size={14} />
-                        <span>Check now</span>
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className="primary"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 14px',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            borderRadius: '6px',
+                            height: '36px',
+                            minHeight: '36px'
+                          }}
+                          onClick={() => handleRefreshMonitor(sm.id)}
+                          title="Trigger immediate check"
+                        >
+                          <Icon icon={ArrowsClockwise} size={14} />
+                          <span>Check now</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="secondary"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 14px',
+                            fontSize: '13px',
+                            fontWeight: 500,
+                            borderRadius: '6px',
+                            height: '36px',
+                            minHeight: '36px'
+                          }}
+                          onClick={() => handleToggleMonitor(sm)}
+                          title={sm.enabled ? 'Pause monitor' : 'Resume monitor'}
+                        >
+                          <Icon icon={sm.enabled ? PhPause : PhPlay} size={14} />
+                          <span>{sm.enabled ? 'Pause' : 'Resume'}</span>
+                        </button>
+                      </>
                     )}
 
                     <div style={{ position: 'relative' }} ref={detailMenuRef}>
                       <IconButton
-                        icon={<MoreVertical size={16} />}
+                        ref={detailMenuBtnRef}
+                        icon={<Icon icon={DotsThreeVertical} size={16} />}
                         variant="neutral"
                         size="md"
-                        title="More options"
-                        aria-label="More options"
+                        title="More actions"
+                        aria-label="More actions"
                         aria-expanded={detailMenuOpen}
+                        aria-haspopup="true"
                         onClick={() => setDetailMenuOpen(prev => !prev)}
                       />
 
                       {detailMenuOpen && (
-                        <div className="overflow-dropdown-menu" role="menu" aria-label="Monitor actions">
+                        <div
+                          className="overflow-dropdown-menu"
+                          aria-label="Monitor actions"
+                          style={{ minWidth: '264px', whiteSpace: 'nowrap' }}
+                        >
                           <button
                             type="button"
                             className="dropdown-item"
-                            role="menuitem"
                             onClick={async () => {
                               setDetailMenuOpen(false);
+                              detailMenuBtnRef.current?.focus();
                               const url = monitorShareUrl(sm.id);
-                              const summary = `${sm.name} is ${(sm.status || 'unknown').toUpperCase()} - Snoomp`;
-
-                              if (navigator.share) {
-                                try {
-                                  await navigator.share({ title: sm.name, text: summary, url });
-                                  return;
-                                } catch (err: any) {
-                                  if (err?.name === 'AbortError') return;
-                                }
-                              }
-
                               const ok = await copyToClipboard(url);
                               setShareState(ok ? 'copied' : 'failed');
                               setTimeout(() => setShareState('idle'), 2500);
                             }}
                           >
-                            {shareState === 'copied' ? <Check size={14} /> : <Share2 size={14} />}
-                            <span>{shareState === 'copied' ? 'Link copied' : 'Share link'}</span>
+                            <Icon icon={shareState === 'copied' ? PhCheck : PhCopy} size={14} />
+                            <span>{shareState === 'copied' ? 'Link copied' : 'Copy link'}</span>
                           </button>
 
                           <button
                             type="button"
                             className="dropdown-item"
-                            role="menuitem"
                             onClick={() => {
                               setDetailMenuOpen(false);
+                              detailMenuBtnRef.current?.focus();
                               handleGenerateReport(sm, 168);
                             }}
                           >
-                            <FileText size={14} />
-                            <span>Availability report (7d)</span>
+                            <Icon icon={PhFileText} size={14} />
+                            <span>Availability report (7 days)</span>
                           </button>
 
                           <button
                             type="button"
                             className="dropdown-item"
-                            role="menuitem"
                             onClick={() => {
                               setDetailMenuOpen(false);
+                              detailMenuBtnRef.current?.focus();
                               handleGenerateUtilizationReport(sm, 168);
                             }}
                           >
-                            <Activity size={14} />
-                            <span>Metric utilization report (7d)</span>
+                            <Icon icon={PhPulse} size={14} />
+                            <span>Utilization report (7 days)</span>
                           </button>
 
                           {role !== 'viewer' && (
                             <>
-                              <div className="dropdown-divider" role="separator" />
                               <button
                                 type="button"
                                 className="dropdown-item"
-                                role="menuitem"
                                 onClick={() => {
                                   setDetailMenuOpen(false);
+                                  detailMenuBtnRef.current?.focus();
                                   setEditingMonitor(sm);
                                   setIsModalOpen(true);
                                 }}
                               >
-                                <Edit3 size={14} />
+                                <Icon icon={PhPencilSimple} size={14} />
                                 <span>Edit monitor</span>
                               </button>
 
-                              <button
-                                type="button"
-                                className="dropdown-item"
-                                role="menuitem"
-                                onClick={() => {
-                                  setDetailMenuOpen(false);
-                                  handleToggleMonitor(sm);
-                                }}
-                              >
-                                <Power size={14} />
-                                <span>{sm.enabled ? 'Pause monitor' : 'Resume monitor'}</span>
-                              </button>
+                              <div className="dropdown-divider" />
 
-                              <div className="dropdown-divider" role="separator" />
                               <button
                                 type="button"
                                 className="dropdown-item dropdown-item--danger"
-                                role="menuitem"
+                                style={{ color: 'var(--down)' }}
                                 onClick={() => {
                                   setDetailMenuOpen(false);
+                                  detailMenuBtnRef.current?.focus();
                                   handleDeleteMonitor(sm.id);
                                 }}
                               >
-                                <Trash2 size={14} />
+                                <Icon icon={PhTrash} size={14} />
                                 <span>Delete monitor</span>
                               </button>
                             </>
@@ -2743,104 +2947,282 @@ function App() {
                   </div>
                 </div>
 
-                {/* Heartbeat timeline */}
-                <div className="detail-section">
-                  <div className="section-title">
-                    <h2 style={{ fontSize: 'inherit', margin: 0, fontWeight: 'inherit' }}>Heartbeat Timeline <span style={{ opacity: 0.5, fontSize: '11px' }}>- last 60 checks</span></h2>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Zap size={11} />
-                      {sm.check_interval}s interval
-                    </span>
-                  </div>
-                  <div className="heartbeat-timeline" role="img" aria-label={`${heartbeats.filter((hb: any) => hb.status === 'up').length} of ${heartbeats.length} checks OK`}>
-                    {heartbeats.map((hb: any, i: number) => (
+                <div className="monitor-detail-body" style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* Last 60 checks */}
+                  {(() => {
+                    const upChecks = heartbeats.filter((hb: any) => hb.status === 'up').length;
+                    const totalChecks = heartbeats.length;
+                    const summaryText = `${upChecks} of ${totalChecks} up`;
+                    return (
+                      <div className="detail-section" style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+                      <div className="section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h2 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', margin: 0 }}>Last 60 checks</h2>
+                        <span style={{ fontSize: '12px', color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>
+                          {summaryText}
+                        </span>
+                      </div>
                       <div
-                        key={hb.id || i}
-                        className={`hb-block ${hb.status}`}
-                        title={`${new Date(hb.checked_at).toLocaleString()} - Status: ${hb.status.toUpperCase()} - Latency: ${new Intl.NumberFormat(navigator.language).format(hb.response_time_ms || 0)} ms${hb.error ? ' - ' + hb.error : ''}`}
-                      />
-                    ))}
-                    {heartbeats.length === 0 && (
-                      <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>No heartbeat data yet.</div>
-                    )}
-                  </div>
-                  <div className="timeline-footer">
-                    <span>← Oldest</span>
-                    <span>Latest →</span>
-                  </div>
-                </div>
+                        className="heartbeat-timeline"
+                        role="img"
+                        aria-label={summaryText}
+                        style={{ display: 'flex', gap: '2px', height: '28px', width: '100%' }}
+                      >
+                        {heartbeats.map((hb: any, i: number) => (
+                          <div
+                            key={hb.id || i}
+                            className={`hb-block ${hb.status}`}
+                            style={{ flex: 1, borderRadius: '2px', minWidth: 0 }}
+                            title={`${new Date(hb.checked_at).toLocaleString()} - Status: ${(hb.status || '').toUpperCase()} - Latency: ${new Intl.NumberFormat(navigator.language).format(hb.response_time_ms || 0)} ms${hb.error ? ' - ' + hb.error : ''}`}
+                          />
+                        ))}
+                        {heartbeats.length === 0 && (
+                          <div style={{ color: 'var(--muted)', fontSize: '12px', display: 'flex', alignItems: 'center' }}>
+                            No heartbeat data yet.
+                          </div>
+                        )}
+                      </div>
+                      <div className="timeline-footer" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '12px', color: 'var(--muted)' }}>
+                        <span>Oldest</span>
+                        <span>Now</span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Host Resource Metrics (snmp, ssh, push) */}
                 {isHostMetricType && sm.metrics && (
-                  <div className="detail-section">
-                    <div className="section-title">
-                      <h2 style={{ fontSize: 'inherit', margin: 0, fontWeight: 'inherit' }}>System Resource Metrics</h2>
-                    </div>
-                    <div className="metrics-grid">
-                      <RadialGauge key={`${sm.id}-cpu`} value={sm.metrics.cpu_percent || 0} label="CPU Usage" />
-                      <RadialGauge key={`${sm.id}-mem`} value={sm.metrics.mem_percent || 0} label="Memory" />
-                      <RadialGauge key={`${sm.id}-disk`} value={sm.metrics.disk_percent || 0} label="Disk Usage" />
-                      <div className="uptime-card">
-                        <span className="uptime-label">System Uptime</span>
-                        <Clock size={20} style={{ color: 'var(--color-up)', opacity: 0.7 }} />
-                        <div className="uptime-value">
-                          {formatUptime(sm.metrics.uptime)}
+                  <>
+                    <div className="system-metrics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '16px' }}>
+                      {/* Resources panel */}
+                      <div className="system-panel" style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+                        <h2 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', margin: '0 0 16px 0' }}>Resources</h2>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                          {/* CPU Row */}
+                          {(() => {
+                            const pct = sm.metrics.cpu_percent ?? 0;
+                            const meterColor = pct >= 90 ? 'var(--down)' : pct >= 80 ? 'var(--warn)' : 'var(--bar)';
+                            return (
+                              <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                                    <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>CPU</span>
+                                    {sm.metrics.cpu_cores != null && (
+                                      <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                                        {sm.metrics.cpu_cores} cores
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+                                    {Math.round(pct)}%
+                                  </span>
+                                </div>
+                                <div
+                                  role="progressbar"
+                                  aria-valuenow={Math.round(pct)}
+                                  aria-valuemin={0}
+                                  aria-valuemax={100}
+                                  aria-label="CPU usage"
+                                  style={{ height: '6px', background: 'var(--track)', borderRadius: '3px', overflow: 'hidden' }}
+                                >
+                                  <div style={{ width: `${Math.min(100, Math.max(0, pct))}%`, height: '100%', backgroundColor: meterColor, transition: 'width 0.2s ease' }} />
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Memory Row */}
+                          {(() => {
+                            const pct = sm.metrics.mem_percent ?? 0;
+                            const meterColor = pct >= 90 ? 'var(--down)' : pct >= 80 ? 'var(--warn)' : 'var(--bar)';
+                            return (
+                              <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                                    <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>Memory</span>
+                                    {sm.metrics.ram_total_gb != null && (
+                                      <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                                        {sm.metrics.ram_total_gb} GB total
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+                                    {Math.round(pct)}%
+                                  </span>
+                                </div>
+                                <div
+                                  role="progressbar"
+                                  aria-valuenow={Math.round(pct)}
+                                  aria-valuemin={0}
+                                  aria-valuemax={100}
+                                  aria-label="Memory usage"
+                                  style={{ height: '6px', background: 'var(--track)', borderRadius: '3px', overflow: 'hidden' }}
+                                >
+                                  <div style={{ width: `${Math.min(100, Math.max(0, pct))}%`, height: '100%', backgroundColor: meterColor, transition: 'width 0.2s ease' }} />
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Disk Row */}
+                          {(() => {
+                            const pct = sm.metrics.disk_percent ?? 0;
+                            const meterColor = pct >= 90 ? 'var(--down)' : pct >= 80 ? 'var(--warn)' : 'var(--bar)';
+                            return (
+                              <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                                    <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>Disk</span>
+                                    {sm.metrics.disk_total_gb != null && (
+                                      <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                                        {sm.metrics.disk_total_gb} GB total
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+                                    {Math.round(pct)}%
+                                  </span>
+                                </div>
+                                <div
+                                  role="progressbar"
+                                  aria-valuenow={Math.round(pct)}
+                                  aria-valuemin={0}
+                                  aria-valuemax={100}
+                                  aria-label="Disk usage"
+                                  style={{ height: '6px', background: 'var(--track)', borderRadius: '3px', overflow: 'hidden' }}
+                                >
+                                  <div style={{ width: `${Math.min(100, Math.max(0, pct))}%`, height: '100%', backgroundColor: meterColor, transition: 'width 0.2s ease' }} />
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
-                        <span className="uptime-sub">Since last reboot</span>
+
+                        {/* Divider */}
+                        <div style={{ height: '1px', background: 'var(--border)', margin: '16px 0' }} />
+
+                        {/* Uptime */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                          <div>
+                            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>Uptime</div>
+                            <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '2px' }}>Since last reboot</div>
+                          </div>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+                            {formatUptime(sm.metrics.uptime)}
+                          </div>
+                        </div>
                       </div>
+
+                      {/* Volumes panel */}
+                      {(() => {
+                        const visibleDisks = visibleVolumes(sm.metrics.disks);
+                        const hiddenCount = (sm.metrics.disks?.length || 0) - visibleDisks.length;
+                        return (
+                          <div
+                            className="system-panel"
+                            style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}
+                          >
+                            <h2
+                              style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', margin: '0 0 16px 0', cursor: hiddenCount > 0 ? 'help' : 'default' }}
+                              title={hiddenCount > 0 ? `${hiddenCount} system volumes hidden` : undefined}
+                            >
+                              Volumes
+                            </h2>
+
+                            {visibleDisks.length === 0 ? (
+                              <div style={{ color: 'var(--muted)', fontSize: '12px', padding: '16px 0', textAlign: 'center' }}>
+                                No mounted volumes reported.
+                              </div>
+                            ) : (
+                              <table className="volumes-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                <thead>
+                                  <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left', color: 'var(--muted)' }}>
+                                    <th scope="col" style={{ padding: '6px 0', fontWeight: 500 }}>Mount</th>
+                                    <th scope="col" style={{ padding: '6px 12px', fontWeight: 500, width: '150px' }}>Used</th>
+                                    <th scope="col" style={{ padding: '6px 0', fontWeight: 500, textAlign: 'right', width: '70px' }}>Size</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {visibleDisks.map((dk: any, idx: number) => {
+                                    const pct = dk.used_percent ?? dk.use_pct ?? 0;
+                                    const meterColor = pct >= 90 ? 'var(--down)' : pct >= 80 ? 'var(--warn)' : 'var(--bar)';
+                                    const isNfs = dk.filesystem?.includes(':') || dk.mount?.includes('nfs');
+                                    return (
+                                      <tr key={idx} style={{ borderBottom: idx < visibleDisks.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                                        <td style={{ padding: '8px 0', verticalAlign: 'middle' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{ fontWeight: 600, color: 'var(--text)' }} title={dk.mount}>
+                                              {dk.mount}
+                                            </span>
+                                            {isNfs && (
+                                              <span style={{ fontSize: '10px', background: 'var(--panel2)', border: '1px solid var(--border)', color: 'var(--muted)', padding: '1px 5px', borderRadius: '4px', fontWeight: 500 }}>
+                                                NFS
+                                              </span>
+                                            )}
+                                          </div>
+                                          {dk.filesystem && (
+                                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--muted)', marginTop: '2px', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={dk.filesystem}>
+                                              {dk.filesystem}
+                                            </div>
+                                          )}
+                                        </td>
+                                        <td style={{ padding: '8px 12px', verticalAlign: 'middle' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <div
+                                              role="progressbar"
+                                              aria-valuenow={Math.round(pct)}
+                                              aria-valuemin={0}
+                                              aria-valuemax={100}
+                                              aria-label={`${dk.mount} used`}
+                                              style={{ flex: 1, height: '6px', background: 'var(--track)', borderRadius: '3px', overflow: 'hidden' }}
+                                            >
+                                              <div style={{ width: `${Math.min(100, Math.max(0, pct))}%`, height: '100%', backgroundColor: meterColor, transition: 'width 0.2s ease' }} />
+                                            </div>
+                                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text)', fontVariantNumeric: 'tabular-nums', width: '36px', textAlign: 'right' }}>
+                                              {Math.round(pct)}%
+                                            </span>
+                                          </div>
+                                        </td>
+                                        <td style={{ padding: '8px 0', textAlign: 'right', verticalAlign: 'middle', fontFamily: 'var(--font-mono)', color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+                                          {dk.size_gb != null ? `${dk.size_gb} GB` : 'n/a'}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
 
-                    {/* Hardware specs */}
-                    {(sm.metrics.cpu_cores || sm.metrics.ram_total_gb || sm.metrics.disk_total_gb) && (
-                      <div className="hw-spec-strip" style={{ marginTop: '12px' }}>
-                        {sm.metrics.cpu_cores && (
-                          <div className="hw-spec-item">
-                            <span className="hw-spec-label"><Cpu size={9} style={{ verticalAlign: 'middle', marginRight: '2px' }} />CPU Cores</span>
-                            <span className="hw-spec-value">{sm.metrics.cpu_cores}</span>
-                          </div>
-                        )}
-                        {sm.metrics.ram_total_gb && (
-                          <div className="hw-spec-item">
-                            <span className="hw-spec-label"><MemoryStick size={9} style={{ verticalAlign: 'middle', marginRight: '2px' }} />Total RAM</span>
-                            <span className="hw-spec-value">{sm.metrics.ram_total_gb} GB</span>
-                          </div>
-                        )}
-                        {sm.metrics.disk_total_gb && (
-                          <div className="hw-spec-item">
-                            <span className="hw-spec-label"><HardDrive size={9} style={{ verticalAlign: 'middle', marginRight: '2px' }} />Total Storage</span>
-                            <span className="hw-spec-value">{sm.metrics.disk_total_gb} GB</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* HTTP/S Connection Phase Profiler & Measurement Infographic */}
+                    {/* HTTP/S Connection Phase Profiler */}
                     {sm.type === 'http' && (
                       <HttpLatencyProfiler monitor={sm} />
                     )}
 
                     {/* Slow connection latency phase diagnostics (SSH >= 1000ms) */}
                     {sm.type === 'ssh' && sm.response_time_ms >= 1000 && sm.metrics?.timing?.connect_ms != null && (
-                      <details style={{ marginTop: '16px', background: 'var(--bg-elevated)', border: '1px solid var(--color-warning)', borderRadius: 'var(--radius-md)', padding: '12px 16px' }}>
+                      <details style={{ marginTop: '16px', background: 'var(--panel)', border: '1px solid var(--warn)', borderRadius: '12px', padding: '14px 18px' }}>
                         <summary style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}>
-                          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-warning)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                            <Activity size={13} />
+                          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--warn)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <Activity size={14} aria-hidden="true" />
                             Latency Phase Diagnostics (Slow Check)
                           </span>
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-warning)', fontFamily: 'var(--font-mono)' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--warn)', fontFamily: 'var(--font-mono)' }}>
                             Bottleneck: {sm.metrics.timing.bottleneck}
                           </span>
                         </summary>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginTop: '12px' }}>
-                          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
-                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Phase 1: TCP Handshake &amp; Auth</div>
-                            <div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: sm.metrics.timing.connect_ms >= 500 ? 'var(--color-warning)' : 'var(--text-primary)' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '12px' }}>
+                          <div style={{ background: 'var(--panel2)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 12px' }}>
+                            <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '4px' }}>Phase 1: TCP Handshake &amp; Auth</div>
+                            <div style={{ fontSize: '16px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: sm.metrics.timing.connect_ms >= 500 ? 'var(--warn)' : 'var(--text)' }}>
                               {sm.metrics.timing.connect_ms} ms
                             </div>
                           </div>
-                          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
-                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Phase 2: Remote Shell Execution</div>
-                            <div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: sm.metrics.timing.exec_ms >= 500 ? 'var(--color-warning)' : 'var(--text-primary)' }}>
+                          <div style={{ background: 'var(--panel2)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 12px' }}>
+                            <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '4px' }}>Phase 2: Remote Shell Execution</div>
+                            <div style={{ fontSize: '16px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: sm.metrics.timing.exec_ms >= 500 ? 'var(--warn)' : 'var(--text)' }}>
                               {sm.metrics.timing.exec_ms} ms
                             </div>
                           </div>
@@ -2848,88 +3230,39 @@ function App() {
                       </details>
                     )}
 
-                    {/* Attached Storage & Filesystem Utilization Breakdown Panel */}
-                    {(() => {
-                      const visibleDisks = visibleVolumes(sm.metrics.disks);
-                      if (visibleDisks.length === 0) return null;
-                      const hiddenCount = (sm.metrics.disks?.length || 0) - visibleDisks.length;
-                      return (
-                      <div style={{ marginTop: '16px', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '14px 18px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                          <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <HardDrive size={13} style={{ color: 'var(--accent)' }} /> Attached Storage & Volume Utilization ({visibleDisks.length} Partitions)
-                          </span>
-                          {hiddenCount > 0 && (
-                            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', opacity: 0.7 }}>
-                              {hiddenCount} system volumes hidden
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '11px' }}>
-                          {visibleDisks.map((dk: any, idx: number) => {
-                            const pct = dk.used_percent ?? dk.use_pct ?? 0;
-                            const badgeColor = pct >= 90 ? 'var(--color-down)' : pct >= 80 ? 'var(--color-warning)' : 'var(--color-up)';
-                            const isNfs = dk.filesystem?.includes(':') || dk.mount?.includes('nfs');
-                            return (
-                              <div key={idx} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '8px', padding: '11px 14px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={dk.mount}>
-                                      {dk.mount}
-                                    </span>
-                                    {isNfs && (
-                                      <span style={{ fontSize: '11px', background: 'var(--accent-dim)', color: 'var(--accent)', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>NFS</span>
-                                    )}
-                                  </div>
-                                  <span style={{ fontSize: '12px', fontWeight: 800, color: badgeColor, fontFamily: 'var(--font-mono)' }}>
-                                    {pct}%
-                                  </span>
-                                </div>
-                                <div style={{ width: '100%', height: '6px', background: 'var(--bg-void)', borderRadius: '3px', overflow: 'hidden', marginBottom: '6px' }}>
-                                  <div style={{ width: `${Math.min(100, pct)}%`, height: '100%', background: badgeColor, transition: 'width 0.3s' }} />
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
-                                  <span style={{ fontFamily: 'var(--font-mono)', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={dk.filesystem}>{dk.filesystem}</span>
-                                  <span>{dk.size_gb ? `${dk.size_gb} GB` : 'n/a'}</span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                      );
-                    })()}
-
-                    {/* Resource History chart with timeframe selector.
-                        Host types only — this block already sits inside
-                        `isHostMetricType`, so the database entries that used to
-                        be listed here could never match. Databases get their
-                        own engine-specific charts further down. */}
+                    {/* Resource History chart with segmented toggle and legend */}
                     {['snmp', 'ssh', 'push'].includes(sm.type?.toLowerCase()) && (
-                      <div className="chart-section" style={{ marginTop: '16px' }}>
-                        <div className="section-title" style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span>Resource History ({resourceHours === 24 ? '24h' : resourceHours === 168 ? '7d' : '30d'})</span>
-                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                      <div className="resource-history-panel" style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+                        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+                            <h2 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', margin: 0 }}>Resource history</h2>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12px', color: 'var(--muted)' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ width: '12px', height: '2px', background: 'var(--c1)', borderRadius: '1px' }} aria-hidden="true" />
+                                <span>CPU</span>
+                              </div>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ width: '12px', height: '2px', background: 'var(--c2)', borderRadius: '1px' }} aria-hidden="true" />
+                                <span>Memory</span>
+                              </div>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ width: '12px', height: '2px', background: 'var(--c3)', borderRadius: '1px' }} aria-hidden="true" />
+                                <span>Disk</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="segmented-toggle" role="group" aria-label="Timeframe">
                             {[
-                              { label: '24 hrs', value: 24 },
+                              { label: '24 hours', value: 24 },
                               { label: '7 days', value: 168 },
                               { label: '30 days', value: 720 },
                             ].map(t => (
                               <button
                                 key={t.value}
                                 type="button"
-                                className={`secondary ${resourceHours === t.value ? 'active' : ''}`}
-                                style={{
-                                  fontSize: '12px',
-                                  padding: '2px 8px',
-                                  background: resourceHours === t.value ? 'var(--accent-dim)' : 'transparent',
-                                  color: resourceHours === t.value ? 'var(--accent)' : 'var(--text-muted)',
-                                  border: resourceHours === t.value ? '1px solid var(--accent)' : '1px solid transparent',
-                                  borderRadius: '4px',
-                                  cursor: 'pointer',
-                                  fontWeight: resourceHours === t.value ? '600' : 'normal',
-                                  transition: 'all 0.15s ease'
-                                }}
+                                className={`segmented-btn ${resourceHours === t.value ? 'active' : ''}`}
+                                aria-pressed={resourceHours === t.value}
                                 onClick={() => handleResourceHoursChange(t.value)}
                               >
                                 {t.label}
@@ -2937,18 +3270,19 @@ function App() {
                             ))}
                           </div>
                         </div>
+
                         {metricsHistory.length > 0 ? (
                           <React.Suspense fallback={<ChartSkeleton />}>
                             <ResourceHistoryChart metricsHistory={metricsHistory} resourceHours={resourceHours} />
                           </React.Suspense>
                         ) : (
-                          <div style={{ color: 'var(--text-muted)', fontSize: '12px', padding: '24px 0', textAlign: 'center' }}>
+                          <div style={{ color: 'var(--muted)', fontSize: '12px', padding: '24px 0', textAlign: 'center' }}>
                             No metric history data available for this timeframe ({resourceHours === 24 ? '24 hours' : resourceHours === 168 ? '7 days' : '30 days'}).
                           </div>
                         )}
                       </div>
                     )}
-                  </div>
+                  </>
                 )}
 
                 {/* Database Engine Diagnostics & Overview */}
@@ -3357,6 +3691,7 @@ curl -X POST -H "Content-Type: application/json" \\
                     </div>
                   </div>
                 )}
+                </div>
               </div>
             ) : (
               <div className="anim-fade-in" style={{ padding: '24px' }}>
@@ -3364,7 +3699,7 @@ curl -X POST -H "Content-Type: application/json" \\
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
                   <div>
                     <h1 style={{ fontSize: '24px', fontWeight: 800, fontFamily: 'var(--font-header)', letterSpacing: '-0.8px', margin: 0 }}>
-                      Live Cockpit
+                      Cockpit
                     </h1>
                     <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
                       Real-time fleet operations and incident triage. Select an endpoint to inspect detailed telemetry.
@@ -3466,7 +3801,7 @@ curl -X POST -H "Content-Type: application/json" \\
                     </div>
                     <span className="radial-sub">
                       {downCount > 0
-                        ? 'Currently failing healthchecks'
+                        ? 'Monitors unreachable or returning errors'
                         : ((warnCount > 0 || homeStats.slowCount > 0) ? 'Monitors exceeding latency or threshold limits' : 'No service disruptions')}
                     </span>
                   </div>

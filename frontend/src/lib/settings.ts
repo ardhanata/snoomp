@@ -49,6 +49,7 @@ export interface AppearanceSettings {
   chart_1: string;
   chart_2: string;
   chart_3: string;
+  tag_colors?: Record<string, 'violet' | 'teal' | 'magenta' | 'indigo' | 'sky' | 'slate'>;
 }
 
 export interface InstanceSettings {
@@ -73,7 +74,7 @@ export const DEFAULT_SETTINGS: InstanceSettings = {
     check_interval: 60, retries: 0, request_timeout: 10,
     monitor_type: 'http', environment_tag: '', retention_days: 90,
   },
-  appearance: { chart_1: '#8b5cf6', chart_2: '#06b6d4', chart_3: '#ec4899' },
+  appearance: { chart_1: '#8b5cf6', chart_2: '#06b6d4', chart_3: '#ec4899', tag_colors: {} },
 };
 
 const CACHE_KEY = 'snoomp_settings_cache_v1';

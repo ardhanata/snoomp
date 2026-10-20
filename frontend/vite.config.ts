@@ -21,6 +21,7 @@ export default defineConfig({
   plugins: [react()],
   define: {
     __APP_BUILD__: JSON.stringify(BUILD_STAMP),
+    __APP_VERSION__: JSON.stringify(appVersion()),
   },
   server: {
     port: 5173,

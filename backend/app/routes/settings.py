@@ -101,6 +101,7 @@ class AppearanceSettings(BaseModel):
     chart_1: str
     chart_2: str
     chart_3: str
+    tag_colors: Optional[dict[str, str]] = None
 
     @field_validator("chart_1", "chart_2", "chart_3")
     @classmethod
@@ -110,6 +111,24 @@ class AppearanceSettings(BaseModel):
             raise ValueError("Colour must be a 7-character hex value like #3b82f6")
         int(value[1:], 16)  # raises ValueError on non-hex
         return value.lower()
+
+    @field_validator("tag_colors")
+    @classmethod
+    def _validate_tag_colors(cls, value: Optional[dict[str, str]]):
+        if value is None:
+            return value
+        allowed_presets = {"violet", "teal", "magenta", "indigo", "sky", "slate"}
+        cleaned = {}
+        for tag, preset in value.items():
+            if not isinstance(tag, str) or not isinstance(preset, str):
+                continue
+            p = preset.strip().lower()
+            if p not in allowed_presets:
+                raise ValueError(
+                    f"Invalid tag color preset '{preset}'. Allowed presets: {', '.join(sorted(allowed_presets))}"
+                )
+            cleaned[tag.strip().lower()] = p
+        return cleaned
 
 
 _SECTION_MODELS = {

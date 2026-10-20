@@ -1204,6 +1204,13 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                   onRenameTag={onRenameTag}
                   onDeleteTag={onDeleteTag}
                   onAddTag={onAddTag}
+                  apiUrl={apiUrl}
+                  token={token}
+                  appearance={appearance}
+                  onSavedSettings={(saved) => {
+                    setAppearance(saved.appearance);
+                    onSaved(saved);
+                  }}
                 />
               </div>
             )}

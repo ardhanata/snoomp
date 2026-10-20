@@ -35,3 +35,25 @@ def test_target_create_update_schema_normalizes_tags():
         tags=["PROD", "prod", "DATABASE", "database"]
     )
     assert schema.tags == ["prod", "database"]
+
+def test_appearance_settings_validates_tag_colors_presets():
+    from app.routes.settings import AppearanceSettings
+
+    # Valid presets
+    s = AppearanceSettings(
+        chart_1="#112233",
+        chart_2="#445566",
+        chart_3="#778899",
+        tag_colors={"prod": "violet", "api": "TEAL"}
+    )
+    assert s.tag_colors == {"prod": "violet", "api": "teal"}
+
+    # Invalid preset raises ValueError
+    with pytest.raises(ValueError, match="Invalid tag color preset"):
+        AppearanceSettings(
+            chart_1="#112233",
+            chart_2="#445566",
+            chart_3="#778899",
+            tag_colors={"prod": "neon_green"}
+        )
+

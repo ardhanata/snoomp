@@ -5,9 +5,40 @@ All notable changes to Snoomp will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.1] - 2026-10-19
+## [1.5.1] - 2026-10-20
+
+### Added
+- **Tag Colours System (`TagChip.tsx`, `PreferencesTagsTab.tsx`, `lib/settings.ts`, `routes/settings.py`):**
+  - Six accessible presets (Violet, Teal, Magenta, Indigo, Sky, Slate) with WCAG AA >= 6.3:1 contrast in both light and dark themes.
+  - Character code modulo 6 auto-assignment with explicit exceptions for `prod` (Violet) and `mis-bpdlh` (Teal).
+  - Instance-wide tag colour storage (`tag_colors` in `AppearanceSettings` and `settings_store.py`).
+  - User Preferences tag colour picker with `<TagChip>`, "Auto" button, and 6 round swatches featuring check marks on selection for non-color-dependent accessibility.
 
 ### Changed
+- **Monitor Detail Screen Rebuild (`App.tsx`, `MonitorRow.tsx`, `styles/dashboard.css`):**
+  - Header: Status chip (8px dot + status), 28px/600 host name, mono meta line (latency and `<TagChip>` list), primary "Check now", secondary "Pause" / "Resume", and 36px "More actions" icon button.
+  - More actions dropdown menu: Standardized with min-width 264px, `white-space: nowrap`, keyboard `Escape` closing with focus return to trigger button, and danger-styled delete monitor action.
+  - Last 60 checks: Full-width 60-block timeline (`flex: 1`, 28px tall, 2px gap, 2px radius), title "Last 60 checks" with `${up} of ${total} up`, "Oldest" and "Now" labels, and deduplicated interval.
+  - Resources & Volumes panels: Side-by-side grid (`minmax(340px, 1fr)`). Resources panel with CPU, Memory, Disk meters (<80% `--bar`, 80-89% `--warn`, >=90% `--down`), divider, and Uptime since last reboot. Volumes panel with clean table (bold mount + muted mono filesystem, 6px meter + %, mono size), with hidden volumes moved to heading tooltip.
+  - Resource History: Segmented 24 hours, 7 days, 30 days toggle (`aria-pressed`) with line-swatch legend (`--c1`, `--c2`, `--c3`) and lazy-loaded chart.
+  - SSH Diagnostics: Latency phase diagnostics collapsed inside disclosure only when latency >= 1000ms.
+- **Sign-in Screen Redesign (`App.tsx`, `routes/auth.py`, `dashboard.css`):**
+  - Left-aligned, frameless layout with SnoompLogo mark (34x22px) and 20px/800 "snoomp" wordmark.
+  - Full-width 60-block reactive strip with 20ms filling animation responding to all 9 auth states.
+  - Standardized all-English authentication and password reset copy across frontend and backend.
+  - Footer displaying `snoomp v1.5.1` (read from `VERSION`) and 36px theme toggle button.
+- **Top Bar & Sidebar Navigation (`App.tsx`):**
+  - Clean text links ("Cockpit" active on `--panel2` weight 600, "Executive summary", "Status pages", "HCP storage"), static 8px live dot, and 36px theme toggle.
+  - Sidebar: Full-width "Add monitor" button, 36px search input, 4 equal status buttons (All, Up, Down, Warn) with 20px mono counts, single-row "Filters" disclosure and "Group by" select.
+- **Design Tokens & Theme Consistency (`dashboard.css`):**
+  - Replaced legacy tokens with approved shared token set across `:root` and `[data-theme="light"]`, ensuring >=4.5:1 text contrast and >=3:1 input border contrast.
+  - Zero inline literal hex colors across rebuilt screens (`npm run lint:colors` clean).
+
+### Removed
+- Removed legacy `login-visual-pane`, `.liquid-glass-web-approx` (blur, glow, infinite animations), and Indonesian/English language mixing.
+- Removed RadialGauge cards, hardware specs strip, and nested disk panel in host details.
+- Removed mini-heartbeat SVG bars and uptime % badges from sidebar monitor rows.
+
 - **UI/UX Audit Remediation (Anti-Slop & Ponytail Cleanups):**
   - **Pass 1 (T1, T2, T7):**
     - Refactored monitor detail header actions (`App.tsx`): Replaced 8 rainbow icon-only action buttons with one primary action button ("Check now") and an accessible dropdown overflow menu (`MoreVertical`), with neutral icons, text labels, and a separated danger-styled delete action.

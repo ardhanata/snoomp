@@ -80,7 +80,7 @@ def test_forgot_password_endpoint_flow():
         with patch("app.routes.auth.send_password_reset_email", return_value=True) as mock_send:
             res = client.post("/api/auth/forgot-password", json={"identifier": "admin@example.com"})
             assert res.status_code == 200
-            assert "tautan reset password" in res.json()["message"]
+            assert "reset link is on its way" in res.json()["message"]
             assert mock_send.called
             assert test_user.reset_token is not None
             assert test_user.reset_token_expires > datetime.datetime.utcnow()
@@ -97,7 +97,7 @@ def test_forgot_password_endpoint_flow():
             "new_password": "brandnewpassword456"
         })
         assert res_reset.status_code == 200
-        assert "Password berhasil diperbarui" in res_reset.json()["message"]
+        assert "Password updated successfully" in res_reset.json()["message"]
         assert test_user.reset_token is None
         assert verify_password("brandnewpassword456", test_user.hashed_password) is True
 
@@ -105,7 +105,7 @@ def test_forgot_password_endpoint_flow():
         mock_query.filter.return_value.first.return_value = None
         res_unknown = client.post("/api/auth/forgot-password", json={"identifier": "nonexistent@example.com"})
         assert res_unknown.status_code == 200
-        assert "tautan reset password" in res_unknown.json()["message"]
+        assert "reset link is on its way" in res_unknown.json()["message"]
     finally:
         app.dependency_overrides.pop(get_db, None)
 
