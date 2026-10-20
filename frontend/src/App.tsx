@@ -768,6 +768,8 @@ function App() {
           setAuthError('Too many attempts. Wait a few minutes and try again.');
         } else if (res.status === 401) {
           setAuthError('Username or password is incorrect. Check both and try again.');
+        } else if (res.status === 400) {
+          setAuthError('This account is disabled. Ask an administrator to enable it.');
         } else {
           setAuthError("Snoomp can't reach the server. Try again shortly.");
         }
@@ -1964,7 +1966,7 @@ function App() {
   return (
     <div className="app-root" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       {/* Accessible high-contrast skip link in both dark and light themes (WCAG 1.4.3) */}
-      <a href="#main-content" style={{ position: 'absolute', top: '-999px', left: '12px', background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '2px solid var(--accent)', padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontWeight: 600, fontSize: '13px', zIndex: 10000, boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }} onFocus={e => e.currentTarget.style.top = '12px'} onBlur={e => e.currentTarget.style.top = '-999px'}>Skip to main content</a>
+      <a href="#main-content" style={{ position: 'absolute', top: '-999px', left: '12px', background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '2px solid var(--accent)', padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontWeight: 600, fontSize: '14px', zIndex: 10000, boxShadow: '0 4px 12px var(--shadow)' }} onFocus={e => e.currentTarget.style.top = '12px'} onBlur={e => e.currentTarget.style.top = '-999px'}>Skip to main content</a>
       {toastMsg && (
         <div role="status" aria-live="polite" className="toast-notification">
           {toastMsg}
@@ -2106,7 +2108,7 @@ function App() {
                   <ArrowUpCircle size={14} style={{ color: hasUpdate ? 'var(--accent)' : 'inherit' }} />
                   <span>Check for Updates</span>
                   {hasUpdate && (
-                    <span style={{ marginLeft: 'auto', background: 'var(--accent)', color: '#0c0d12', fontSize: '10px', fontWeight: 700, padding: '1px 5px', borderRadius: '8px' }}>
+                    <span style={{ marginLeft: 'auto', background: 'var(--accent)', color: 'var(--panel)', fontSize: '12px', fontWeight: 700, padding: '1px 6px', borderRadius: '8px' }}>
                       NEW
                     </span>
                   )}
@@ -2155,11 +2157,11 @@ function App() {
                       width: '100%',
                       height: '36px',
                       background: 'var(--accent)',
-                      color: '#ffffff',
+                      color: 'var(--btn-primary-text)',
                       border: 'none',
                       borderRadius: '6px',
                       fontWeight: 600,
-                      fontSize: '13px',
+                      fontSize: '14px',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -2548,10 +2550,10 @@ function App() {
                   onClick={() => setShowUpdateModal(true)}
                   title={hasUpdate ? `Update available: v${latestVersion} (Click to inspect)` : 'Click to check for updates'}
                   style={{
-                    background: hasUpdate ? 'rgba(56, 189, 248, 0.15)' : 'var(--bg-elevated)',
+                    background: hasUpdate ? 'var(--accent-dim)' : 'var(--bg-elevated)',
                     border: `1px solid ${hasUpdate ? 'var(--accent)' : 'var(--border)'}`,
                     padding: '2px 8px',
-                    borderRadius: '11px',
+                    borderRadius: '12px',
                     fontWeight: 600,
                     color: 'var(--accent)',
                     cursor: 'pointer',
@@ -2811,7 +2813,7 @@ function App() {
                             alignItems: 'center',
                             gap: '6px',
                             padding: '6px 14px',
-                            fontSize: '13px',
+                            fontSize: '14px',
                             fontWeight: 600,
                             borderRadius: '6px',
                             height: '36px',
@@ -2832,7 +2834,7 @@ function App() {
                             alignItems: 'center',
                             gap: '6px',
                             padding: '6px 14px',
-                            fontSize: '13px',
+                            fontSize: '14px',
                             fontWeight: 500,
                             borderRadius: '6px',
                             height: '36px',
@@ -3934,6 +3936,7 @@ curl -X POST -H "Content-Type: application/json" \\
           onAddTag={handleAddTag}
           accent={accentColor}
           onAccentChange={changeAccent}
+          isLight={theme === 'light'}
           onSaved={(saved) => {
             setInstanceSettings(saved);
             applyAppearance(saved.appearance);

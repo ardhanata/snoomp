@@ -15,6 +15,7 @@ interface PreferencesTagsTabProps {
   token?: string | null;
   appearance?: AppearanceSettings;
   onSavedSettings?: (settings: InstanceSettings) => void;
+  isLight?: boolean;
 }
 
 export default function PreferencesTagsTab({
@@ -26,7 +27,8 @@ export default function PreferencesTagsTab({
   apiUrl = '',
   token = null,
   appearance,
-  onSavedSettings
+  onSavedSettings,
+  isLight
 }: PreferencesTagsTabProps) {
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [newTagName, setNewTagName] = useState('');
@@ -193,10 +195,10 @@ export default function PreferencesTagsTab({
             padding: '0 14px',
             borderRadius: '6px',
             background: 'var(--accent)',
-            color: '#fff',
+            color: 'var(--btn-primary-text)',
             border: 'none',
             cursor: newTagName.trim() ? 'pointer' : 'not-allowed',
-            fontSize: '13px',
+            fontSize: '14px',
             fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
@@ -278,7 +280,7 @@ export default function PreferencesTagsTab({
                           height: '32px',
                           padding: '0 12px',
                           background: 'var(--accent)',
-                          color: '#fff',
+                          color: 'var(--btn-primary-text)',
                           border: 'none',
                           borderRadius: '6px',
                           fontSize: '12px',
@@ -309,7 +311,7 @@ export default function PreferencesTagsTab({
                     <>
                       {/* Left: Chip & Usage Count */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <TagChip tag={tagItem.name} tagColorsMap={tagColorsMap} />
+                        <TagChip tag={tagItem.name} tagColorsMap={tagColorsMap} isLight={isLight} />
                         <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>
                           {tagItem.count} {tagItem.count === 1 ? 'monitor' : 'monitors'}
                         </span>

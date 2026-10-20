@@ -15,6 +15,7 @@
   --muted:        #a0a9bd;
   --accent:       #2563eb;
   --accent-text:  #7aa7ff;
+  --btn-primary-text: #ffffff;
   --up:           #4ac26b;
   --down:         #ff6b63;
   --warn:         #e0a93a;
@@ -2696,6 +2697,7 @@ dialog::backdrop {
 }
 
 .tag-chip--interactive:focus-visible,
+.tag-chip__action:focus-visible,
 .filter-chip:focus-visible {
   outline: 2px solid var(--accent-text);
   outline-offset: 1px;

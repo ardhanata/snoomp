@@ -128,39 +128,64 @@ export const TagChip: React.FC<TagChipProps> = ({
     ...style
   };
 
-  const content = (
-    <>
-      <span>{tag}</span>
-      {onRemove && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
-          aria-label={`Remove tag ${tag}`}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'inherit',
-            cursor: 'pointer',
-            padding: 0,
-            display: 'inline-flex',
-            alignItems: 'center',
-            fontSize: '11px',
-            opacity: 0.7,
-            marginLeft: '2px'
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; }}
-        >
-          &times;
-        </button>
-      )}
-    </>
-  );
+  const removeButton = onRemove ? (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onRemove();
+      }}
+      aria-label={`Remove tag ${tag}`}
+      style={{
+        background: 'none',
+        border: 'none',
+        color: 'inherit',
+        cursor: 'pointer',
+        padding: 0,
+        display: 'inline-flex',
+        alignItems: 'center',
+        fontSize: '11px',
+        opacity: 0.7,
+        marginLeft: '4px'
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+    >
+      &times;
+    </button>
+  ) : null;
 
   if (onClick) {
+    if (onRemove) {
+      // Avoid nesting <button> inside <button>: render container <span> with sibling buttons
+      return (
+        <span
+          className={`tag-chip tag-chip--composite ${selected ? 'is-selected' : ''} ${className}`.trim()}
+          style={{ ...chipStyle, cursor: 'default', padding: '0 4px 0 8px' }}
+        >
+          <button
+            type="button"
+            className="tag-chip__action"
+            aria-pressed={selected}
+            onClick={onClick}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'inherit',
+              padding: 0,
+              font: 'inherit',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center'
+            }}
+          >
+            {tag}
+          </button>
+          {removeButton}
+        </span>
+      );
+    }
+
     return (
       <button
         type="button"
@@ -169,7 +194,7 @@ export const TagChip: React.FC<TagChipProps> = ({
         onClick={onClick}
         style={chipStyle}
       >
-        {content}
+        <span>{tag}</span>
       </button>
     );
   }
@@ -179,7 +204,8 @@ export const TagChip: React.FC<TagChipProps> = ({
       className={`tag-chip ${selected ? 'is-selected' : ''} ${className}`.trim()}
       style={chipStyle}
     >
-      {content}
+      <span>{tag}</span>
+      {removeButton}
     </span>
   );
 };

@@ -37,6 +37,7 @@ interface UserPreferencesModalProps {
   onRenameTag?: (oldTag: string, newTag: string) => void;
   onDeleteTag?: (tagToDelete: string) => void;
   onAddTag?: (newTag: string) => void;
+  isLight?: boolean;
 }
 
 type TabId = 'account' | 'sla' | 'appearance' | 'notifications' | 'defaults' | 'tags' | 'backup' | 'updates';
@@ -64,7 +65,7 @@ function toDraft(n: number | null | undefined): string {
 
 export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
   isOpen, onClose, apiUrl, token, role, onSaved, accent, onAccentChange,
-  monitors = [], allTags = [], onRenameTag, onDeleteTag, onAddTag,
+  monitors = [], allTags = [], onRenameTag, onDeleteTag, onAddTag, isLight,
 }) => {
   const [activeTab, setActiveTab] = useState<TabId>('sla');
   const [loading, setLoading] = useState(false);
@@ -1207,6 +1208,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                   apiUrl={apiUrl}
                   token={token}
                   appearance={appearance}
+                  isLight={isLight}
                   onSavedSettings={(saved) => {
                     setAppearance(saved.appearance);
                     onSaved(saved);
