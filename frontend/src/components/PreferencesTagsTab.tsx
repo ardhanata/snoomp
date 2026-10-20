@@ -55,10 +55,10 @@ export default function PreferencesTagsTab({
     setTimeout(() => setSavedNotice(''), 2500);
   };
 
-  const handleUpdateColor = async (tagName: string, preset: TagColorPreset | null) => {
+  const handleUpdateColor = async (tagName: string, preset: TagColorPreset | string | null) => {
     if (!apiUrl) return;
     const norm = normalizeTag(tagName);
-    const updatedMap: Record<string, TagColorPreset> = { ...(appearance?.tag_colors || {}) };
+    const updatedMap: Record<string, string> = { ...(appearance?.tag_colors || {}) };
 
     if (preset === null) {
       delete updatedMap[norm];
@@ -99,7 +99,7 @@ export default function PreferencesTagsTab({
 
     // Move colour override if present
     if (apiUrl && tagColorsMap[oldNorm]) {
-      const updatedMap: Record<string, TagColorPreset> = { ...tagColorsMap };
+      const updatedMap: Record<string, string> = { ...tagColorsMap };
       updatedMap[trimmed] = updatedMap[oldNorm];
       delete updatedMap[oldNorm];
       try {
@@ -124,7 +124,7 @@ export default function PreferencesTagsTab({
     const norm = normalizeTag(tagName);
     if (window.confirm(`Delete tag "${tagName}" from all ${count} associated monitor(s)?`)) {
       if (apiUrl && tagColorsMap[norm]) {
-        const updatedMap: Record<string, TagColorPreset> = { ...tagColorsMap };
+        const updatedMap: Record<string, string> = { ...tagColorsMap };
         delete updatedMap[norm];
         try {
           const updatedAppearance: AppearanceSettings = {
@@ -230,8 +230,10 @@ export default function PreferencesTagsTab({
             {tagSummaryList.map((tagItem) => {
               const isEditing = editingTagKey === tagItem.name;
               const normName = normalizeTag(tagItem.name);
-              const customPreset = tagColorsMap[normName] as TagColorPreset | undefined;
-              const isAuto = !customPreset;
+              const assignedColor = tagColorsMap[normName];
+              const isAuto = !assignedColor;
+              const isPreset = Boolean(assignedColor && TAG_COLOR_PRESETS.includes(assignedColor as TagColorPreset));
+              const isCustomColor = Boolean(assignedColor && !isPreset);
 
               return (
                 <div 
@@ -317,7 +319,7 @@ export default function PreferencesTagsTab({
                         </span>
                       </div>
 
-                      {/* Middle: Colour Preset Radiogroup with 24px Swatches */}
+                      {/* Middle: Colour Preset Radiogroup with 24px Swatches & Custom Picker */}
                       <div
                         role="radiogroup"
                         aria-label={`Colour for ${tagItem.name}`}
@@ -346,9 +348,9 @@ export default function PreferencesTagsTab({
                           Auto
                         </button>
 
-                        {/* 6 Round Swatches */}
+                        {/* 6 Round Presets */}
                         {TAG_COLOR_PRESETS.map((preset) => {
-                          const isSelected = customPreset === preset;
+                          const isSelected = assignedColor === preset;
                           const swatchColor = TAG_COLORS[preset].dark.text;
                           const swatchBg = TAG_COLORS[preset].dark.bg;
                           const swatchBorder = TAG_COLORS[preset].dark.border;
@@ -384,6 +386,51 @@ export default function PreferencesTagsTab({
                             </button>
                           );
                         })}
+
+                        {/* Custom Colour Picker Swatch */}
+                        <label
+                          title={isCustomColor ? `Custom colour (${assignedColor})` : 'Choose custom colour'}
+                          aria-label={`Custom colour for ${tagItem.name}`}
+                          style={{
+                            position: 'relative',
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '50%',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: isCustomColor
+                              ? assignedColor
+                              : 'conic-gradient(from 180deg at 50% 50%, #ff0000 0deg, #ff8000 60deg, #ffff00 120deg, #00ff00 180deg, #00ffff 240deg, #0000ff 300deg, #ff0000 360deg)',
+                            border: isCustomColor ? '1px solid var(--border-hover)' : '1px solid var(--border)',
+                            outline: isCustomColor ? '2px solid var(--accent-text)' : 'none',
+                            outlineOffset: '2px',
+                            padding: 0,
+                            overflow: 'hidden',
+                            boxSizing: 'border-box',
+                            transition: 'transform 0.15s ease'
+                          }}
+                        >
+                          <input
+                            type="color"
+                            value={isCustomColor ? assignedColor : '#2563eb'}
+                            aria-label={`Pick custom colour for ${tagItem.name}`}
+                            onChange={(e) => handleUpdateColor(tagItem.name, e.target.value)}
+                            style={{
+                              position: 'absolute',
+                              opacity: 0,
+                              width: '100%',
+                              height: '100%',
+                              cursor: 'pointer',
+                              border: 'none',
+                              padding: 0
+                            }}
+                          />
+                          {isCustomColor && (
+                            <Icon icon={Check} size={13} weight="bold" color="var(--btn-primary-text)" style={{ pointerEvents: 'none' }} />
+                          )}
+                        </label>
                       </div>
 
                       {/* Right: Actions */}

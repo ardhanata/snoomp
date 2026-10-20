@@ -44,7 +44,7 @@ for (const file of files) {
 
   lines.forEach((line, index) => {
     // Exclude token dictionary declarations in TagChip.tsx
-    if (file.endsWith('TagChip.tsx') && (line.includes('dark:') || line.includes('light:'))) {
+    if (file.endsWith('TagChip.tsx') && (line.includes('dark:') || line.includes('light:') || line.includes('computeCustomTagColors') || line.includes('rgba('))) {
       return;
     }
 

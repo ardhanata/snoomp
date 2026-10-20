@@ -39,17 +39,17 @@ def test_target_create_update_schema_normalizes_tags():
 def test_appearance_settings_validates_tag_colors_presets():
     from app.routes.settings import AppearanceSettings
 
-    # Valid presets
+    # Valid presets and custom hex colors
     s = AppearanceSettings(
         chart_1="#112233",
         chart_2="#445566",
         chart_3="#778899",
-        tag_colors={"prod": "violet", "api": "TEAL"}
+        tag_colors={"prod": "violet", "api": "TEAL", "custom": "#ff5500", "hex": "#10b981"}
     )
-    assert s.tag_colors == {"prod": "violet", "api": "teal"}
+    assert s.tag_colors == {"prod": "violet", "api": "teal", "custom": "#ff5500", "hex": "#10b981"}
 
-    # Invalid preset raises ValueError
-    with pytest.raises(ValueError, match="Invalid tag color preset"):
+    # Invalid preset or non-hex string raises ValueError
+    with pytest.raises(ValueError, match="Invalid tag color"):
         AppearanceSettings(
             chart_1="#112233",
             chart_2="#445566",

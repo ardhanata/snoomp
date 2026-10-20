@@ -148,6 +148,7 @@
   --c1:           #2563eb;
   --c2:           #6d3fd6;
   --c3:           #0f766e;
+  --btn-primary-text: #ffffff;
 
   /* Reactive Status Strip Tokens */
   --strip-idle:   #dde1e9;
@@ -315,13 +316,13 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
 
 /* Buttons */
 button.btn-primary, button[type="submit"] {
-  background: #2563eb;
+  background: var(--accent);
   border: none;
   border-radius: var(--radius-sm);
-  color: #ffffff;
+  color: var(--btn-primary-text);
   cursor: pointer;
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   padding: 8px 16px;
   transition: background-color var(--t-fast), border-color var(--t-fast), color var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);

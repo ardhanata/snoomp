@@ -49,7 +49,7 @@ export interface AppearanceSettings {
   chart_1: string;
   chart_2: string;
   chart_3: string;
-  tag_colors?: Record<string, 'violet' | 'teal' | 'magenta' | 'indigo' | 'sky' | 'slate'>;
+  tag_colors?: Record<string, string>;
 }
 
 export interface InstanceSettings {
@@ -171,8 +171,18 @@ export async function testDiscord(apiUrl: string, token: string | null): Promise
 
 /** Push chart colours into the CSS custom properties the charts read. */
 export function applyAppearance(appearance: AppearanceSettings) {
+  if (!appearance) return;
   const root = document.documentElement;
-  root.style.setProperty('--chart-1', appearance.chart_1);
-  root.style.setProperty('--chart-2', appearance.chart_2);
-  root.style.setProperty('--chart-3', appearance.chart_3);
+  if (appearance.chart_1) {
+    root.style.setProperty('--chart-1', appearance.chart_1);
+    root.style.setProperty('--c1', appearance.chart_1);
+  }
+  if (appearance.chart_2) {
+    root.style.setProperty('--chart-2', appearance.chart_2);
+    root.style.setProperty('--c2', appearance.chart_2);
+  }
+  if (appearance.chart_3) {
+    root.style.setProperty('--chart-3', appearance.chart_3);
+    root.style.setProperty('--c3', appearance.chart_3);
+  }
 }

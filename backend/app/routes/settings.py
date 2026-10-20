@@ -123,11 +123,20 @@ class AppearanceSettings(BaseModel):
             if not isinstance(tag, str) or not isinstance(preset, str):
                 continue
             p = preset.strip().lower()
-            if p not in allowed_presets:
+            if p in allowed_presets:
+                cleaned[tag.strip().lower()] = p
+            elif len(p) == 7 and p.startswith("#"):
+                try:
+                    int(p[1:], 16)
+                    cleaned[tag.strip().lower()] = p
+                except ValueError:
+                    raise ValueError(
+                        f"Invalid tag color '{preset}'. Must be a preset ({', '.join(sorted(allowed_presets))}) or a valid 7-character hex code like #3b82f6."
+                    )
+            else:
                 raise ValueError(
-                    f"Invalid tag color preset '{preset}'. Allowed presets: {', '.join(sorted(allowed_presets))}"
+                    f"Invalid tag color '{preset}'. Must be a preset ({', '.join(sorted(allowed_presets))}) or a valid 7-character hex code like #3b82f6."
                 )
-            cleaned[tag.strip().lower()] = p
         return cleaned
 
 

@@ -852,7 +852,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                     applies as soon as you pick it.
                   </p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-                    {['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#06b6d4'].map(c => (
+                    {['#2563eb', '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#06b6d4'].map(c => (
                       <button
                         key={c}
                         type="button"

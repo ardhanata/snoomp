@@ -45,6 +45,44 @@ export const TAG_COLORS: Record<TagColorPreset, TagColorsDefinition> = {
 };
 
 /**
+ * Checks whether a given string is a valid 7-character hex color code.
+ */
+export function isCustomHex(val?: string | null): boolean {
+  return typeof val === 'string' && /^#[0-9a-fA-F]{6}$/.test(val.trim());
+}
+
+/**
+ * Computes accessible theme-aware background, border and high-contrast text colours
+ * from a user-supplied hex colour for TagChip.
+ */
+export function computeCustomTagColors(hex: string, isLightMode: boolean): { bg: string; text: string; border: string } {
+  const cleanHex = hex.trim();
+  const r = parseInt(cleanHex.slice(1, 3), 16) || 59;
+  const g = parseInt(cleanHex.slice(3, 5), 16) || 130;
+  const b = parseInt(cleanHex.slice(5, 7), 16) || 246;
+
+  if (isLightMode) {
+    const textR = Math.round(r * 0.60);
+    const textG = Math.round(g * 0.60);
+    const textB = Math.round(b * 0.60);
+    return {
+      bg: `rgba(${r}, ${g}, ${b}, 0.12)`,
+      border: `rgba(${r}, ${g}, ${b}, 0.35)`,
+      text: `#${textR.toString(16).padStart(2, '0')}${textG.toString(16).padStart(2, '0')}${textB.toString(16).padStart(2, '0')}`
+    };
+  } else {
+    const textR = Math.min(255, Math.round(r * 1.35 + 45));
+    const textG = Math.min(255, Math.round(g * 1.35 + 45));
+    const textB = Math.min(255, Math.round(b * 1.35 + 45));
+    return {
+      bg: `rgba(${r}, ${g}, ${b}, 0.18)`,
+      border: `rgba(${r}, ${g}, ${b}, 0.45)`,
+      text: `#${textR.toString(16).padStart(2, '0')}${textG.toString(16).padStart(2, '0')}${textB.toString(16).padStart(2, '0')}`
+    };
+  }
+}
+
+/**
  * Computes or resolves preset colour for a tag name.
  * Auto (default): sum of char codes modulo 6 in order [violet, teal, magenta, indigo, sky, slate]
  * Exceptions: 'prod' is Violet, 'mis-bpdlh' is Teal.
@@ -99,11 +137,20 @@ export const TagChip: React.FC<TagChipProps> = ({
   selected = false,
   style
 }) => {
-  const preset = resolveTagColor(tag, tagColorsMap);
+  const norm = normalizeTag(tag);
+  const customOverride = tagColorsMap?.[norm];
+
   const isLightMode = isLight !== undefined
     ? isLight
     : (typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'light');
-  const colorDef = TAG_COLORS[preset][isLightMode ? 'light' : 'dark'];
+
+  let colorDef: { bg: string; text: string; border: string };
+  if (isCustomHex(customOverride)) {
+    colorDef = computeCustomTagColors(customOverride!, isLightMode);
+  } else {
+    const preset = resolveTagColor(tag, tagColorsMap);
+    colorDef = TAG_COLORS[preset][isLightMode ? 'light' : 'dark'];
+  }
 
   const chipStyle: React.CSSProperties = {
     display: 'inline-flex',

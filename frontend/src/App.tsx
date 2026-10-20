@@ -147,27 +147,37 @@ function formatUptime(raw?: string | null): string {
 // Clear inline styles on default accent so CSS data-theme tokens resolve naturally
 function applyAccent(color: string, currentTheme?: string) {
   const isLight = (currentTheme || document.documentElement.getAttribute('data-theme')) === 'light';
-  if (!color || color.toLowerCase() === '#3b82f6') {
+  if (!color || color.toLowerCase() === '#2563eb' || color.toLowerCase() === '#3b82f6') {
     document.documentElement.style.removeProperty('--accent');
+    document.documentElement.style.removeProperty('--accent-text');
     document.documentElement.style.removeProperty('--accent-rgb');
     document.documentElement.style.removeProperty('--accent-glow');
     document.documentElement.style.removeProperty('--accent-dim');
     return;
   }
-  let hex = color;
-  let r = parseInt(hex.slice(1, 3), 16);
-  let g = parseInt(hex.slice(3, 5), 16);
-  let b = parseInt(hex.slice(5, 7), 16);
+  const hex = color;
+  const r = parseInt(hex.slice(1, 3), 16) || 37;
+  const g = parseInt(hex.slice(3, 5), 16) || 99;
+  const b = parseInt(hex.slice(5, 7), 16) || 235;
+
+  let textHex = hex;
   if (isLight) {
-    r = Math.round(r * 0.72);
-    g = Math.round(g * 0.72);
-    b = Math.round(b * 0.72);
-    hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    const textR = Math.round(r * 0.72);
+    const textG = Math.round(g * 0.72);
+    const textB = Math.round(b * 0.72);
+    textHex = `#${textR.toString(16).padStart(2, '0')}${textG.toString(16).padStart(2, '0')}${textB.toString(16).padStart(2, '0')}`;
+  } else {
+    const textR = Math.min(255, Math.round(r * 1.35 + 40));
+    const textG = Math.min(255, Math.round(g * 1.35 + 40));
+    const textB = Math.min(255, Math.round(b * 1.35 + 40));
+    textHex = `#${textR.toString(16).padStart(2, '0')}${textG.toString(16).padStart(2, '0')}${textB.toString(16).padStart(2, '0')}`;
   }
+
   document.documentElement.style.setProperty('--accent', hex);
+  document.documentElement.style.setProperty('--accent-text', textHex);
   document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
   document.documentElement.style.setProperty('--accent-glow', `rgba(${r},${g},${b},0.2)`);
-  document.documentElement.style.setProperty('--accent-dim', `rgba(${r},${g},${b},0.1)`);
+  document.documentElement.style.setProperty('--accent-dim', `rgba(${r},${g},${b},0.12)`);
 }
 
 /**
