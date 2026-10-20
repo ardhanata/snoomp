@@ -1,19 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import {
   X,
-  RefreshCw,
-  ArrowUpCircle,
-  CheckCircle2,
-  AlertTriangle,
-  ExternalLink,
-  Terminal,
+  ArrowsClockwise,
+  ArrowCircleUp,
+  CheckCircle,
+  Warning,
+  ArrowSquareOut,
+  TerminalWindow,
   Copy,
   Check,
   ShieldCheck,
-  Loader2,
+  CircleNotch,
   Calendar,
-  Layers
-} from 'lucide-react';
+  Stack
+} from '@phosphor-icons/react';
 import Dialog from './Dialog';
 import IconButton from './IconButton';
 
@@ -178,7 +178,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             gap: '12px',
             color: 'var(--text-muted)'
           }}>
-            <Loader2 size={28} className="animate-spin" style={{ color: 'var(--accent)' }} />
+            <CircleNotch size={28} className="spin" style={{ color: 'var(--accent)' }} />
             <div style={{ fontSize: '13px', fontWeight: 500 }}>Checking for updates via GitHub...</div>
           </div>
         ) : error && !updateInfo ? (
@@ -191,7 +191,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             alignItems: 'flex-start',
             gap: '12px'
           }}>
-            <AlertTriangle size={20} style={{ color: '#ef4444', flexShrink: 0, marginTop: '2px' }} />
+            <Warning size={20} style={{ color: '#ef4444', flexShrink: 0, marginTop: '2px' }} />
             <div>
               <div style={{ fontWeight: 600, fontSize: '14px', color: '#ef4444' }}>Unable to verify updates</div>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{error}</div>
@@ -215,7 +215,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                 alignItems: 'flex-start',
                 gap: '14px'
               }}>
-                <ArrowUpCircle size={24} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: '2px' }} />
+                <ArrowCircleUp size={24} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: '2px' }} />
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <span style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)' }}>
@@ -275,7 +275,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                 alignItems: 'center',
                 gap: '14px'
               }}>
-                <CheckCircle2 size={24} style={{ color: '#22c55e', flexShrink: 0 }} />
+                <CheckCircle size={24} style={{ color: '#22c55e', flexShrink: 0 }} />
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '15px', color: '#22c55e' }}>
                     Snoomp is up to date
@@ -303,7 +303,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             {/* Terminal Upgrade Options */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Layers size={14} style={{ color: 'var(--accent)' }} />
+                <Stack size={14} style={{ color: 'var(--accent)' }} />
                 Upgrade Instructions
               </div>
 
@@ -319,7 +319,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <Terminal size={12} /> Standard Docker Stack:
+                    <TerminalWindow size={12} /> Standard Docker Stack:
                   </span>
                   <button
                     type="button"
@@ -338,7 +338,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                       cursor: 'pointer'
                     }}
                   >
-                    {copiedDocker ? <Check size={11} /> : <Copy size={11} />}
+                    {copiedDocker ? <Check size={12} /> : <Copy size={12} />}
                     {copiedDocker ? 'Copied' : 'Copy'}
                   </button>
                 </div>
@@ -369,7 +369,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <Terminal size={12} /> Turnkey Linux Bootstrap:
+                    <TerminalWindow size={12} /> Turnkey Linux Bootstrap:
                   </span>
                   <button
                     type="button"
@@ -388,7 +388,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                       cursor: 'pointer'
                     }}
                   >
-                    {copiedInstaller ? <Check size={11} /> : <Copy size={11} />}
+                    {copiedInstaller ? <Check size={12} /> : <Copy size={12} />}
                     {copiedInstaller ? 'Copied' : 'Copy'}
                   </button>
                 </div>
@@ -438,7 +438,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             cursor: loading ? 'not-allowed' : 'pointer'
           }}
         >
-          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+          <ArrowsClockwise size={14} className={loading ? 'spin' : ''} />
           {loading ? 'Checking...' : 'Check Again'}
         </button>
 
@@ -459,7 +459,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                 borderRadius: '6px'
               }}
             >
-              Release Notes <ExternalLink size={12} />
+              Release Notes <ArrowSquareOut size={12} />
             </a>
           )}
           <button

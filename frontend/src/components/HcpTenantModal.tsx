@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Database, X, Check, AlertTriangle, ShieldCheck, ShieldAlert, Loader2 } from 'lucide-react';
+import { Database, X, Check, Warning, ShieldCheck, ShieldWarning, CircleNotch } from '@phosphor-icons/react';
 import Dialog from './Dialog';
 import { SITE_TAGS } from '../utils/tags';
 
@@ -343,7 +343,7 @@ export const HcpTenantModal: React.FC<HcpTenantModalProps> = ({
               gap: '8px'
             }}
           >
-            <AlertTriangle size={16} aria-hidden="true" />
+            <Warning size={16} aria-hidden="true" />
             <span>{errorMessage}</span>
           </div>
         )}
@@ -633,7 +633,7 @@ export const HcpTenantModal: React.FC<HcpTenantModalProps> = ({
               {testResult.status === 'ok' ? (
                 <ShieldCheck size={18} style={{ flexShrink: 0, marginTop: '2px' }} aria-hidden="true" />
               ) : (
-                <ShieldAlert size={18} style={{ flexShrink: 0, marginTop: '2px' }} aria-hidden="true" />
+                <ShieldWarning size={18} style={{ flexShrink: 0, marginTop: '2px' }} aria-hidden="true" />
               )}
               <div style={{ lineHeight: '1.4' }}>
                 {testResult.status === 'ok' ? testResult.message : testResult.error}
@@ -651,7 +651,7 @@ export const HcpTenantModal: React.FC<HcpTenantModalProps> = ({
             disabled={testing || saving}
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            {testing ? <Loader2 size={14} className="spin" /> : <ShieldCheck size={14} />}
+            {testing ? <CircleNotch size={14} className="spin" /> : <ShieldCheck size={14} />}
             <span>{testing ? 'Testing...' : 'Test Connection'}</span>
           </button>
 
@@ -670,7 +670,7 @@ export const HcpTenantModal: React.FC<HcpTenantModalProps> = ({
               disabled={saving || testing}
               style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              {saving ? <Loader2 size={14} className="spin" /> : <Check size={14} />}
+              {saving ? <CircleNotch size={14} className="spin" /> : <Check size={14} />}
               <span>{saving ? 'Saving...' : editingTenant ? 'Update Tenant' : 'Save Tenant'}</span>
             </button>
           </div>

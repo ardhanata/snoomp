@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Send, Save, Trash2, Loader2, CheckCircle2, AlertTriangle, Bell, ExternalLink } from 'lucide-react';
+import { X, PaperPlaneTilt, FloppyDisk, Trash, CircleNotch, CheckCircle, Warning, Bell, ArrowSquareOut } from '@phosphor-icons/react';
 import Dialog from './Dialog';
 import IconButton from './IconButton';
 
@@ -354,7 +354,7 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({
               alignItems: 'center',
               gap: '8px',
             }}>
-              <AlertTriangle size={16} />
+              <Warning size={16} />
               <span>{error}</span>
             </div>
           )}
@@ -371,7 +371,7 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({
               alignItems: 'center',
               gap: '8px',
             }}>
-              {testResult.success ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+              {testResult.success ? <CheckCircle size={16} /> : <Warning size={16} />}
               <span>{testResult.message}</span>
             </div>
           )}
@@ -775,14 +775,14 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({
                       opacity: config.appriseURL ? 1 : 0.6
                     }}
                   >
-                    {validatingApprise && <Loader2 size={12} className="spin" />}
+                    {validatingApprise && <CircleNotch size={12} className="spin" />}
                     <span>Validate Syntax</span>
                   </button>
                 </div>
 
                 {/* Quick-Select Provider Presets */}
                 <div style={{ marginBottom: '8px' }}>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '5px', fontWeight: 500 }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '5px', fontWeight: 500 }}>
                     Quick Presets (click to append template):
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
@@ -792,7 +792,7 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({
                         type="button"
                         onClick={() => applyApprisePreset(p.template)}
                         style={{
-                          fontSize: '11px',
+                          fontSize: '12px',
                           padding: '3px 7px',
                           borderRadius: '4px',
                           border: '1px solid var(--border)',
@@ -831,17 +831,17 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({
                     border: `1px solid ${appriseValidation.valid ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
                     color: appriseValidation.valid ? '#10b981' : '#ef4444'
                   }}>
-                    {appriseValidation.valid ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+                    {appriseValidation.valid ? <CheckCircle size={14} /> : <Warning size={14} />}
                     <span>{appriseValidation.message}</span>
                     {appriseValidation.schemas && appriseValidation.schemas.length > 0 && (
-                      <span style={{ marginLeft: 'auto', fontSize: '11px', opacity: 0.85 }}>
+                      <span style={{ marginLeft: 'auto', fontSize: '12px', opacity: 0.85 }}>
                         Schemas: {appriseValidation.schemas.join(', ')}
                       </span>
                     )}
                   </div>
                 )}
 
-                <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: '1.4' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: '1.4' }}>
                   <span>Apprise supports 140+ services. You can combine multiple URLs separated by newlines or commas.</span>
                   <div style={{ marginTop: '4px' }}>
                     <a
@@ -850,7 +850,7 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({
                       rel="noopener noreferrer"
                       style={{ color: 'var(--accent)', textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                     >
-                      Apprise Notification Services Wiki (140+ Providers) <ExternalLink size={11} />
+                      Apprise Notification Services Wiki (140+ Providers) <ArrowSquareOut size={12} />
                     </a>
                   </div>
                 </div>
@@ -879,7 +879,7 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({
                 color: '#10b981',
                 fontWeight: 500
               }}>
-                <CheckCircle2 size={15} />
+                <CheckCircle size={15} />
                 <span>Apprise Universal Engine active (in-process Python engine, 140+ providers supported)</span>
               </div>
             </div>
@@ -947,7 +947,7 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({
                   gap: '6px',
                 }}
               >
-                <Trash2 size={14} />
+                <Trash size={14} />
                 Delete
               </button>
             )}
@@ -972,7 +972,7 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({
                 gap: '6px',
               }}
             >
-              {testing ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              {testing ? <CircleNotch size={14} className="spin" /> : <PaperPlaneTilt size={14} />}
               Test
             </button>
 
@@ -993,7 +993,7 @@ export const NotificationDialog: React.FC<NotificationDialogProps> = ({
                 gap: '6px',
               }}
             >
-              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              {saving ? <CircleNotch size={14} className="spin" /> : <FloppyDisk size={14} />}
               Save
             </button>
           </div>

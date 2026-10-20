@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Plus, X } from 'lucide-react';
+import { Bell, Plus, X } from '@phosphor-icons/react';
 import Dialog from './Dialog';
 import IconButton from './IconButton';
 import NotificationDialog, { NotificationItem } from './NotificationDialog';
@@ -1094,7 +1094,7 @@ const MonitorModal: React.FC<MonitorModalProps> = ({
                   cursor: 'pointer'
                 }}
               >
-                <Plus size={13} /> Setup Notification
+                <Plus size={14} /> Setup Notification
               </button>
             </div>
 

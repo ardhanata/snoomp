@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 import {
-  Activity,
+  Pulse,
   Globe,
   Lock,
   ShieldCheck,
-  Server,
-  Download,
-  ChevronDown,
-  ChevronUp,
-  Zap,
+  HardDrives,
+  DownloadSimple,
+  CaretDown,
+  CaretUp,
+  Lightning,
   Info,
   ArrowRight,
   Radio
-} from 'lucide-react';
+} from '@phosphor-icons/react';
 
 interface HttpTimingData {
   dns_ms: number;
@@ -97,7 +97,7 @@ export const HttpLatencyProfiler: React.FC<HttpLatencyProfilerProps> = ({ monito
       ms: timing.dns_ms,
       color: '#38bdf8', // Cyan
       icon: Globe,
-      desc: 'Resolusi alamat domain ke IP target'
+      desc: 'Resolves domain name to target IP address'
     },
     {
       id: 'tcp',
@@ -105,7 +105,7 @@ export const HttpLatencyProfiler: React.FC<HttpLatencyProfilerProps> = ({ monito
       ms: timing.tcp_ms,
       color: '#818cf8', // Indigo
       icon: Radio,
-      desc: 'SYN ➔ SYN-ACK ➔ ACK socket handshake'
+      desc: 'SYN > SYN-ACK > ACK socket handshake'
     },
     ...(isHttps || timing.tls_ms > 0 ? [{
       id: 'tls',
@@ -113,23 +113,23 @@ export const HttpLatencyProfiler: React.FC<HttpLatencyProfilerProps> = ({ monito
       ms: timing.tls_ms,
       color: '#a855f7', // Purple
       icon: Lock,
-      desc: 'Negosiasi cipher TLS & validasi SSL'
+      desc: 'TLS cipher negotiation & certificate verification'
     }] : []),
     {
       id: 'ttfb',
       name: 'Server TTFB',
       ms: timing.ttfb_ms,
       color: '#f59e0b', // Amber
-      icon: Server,
-      desc: 'Time to first byte respon dari server'
+      icon: HardDrives,
+      desc: 'Time to first byte response from server'
     },
     {
       id: 'transfer',
       name: 'Download Body',
       ms: timing.transfer_ms,
       color: '#10b981', // Emerald
-      icon: Download,
-      desc: 'Membaca byte payload HTTP response'
+      icon: DownloadSimple,
+      desc: 'Reads HTTP response payload bytes'
     }
   ];
 
@@ -174,13 +174,13 @@ export const HttpLatencyProfiler: React.FC<HttpLatencyProfilerProps> = ({ monito
               color: 'var(--accent)'
             }}
           >
-            <Activity size={15} />
+            <Pulse size={16} />
           </div>
           <div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: '6px' }}>
               HTTP/S Connection Phase Profiler
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
               Real-time socket waterfall &amp; latency decomposition
             </div>
           </div>
@@ -189,7 +189,7 @@ export const HttpLatencyProfiler: React.FC<HttpLatencyProfilerProps> = ({ monito
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span
             style={{
-              fontSize: '11px',
+              fontSize: '12px',
               padding: '3px 8px',
               borderRadius: '12px',
               background: 'rgba(255,255,255,0.05)',
@@ -203,7 +203,7 @@ export const HttpLatencyProfiler: React.FC<HttpLatencyProfilerProps> = ({ monito
           </span>
           <span
             style={{
-              fontSize: '15px',
+              fontSize: '14px',
               fontWeight: 700,
               fontFamily: 'var(--font-mono)',
               color: totalTime >= 1000 ? 'var(--color-warning)' : 'var(--text-primary)'
@@ -225,12 +225,12 @@ export const HttpLatencyProfiler: React.FC<HttpLatencyProfilerProps> = ({ monito
           borderRadius: '6px',
           padding: '8px 12px',
           marginBottom: '14px',
-          fontSize: '11px'
+          fontSize: '12px'
         }}
       >
         <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <Zap size={12} style={{ color: 'var(--color-warning)' }} />
-          <span>Fase Terlambat (Bottleneck):</span>
+          <Lightning size={14} style={{ color: 'var(--color-warning)' }} />
+          <span>Latency Bottleneck:</span>
           <strong style={{ color: 'var(--text-primary)' }}>{timing.bottleneck}</strong>
         </span>
         <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontWeight: 600 }}>
@@ -284,7 +284,7 @@ export const HttpLatencyProfiler: React.FC<HttpLatencyProfilerProps> = ({ monito
                 display: 'flex',
                 alignItems: 'center',
                 gap: '5px',
-                fontSize: '11px',
+                fontSize: '12px',
                 cursor: 'pointer',
                 opacity: hoveredPhase ? (hoveredPhase === p.id ? 1 : 0.5) : 1
               }}
@@ -329,20 +329,20 @@ export const HttpLatencyProfiler: React.FC<HttpLatencyProfilerProps> = ({ monito
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <p.icon size={11} style={{ color: p.color }} />
+                <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <p.icon size={12} style={{ color: p.color }} />
                   {p.name}
                 </span>
-                <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: p.color, fontWeight: 700 }}>
+                <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: p.color, fontWeight: 700 }}>
                   {pct}%
                 </span>
               </div>
 
-              <div style={{ fontSize: '15px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
-                {p.ms.toFixed(1)} <span style={{ fontSize: '10px', fontWeight: 400, color: 'var(--text-muted)' }}>ms</span>
+              <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
+                {p.ms.toFixed(1)} <span style={{ fontSize: '12px', fontWeight: 400, color: 'var(--text-muted)' }}>ms</span>
               </div>
 
-              <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: 1.3 }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: 1.3 }}>
                 {p.desc}
               </div>
             </div>
@@ -365,15 +365,15 @@ export const HttpLatencyProfiler: React.FC<HttpLatencyProfilerProps> = ({ monito
             justifyContent: 'space-between',
             cursor: 'pointer',
             color: 'var(--accent)',
-            fontSize: '11px',
+            fontSize: '12px',
             fontWeight: 600
           }}
         >
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Info size={13} />
-            {showAnatomy ? 'Sembunyikan Anatomi Pengukuran & Detail Engine' : '🔬 Lihat Anatomi Pengukuran (Formula & Lifecycle)'}
+            <Info size={14} />
+            {showAnatomy ? 'Hide measurement lifecycle & engine details' : 'View measurement lifecycle (Formula & lifecycle)'}
           </span>
-          {showAnatomy ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          {showAnatomy ? <CaretUp size={14} /> : <CaretDown size={14} />}
         </button>
 
         {showAnatomy && (
@@ -388,8 +388,8 @@ export const HttpLatencyProfiler: React.FC<HttpLatencyProfilerProps> = ({ monito
           >
             {/* Step-by-step Lifecycle Pipeline Diagram */}
             <div style={{ marginBottom: '14px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                Alur Pengukuran Monotonic Clock (Nanosecond Resolution):
+              <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                Monotonic clock measurement flow (nanosecond resolution):
               </div>
               <div
                 style={{
@@ -401,27 +401,27 @@ export const HttpLatencyProfiler: React.FC<HttpLatencyProfilerProps> = ({ monito
                   padding: '10px 12px',
                   borderRadius: '6px',
                   border: '1px solid var(--border)',
-                  fontSize: '11px',
+                  fontSize: '12px',
                   fontFamily: 'var(--font-mono)'
                 }}
               >
-                <span style={{ color: 'var(--color-up)', fontWeight: 700 }}>T₀ (Start)</span>
-                <ArrowRight size={11} style={{ color: 'var(--text-muted)' }} />
+                <span style={{ color: 'var(--color-up)', fontWeight: 700 }}>T0 (Start)</span>
+                <ArrowRight size={12} style={{ color: 'var(--text-muted)' }} />
                 <span style={{ color: '#38bdf8' }}>DNS ({timing.dns_ms}ms)</span>
-                <ArrowRight size={11} style={{ color: 'var(--text-muted)' }} />
+                <ArrowRight size={12} style={{ color: 'var(--text-muted)' }} />
                 <span style={{ color: '#818cf8' }}>TCP ({timing.tcp_ms}ms)</span>
                 {isHttps && (
                   <>
-                    <ArrowRight size={11} style={{ color: 'var(--text-muted)' }} />
+                    <ArrowRight size={12} style={{ color: 'var(--text-muted)' }} />
                     <span style={{ color: '#a855f7' }}>TLS ({timing.tls_ms}ms)</span>
                   </>
                 )}
-                <ArrowRight size={11} style={{ color: 'var(--text-muted)' }} />
+                <ArrowRight size={12} style={{ color: 'var(--text-muted)' }} />
                 <span style={{ color: '#f59e0b' }}>TTFB ({timing.ttfb_ms}ms)</span>
-                <ArrowRight size={11} style={{ color: 'var(--text-muted)' }} />
+                <ArrowRight size={12} style={{ color: 'var(--text-muted)' }} />
                 <span style={{ color: '#10b981' }}>Transfer ({timing.transfer_ms}ms)</span>
-                <ArrowRight size={11} style={{ color: 'var(--text-muted)' }} />
-                <span style={{ color: 'var(--color-up)', fontWeight: 700 }}>T₁: {totalTime.toFixed(1)}ms</span>
+                <ArrowRight size={12} style={{ color: 'var(--text-muted)' }} />
+                <span style={{ color: 'var(--color-up)', fontWeight: 700 }}>T1: {totalTime.toFixed(1)}ms</span>
               </div>
             </div>
 
@@ -429,52 +429,52 @@ export const HttpLatencyProfiler: React.FC<HttpLatencyProfilerProps> = ({ monito
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginBottom: '12px' }}>
               {/* Formula Card */}
               <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 12px' }}>
-                <div style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '4px' }}>
-                  ⏱️ Rumus Latency
+                <div style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '4px' }}>
+                  Latency Formula
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-primary)', fontWeight: 600 }}>
-                  (time.monotonic() - T₀) * 1000
+                  (time.monotonic() - T0) * 1000
                 </div>
-                <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  Mencakup seluruh waktu round-trip soket jaringan dari awal inisiasi DNS hingga payload selesai diunduh.
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Covers entire socket round-trip time from DNS resolution to final payload byte received.
                 </div>
               </div>
 
               {/* SSL Certificate Inspector */}
               <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 12px' }}>
-                <div style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <ShieldCheck size={11} style={{ color: isSslValid ? 'var(--color-up)' : 'var(--color-warning)' }} />
-                  Keamanan &amp; Sertifikat SSL
+                <div style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <ShieldCheck size={14} style={{ color: isSslValid ? 'var(--color-up)' : 'var(--color-warning)' }} />
+                  SSL / TLS Certificate
                 </div>
                 {isHttps ? (
                   <>
                     <div style={{ fontSize: '12px', fontWeight: 600, color: isSslValid ? 'var(--color-up)' : 'var(--color-warning)' }}>
-                      {isSslValid ? 'Sertifikat Valid (Trusted)' : 'TLS Warning / Tidak Valid'}
+                      {isSslValid ? 'Valid certificate (Trusted)' : 'TLS warning / untrusted'}
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      Masa Berlaku:{' '}
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      Validity:{' '}
                       <strong style={{ color: sslDays != null && sslDays <= 30 ? 'var(--color-warning)' : 'var(--text-primary)' }}>
-                        {sslDays != null ? `${sslDays} hari lagi` : 'Terverifikasi'}
+                        {sslDays != null ? `${sslDays} days remaining` : 'Verified'}
                       </strong>
                     </div>
                   </>
                 ) : (
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    Protokol HTTP (Plaintext / Port 80) tanpa enkripsi TLS.
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    HTTP protocol (Plaintext / Port 80) without TLS encryption.
                   </div>
                 )}
               </div>
 
               {/* Socket Engine Specs */}
               <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 12px' }}>
-                <div style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '4px' }}>
-                  ⚡ Socket &amp; Protocol Engine
+                <div style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '4px' }}>
+                  Socket &amp; Protocol Engine
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                   Engine: <strong style={{ color: 'var(--text-primary)' }}>HTTPX / AsyncIO</strong>
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                  Status Respon:{' '}
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  Response Status:{' '}
                   <strong style={{ color: statusCode >= 200 && statusCode < 400 ? 'var(--color-up)' : 'var(--color-down)' }}>
                     {statusCode} {statusCode === 200 ? 'OK' : ''}
                   </strong>
@@ -485,7 +485,7 @@ export const HttpLatencyProfiler: React.FC<HttpLatencyProfilerProps> = ({ monito
             {/* Automated Diagnostic Insight */}
             <div
               style={{
-                fontSize: '11px',
+                fontSize: '12px',
                 color: 'var(--text-secondary)',
                 lineHeight: 1.5,
                 background: 'rgba(59, 130, 246, 0.07)',
@@ -494,10 +494,10 @@ export const HttpLatencyProfiler: React.FC<HttpLatencyProfilerProps> = ({ monito
                 borderRadius: '0 4px 4px 0'
               }}
             >
-              <strong>💡 Diagnostik Otomatis:</strong>{' '}
+              <strong>Automated diagnostics:</strong>{' '}
               {totalTime < 1000
-                ? `Koneksi dan aplikasi merespon sangat cepat (${totalTime.toFixed(1)} ms). Latensi terbesar berada pada fase ${timing.bottleneck}.`
-                : `Total latensi ${totalTime.toFixed(1)} ms berada di atas ambang batas 1 detik. Penyumbang latensi tertinggi adalah ${timing.bottleneck}, pertimbangkan optimasi di sisi tersebut.`}
+                ? `Connection responded quickly (${totalTime.toFixed(1)} ms). Greatest latency share is in the ${timing.bottleneck} phase.`
+                : `Total latency of ${totalTime.toFixed(1)} ms exceeds the 1-second threshold. Primary contributor is ${timing.bottleneck}; consider optimizing this phase.`}
             </div>
           </div>
         )}

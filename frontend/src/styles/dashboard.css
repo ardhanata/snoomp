@@ -219,19 +219,6 @@
   }
 }
 
-/* Unified Card Structure (Anti-Slop V4: One card language across the app) */
-.double-bezel-outer {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: none;
-}
-
-.double-bezel-inner {
-  background: transparent;
-  border-radius: var(--radius-md);
-  padding: 16px;
-}
 
 code, pre, .font-mono, .uptime-value, .hw-spec-value, .metric-value, .latency-pill, .uptime-badge {
   font-variant-numeric: tabular-nums;
@@ -2455,12 +2442,20 @@ dialog::backdrop {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 99px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-primary);
   white-space: nowrap;
 }
 .exec-live-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+.exec-card-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: none;
+}
 
 .exec-kpi-grid {
   display: grid;
@@ -2491,7 +2486,7 @@ dialog::backdrop {
 }
 .exec-card-unit { font-size: 14px; color: var(--text-muted); font-weight: 500; }
 .exec-card-muted { color: var(--text-muted); font-size: 24px; }
-.exec-card-foot { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+.exec-card-foot { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
 .exec-card-foot.accent { color: var(--accent); font-weight: 600; }
 .exec-card-foot strong { color: var(--text-primary); }
 
@@ -2535,7 +2530,7 @@ dialog::backdrop {
   padding: 20px;
   text-align: center;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -2567,8 +2562,8 @@ dialog::backdrop {
 .exec-domain-name {
   display: flex;
   align-items: center;
-  gap: 11px;
-  font-size: 13px;
+  gap: 12px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-primary);
   min-width: 0;
@@ -2576,9 +2571,9 @@ dialog::backdrop {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.exec-domain-stats { display: flex; align-items: center; gap: 11px; flex-shrink: 0; }
+.exec-domain-stats { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .exec-domain-count { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.exec-domain-pct { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.exec-domain-pct { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .exec-domain-chevron {
   color: var(--text-muted);
   opacity: 0;

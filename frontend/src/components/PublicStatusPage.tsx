@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Shield, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Shield, CaretDown, CaretUp, CheckCircle, WarningCircle, ArrowsClockwise } from '@phosphor-icons/react';
 import { SnoompLogo } from './SnoompLogo';
 import IconButton from './IconButton';
 import { normalizeTags } from '../utils/tags';
@@ -120,7 +120,7 @@ const PublicStatusPage: React.FC<PublicStatusPageProps> = ({ slug }) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
               <span>Updated {lastUpdated}</span>
               <IconButton
-                icon={<RefreshCw size={13} className={isRefreshing ? 'spin' : ''} />}
+                icon={<ArrowsClockwise size={14} className={isRefreshing ? 'spin' : ''} />}
                 variant="accent"
                 size="sm"
                 onClick={() => fetchStatusPage(true)}
@@ -151,9 +151,9 @@ const PublicStatusPage: React.FC<PublicStatusPageProps> = ({ slug }) => {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               {allUp ? (
-                <CheckCircle2 size={28} style={{ color: 'var(--color-up)' }} />
+                <CheckCircle size={28} style={{ color: 'var(--color-up)' }} />
               ) : (
-                <AlertCircle size={28} style={{ color: 'var(--color-down)' }} />
+                <WarningCircle size={28} style={{ color: 'var(--color-down)' }} />
               )}
               <div>
                 <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, fontFamily: 'var(--font-header)', color: 'var(--text-primary)' }}>
@@ -217,7 +217,7 @@ const PublicStatusPage: React.FC<PublicStatusPageProps> = ({ slug }) => {
                         background: 'var(--bg-elevated)', border: '1px solid var(--border)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center'
                       }}>
-                        {isOpen ? <ChevronUp size={18} color="var(--text-secondary)" /> : <ChevronDown size={18} color="var(--text-secondary)" />}
+                        {isOpen ? <CaretUp size={18} color="var(--text-secondary)" /> : <CaretDown size={18} color="var(--text-secondary)" />}
                       </div>
                       <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700, fontFamily: 'var(--font-header)', color: 'var(--text-primary)' }}>
                         {category}

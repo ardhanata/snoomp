@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Layers, Tag, Clock, Power, RefreshCw } from 'lucide-react';
+import { X, Stack, Tag, Clock, Power, ArrowsClockwise } from '@phosphor-icons/react';
 import Dialog from './Dialog';
 import IconButton from './IconButton';
 
@@ -113,32 +113,30 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
         width: '100%',
       }}
     >
-      <div className="double-bezel-outer" style={{ width: '100%' }}>
-        <div className="double-bezel-inner" style={{ padding: '24px' }}>
-          
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
-              <div style={{ padding: '8px', borderRadius: '11px', background: 'var(--accent-dim)', color: 'var(--accent)' }}>
-                <Layers size={20} />
-              </div>
-              <div>
-                <h3 id="batch-modal-title" style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Batch Edit ({selectedCount} Monitors)
-                </h3>
-                <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                  Apply bulk modifications to {selectedCount} selected targets
-                </span>
-              </div>
+      <div style={{ width: '100%', padding: '24px', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ padding: '8px', borderRadius: 'var(--radius-md)', background: 'var(--accent-dim)', color: 'var(--accent)' }}>
+              <Stack size={20} />
             </div>
-            <IconButton 
-              icon={<X size={16} />}
-              variant="neutral"
-              size="sm"
-              onClick={onClose} 
-              title="Close batch edit modal"
-              aria-label="Close batch edit modal"
-            />
+            <div>
+              <h3 id="batch-modal-title" style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                Batch Edit ({selectedCount} Monitors)
+              </h3>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                Apply bulk modifications to {selectedCount} selected targets
+              </span>
+            </div>
           </div>
+          <IconButton 
+            icon={<X size={16} />}
+            variant="neutral"
+            size="sm"
+            onClick={onClose} 
+            title="Close batch edit modal"
+            aria-label="Close batch edit modal"
+          />
+        </div>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             
@@ -368,7 +366,7 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
               <button type="submit" disabled={isSubmitting} style={{ padding: '8px 18px', fontSize: '12px', fontWeight: 700, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '6px', cursor: isSubmitting ? 'not-allowed' : 'pointer', opacity: isSubmitting ? 0.7 : 1 }}>
                 {isSubmitting ? (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <RefreshCw size={14} className="spin" /> Applying…
+                    <ArrowsClockwise size={14} className="spin" /> Applying…
                   </span>
                 ) : (
                   'Apply Batch Updates'
@@ -379,7 +377,6 @@ export const BatchEditModal: React.FC<BatchEditModalProps> = ({
           </form>
 
         </div>
-      </div>
     </Dialog>
   );
 };

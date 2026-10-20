@@ -2,22 +2,22 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Database,
   HardDrive,
-  RefreshCw,
+  ArrowsClockwise,
   Plus,
-  Edit2,
-  Trash2,
-  AlertTriangle,
-  Search,
-  Server,
-  Layers,
+  PencilSimple,
+  Trash,
+  Warning,
+  MagnifyingGlass,
+  HardDrives,
+  Stack,
   Copy,
   Check,
-  ArrowUpDown,
+  ArrowsDownUp,
   Lock,
   Info,
   FileText,
-  Activity
-} from 'lucide-react';
+  Pulse
+} from '@phosphor-icons/react';
 import { HcpTenantModal, deriveTenantHost } from './HcpTenantModal';
 import { HcpReportModal } from './HcpReportModal';
 import { HcpDataStreamDashboard } from './HcpDataStreamDashboard';
@@ -257,7 +257,7 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             title="Refresh capacity and quota metrics immediately"
           >
-            <RefreshCw size={14} className={refreshing ? 'spin' : ''} aria-hidden="true" />
+            <ArrowsClockwise size={14} className={refreshing ? 'spin' : ''} aria-hidden="true" />
             <span>{refreshing ? 'Syncing...' : 'Sync Now'}</span>
           </button>
 
@@ -279,8 +279,8 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
 
       {/* ── Empty State: No Tenants Configured ── */}
       {(!tenants || tenants.length === 0) ? (
-        <div className="double-bezel-outer" style={{ padding: '40px 20px', textAlign: 'center' }}>
-          <div className="double-bezel-inner" style={{ maxWidth: '580px', margin: '0 auto', padding: '36px 24px' }}>
+        <div style={{ padding: '40px 20px', textAlign: 'center', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+          <div style={{ maxWidth: '580px', margin: '0 auto', padding: '16px' }}>
             <div
               style={{
                 width: '56px',
@@ -398,7 +398,7 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}
                   title="Export PDF Report"
                 >
-                  <FileText size={13} aria-hidden="true" />
+                  <FileText size={14} aria-hidden="true" />
                   <span>Export PDF</span>
                 </button>
                 <button
@@ -411,7 +411,7 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                   }}
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}
                 >
-                  <Edit2 size={13} aria-hidden="true" />
+                  <PencilSimple size={14} aria-hidden="true" />
                   <span>Edit Settings</span>
                 </button>
                 <button
@@ -420,7 +420,7 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                   onClick={handleDeleteTenant}
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px', color: 'var(--color-down)' }}
                 >
-                  <Trash2 size={13} aria-hidden="true" />
+                  <Trash size={14} aria-hidden="true" />
                   <span>Remove</span>
                 </button>
               </div>
@@ -460,7 +460,7 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                 fontWeight: dashboardMode === 'stream' ? 600 : 500
               }}
             >
-              <Activity size={15} />
+              <Pulse size={15} />
               <span>Data Streams &amp; Node Health</span>
             </button>
           </div>
@@ -477,25 +477,27 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
               {/* ── Error Banner (If tenant check failed) ── */}
               {activeTenant?.last_error && (
             <div
-              className="double-bezel-outer"
               style={{
                 marginBottom: '20px',
                 border: '1px solid var(--color-down)',
-                background: 'rgba(239, 68, 68, 0.08)'
+                background: 'rgba(239, 68, 68, 0.08)',
+                borderRadius: 'var(--radius-md)',
+                padding: '16px 20px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '12px'
               }}
             >
-              <div className="double-bezel-inner" style={{ padding: '16px 20px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                <AlertTriangle size={20} style={{ color: 'var(--color-down)', flexShrink: 0, marginTop: '2px' }} aria-hidden="true" />
-                <div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-down)', marginBottom: '4px' }}>
-                    HCP MAPI Connection Error
-                  </div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: '1.4' }}>
-                    {activeTenant.last_error}
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' }}>
-                    Target: https://{activeTenant.host}:{activeTenant.port}/mapi/tenants/{activeTenant.is_cluster ? '' : activeTenant.tenant_name} (Check firewall, MAPI port 9090, or credentials).
-                  </div>
+              <Warning size={20} style={{ color: 'var(--color-down)', flexShrink: 0, marginTop: '2px' }} aria-hidden="true" />
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-down)', marginBottom: '4px' }}>
+                  HCP MAPI Connection Error
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: '1.4' }}>
+                  {activeTenant.last_error}
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                  Target: https://{activeTenant.host}:{activeTenant.port}/mapi/tenants/{activeTenant.is_cluster ? '' : activeTenant.tenant_name} (Check firewall, MAPI port 9090, or credentials).
                 </div>
               </div>
             </div>
@@ -504,111 +506,104 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
           {/* ── KPI Summary Cards ── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '24px' }}>
             {/* Card 1: Storage Capacity */}
-            <div className="double-bezel-outer">
-              <div className="double-bezel-inner" style={{ padding: '18px 20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    {isCluster ? 'Cluster Storage Used' : 'Tenant Storage Used'}
-                  </span>
-                  <div style={{ color: 'var(--accent)', background: 'rgba(59, 130, 246, 0.1)', padding: '6px', borderRadius: '8px' }}>
-                    <HardDrive size={18} aria-hidden="true" />
-                  </div>
+            <div style={{ padding: '18px 20px', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {isCluster ? 'Cluster Storage Used' : 'Tenant Storage Used'}
+                </span>
+                <div style={{ color: 'var(--accent)', background: 'rgba(59, 130, 246, 0.1)', padding: '6px', borderRadius: '8px' }}>
+                  <HardDrive size={18} aria-hidden="true" />
                 </div>
-                <div style={{ fontSize: '22px', fontWeight: 700, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                  {tenantMetrics?.storage_used_formatted || '0 B'}
-                  <span style={{ fontSize: '14px', fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>
-                    / {tenantMetrics?.hard_quota_formatted || 'Unlimited'}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                  <span>{isCluster ? `${activeTenant?.metrics?.cluster?.total_tenants ?? subTenants.length} tenants discovered` : `Free: ${tenantMetrics?.storage_free_formatted || 'Unlimited'}`}</span>
-                  <span style={{ fontWeight: 600, color: (tenantMetrics?.used_percent || 0) >= 90 ? 'var(--color-down)' : (tenantMetrics?.used_percent || 0) >= (tenantMetrics?.soft_quota_pct || 85) ? 'var(--color-warning)' : 'var(--color-up)' }}>
-                    {tenantMetrics?.used_percent ?? 0}% Allocated
-                  </span>
-                </div>
-                {/* Progress bar */}
-                <div style={{ width: '100%', height: '8px', background: 'var(--border)', borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
-                  <div
-                    style={{
-                      width: `${Math.min(100, tenantMetrics?.used_percent || 0)}%`,
-                      height: '100%',
-                      background: (tenantMetrics?.used_percent || 0) >= 95 ? 'var(--color-down)' : (tenantMetrics?.used_percent || 0) >= (tenantMetrics?.soft_quota_pct || 85) ? 'var(--color-warning)' : 'var(--color-up)',
-                      borderRadius: '4px',
-                      transition: 'width 0.3s ease'
-                    }}
-                  />
-                </div>
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: 700, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                {tenantMetrics?.storage_used_formatted || '0 B'}
+                <span style={{ fontSize: '14px', fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>
+                  / {tenantMetrics?.hard_quota_formatted || 'Unlimited'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                <span>{isCluster ? `${activeTenant?.metrics?.cluster?.total_tenants ?? subTenants.length} tenants discovered` : `Free: ${tenantMetrics?.storage_free_formatted || 'Unlimited'}`}</span>
+                <span style={{ fontWeight: 600, color: (tenantMetrics?.used_percent || 0) >= 90 ? 'var(--color-down)' : (tenantMetrics?.used_percent || 0) >= (tenantMetrics?.soft_quota_pct || 85) ? 'var(--color-warning)' : 'var(--color-up)' }}>
+                  {tenantMetrics?.used_percent ?? 0}% Allocated
+                </span>
+              </div>
+              {/* Progress bar */}
+              <div style={{ width: '100%', height: '8px', background: 'var(--border)', borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
+                <div
+                  style={{
+                    width: `${Math.min(100, tenantMetrics?.used_percent || 0)}%`,
+                    height: '100%',
+                    background: (tenantMetrics?.used_percent || 0) >= 95 ? 'var(--color-down)' : (tenantMetrics?.used_percent || 0) >= (tenantMetrics?.soft_quota_pct || 85) ? 'var(--color-warning)' : 'var(--color-up)',
+                    borderRadius: '4px',
+                    transition: 'width 0.3s ease'
+                  }}
+                />
               </div>
             </div>
 
             {/* Card 2: Quota & Alerting Threshold */}
-            <div className="double-bezel-outer">
-              <div className="double-bezel-inner" style={{ padding: '18px 20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    {isCluster ? 'Cluster Tenant Count' : 'Quota Thresholds'}
+            <div style={{ padding: '18px 20px', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {isCluster ? 'Cluster Tenant Count' : 'Quota Thresholds'}
+                </span>
+                <div style={{ color: 'var(--accent)', background: 'rgba(59, 130, 246, 0.1)', padding: '6px', borderRadius: '8px' }}>
+                  <Warning size={18} aria-hidden="true" />
+                </div>
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: 700, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                {isCluster ? `${activeTenant?.metrics?.cluster?.total_tenants ?? subTenants.length}` : `${tenantMetrics?.soft_quota_pct ?? 85}%`}
+                <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-muted)', marginLeft: '6px' }}>
+                  {isCluster ? 'Tenants Active' : 'Soft Quota Ceiling'}
+                </span>
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
+                {activeTenant?.metrics?.namespaces_summary?.warning_count > 0 ? (
+                  <span style={{ color: 'var(--color-warning)', fontWeight: 600 }}>
+                    ⚠ {activeTenant.metrics.namespaces_summary.warning_count} namespace(s) exceeding soft quota threshold
                   </span>
-                  <div style={{ color: 'var(--accent)', background: 'rgba(59, 130, 246, 0.1)', padding: '6px', borderRadius: '8px' }}>
-                    <AlertTriangle size={18} aria-hidden="true" />
-                  </div>
-                </div>
-                <div style={{ fontSize: '22px', fontWeight: 700, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                  {isCluster ? `${activeTenant?.metrics?.cluster?.total_tenants ?? subTenants.length}` : `${tenantMetrics?.soft_quota_pct ?? 85}%`}
-                  <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-muted)', marginLeft: '6px' }}>
-                    {isCluster ? 'Tenants Active' : 'Soft Quota Ceiling'}
+                ) : (
+                  <span style={{ color: 'var(--color-up)', fontWeight: 500 }}>
+                    ✓ All {isCluster ? 'tenants and namespaces' : 'namespaces'} operating below soft quota threshold
                   </span>
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
-                  {activeTenant?.metrics?.namespaces_summary?.warning_count > 0 ? (
-                    <span style={{ color: 'var(--color-warning)', fontWeight: 600 }}>
-                      ⚠ {activeTenant.metrics.namespaces_summary.warning_count} namespace(s) exceeding soft quota threshold
-                    </span>
-                  ) : (
-                    <span style={{ color: 'var(--color-up)', fontWeight: 500 }}>
-                      ✓ All {isCluster ? 'tenants and namespaces' : 'namespaces'} operating below soft quota threshold
-                    </span>
-                  )}
-                </div>
+                )}
               </div>
             </div>
 
             {/* Card 3: Ingestion & Object Count */}
-            <div className="double-bezel-outer">
-              <div className="double-bezel-inner" style={{ padding: '18px 20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Objects &amp; Ingestion
-                  </span>
-                  <div style={{ color: 'var(--accent)', background: 'rgba(59, 130, 246, 0.1)', padding: '6px', borderRadius: '8px' }}>
-                    <Layers size={18} aria-hidden="true" />
-                  </div>
+            <div style={{ padding: '18px 20px', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Objects &amp; Ingestion
+                </span>
+                <div style={{ color: 'var(--accent)', background: 'rgba(59, 130, 246, 0.1)', padding: '6px', borderRadius: '8px' }}>
+                  <Stack size={18} aria-hidden="true" />
                 </div>
-                <div style={{ fontSize: '22px', fontWeight: 700, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                  {(tenantMetrics?.object_count || 0).toLocaleString()}
-                  <span style={{ fontSize: '13px', fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>
-                    objects
-                  </span>
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                  Ingested Volume: <strong style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{tenantMetrics?.ingested_volume_formatted || '0 B'}</strong>
-                </div>
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: 700, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                {(tenantMetrics?.object_count || 0).toLocaleString()}
+                <span style={{ fontSize: '13px', fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>
+                  objects
+                </span>
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                Ingested Volume: <strong style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{tenantMetrics?.ingested_volume_formatted || '0 B'}</strong>
               </div>
             </div>
 
             {/* Card 4: Connectivity & MAPI Endpoint */}
-            <div className="double-bezel-outer">
-              <div className="double-bezel-inner" style={{ padding: '18px 20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Endpoint &amp; Site
-                  </span>
-                  <div style={{ color: 'var(--accent)', background: 'rgba(59, 130, 246, 0.1)', padding: '6px', borderRadius: '8px' }}>
-                    <Server size={18} aria-hidden="true" />
-                  </div>
+            <div style={{ padding: '18px 20px', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Endpoint &amp; Site
+                </span>
+                <div style={{ color: 'var(--accent)', background: 'rgba(59, 130, 246, 0.1)', padding: '6px', borderRadius: '8px' }}>
+                  <HardDrives size={18} aria-hidden="true" />
                 </div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px', wordBreak: 'break-all' }}>
-                  {activeTenant?.host}:{activeTenant?.port}
-                </div>
+              </div>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px', wordBreak: 'break-all' }}>
+                {activeTenant?.host}:{activeTenant?.port}
+              </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
                   <span>
                     {isCluster ? (
@@ -630,7 +625,6 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                 </div>
               </div>
             </div>
-          </div>
 
           {/* ── Cluster View Tabs (When in Cluster-Wide Mode) ── */}
           {isCluster && (
@@ -666,7 +660,7 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                   fontWeight: 600
                 }}
               >
-                <Layers size={15} aria-hidden="true" />
+                <Stack size={15} aria-hidden="true" />
                 <span>Discovered Namespaces ({rawNamespaces.length})</span>
               </button>
             </div>
@@ -674,9 +668,8 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
 
           {/* ── Selected Sub-Tenant Focus Card (When filtering a specific tenant) ── */}
           {selectedSubTenantData && (
-            <div className="double-bezel-outer" style={{ marginBottom: '20px' }}>
-              <div className="double-bezel-inner" style={{ padding: '20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+            <div style={{ marginBottom: '20px', padding: '20px', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -802,13 +795,11 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                   </div>
                 )}
               </div>
-            </div>
           )}
 
           {/* ── Main Inventory Table: Tenants View OR Namespaces View ── */}
-          <div className="double-bezel-outer" style={{ padding: '4px' }}>
-            <div className="double-bezel-inner" style={{ padding: '20px' }}>
-              {isCluster && clusterTab === 'tenants' ? (
+          <div style={{ padding: '20px', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+            {isCluster && clusterTab === 'tenants' ? (
                 <>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
                     <div>
@@ -823,7 +814,7 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                       {/* Search box */}
                       <div style={{ position: 'relative' }}>
-                        <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} aria-hidden="true" />
+                        <MagnifyingGlass size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} aria-hidden="true" />
                         <input
                           type="text"
                           placeholder="Filter tenant..."
@@ -883,19 +874,19 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                             <th style={{ padding: '10px 12px', cursor: 'pointer' }} onClick={() => toggleSort('name')}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <span>Tenant Name</span>
-                                <ArrowUpDown size={12} aria-hidden="true" />
+                                <ArrowsDownUp size={12} aria-hidden="true" />
                               </div>
                             </th>
                             <th style={{ padding: '10px 12px', cursor: 'pointer', minWidth: '180px' }} onClick={() => toggleSort('quota')}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <span>Storage &amp; Quota</span>
-                                <ArrowUpDown size={12} aria-hidden="true" />
+                                <ArrowsDownUp size={12} aria-hidden="true" />
                               </div>
                             </th>
                             <th style={{ padding: '10px 12px', cursor: 'pointer' }} onClick={() => toggleSort('objects')}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <span>Objects</span>
-                                <ArrowUpDown size={12} aria-hidden="true" />
+                                <ArrowsDownUp size={12} aria-hidden="true" />
                               </div>
                             </th>
                             <th style={{ padding: '10px 12px' }}>Namespace Access</th>
@@ -979,7 +970,7 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                                         gap: '4px'
                                       }}
                                     >
-                                      <Lock size={11} aria-hidden="true" />
+                                      <Lock size={12} aria-hidden="true" />
                                       Restricted
                                     </span>
                                   )}
@@ -995,7 +986,7 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                                           setClusterTab('namespaces');
                                         }
                                       }}
-                                      style={{ padding: '4px 10px', fontSize: '11px' }}
+                                      style={{ padding: '4px 10px', fontSize: '12px' }}
                                     >
                                       Inspect
                                     </button>
@@ -1007,9 +998,9 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                                         setReportModalOpen(true);
                                       }}
                                       title={`Export PDF audit report for ${t.name}`}
-                                      style={{ padding: '4px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                      style={{ padding: '4px 8px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                                     >
-                                      <FileText size={11} aria-hidden="true" />
+                                      <FileText size={12} aria-hidden="true" />
                                       <span>Report</span>
                                     </button>
                                     <button
@@ -1082,7 +1073,7 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
 
                       {/* Search box */}
                       <div style={{ position: 'relative' }}>
-                        <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} aria-hidden="true" />
+                        <MagnifyingGlass size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} aria-hidden="true" />
                         <input
                           type="text"
                           placeholder="Filter namespace..."
@@ -1151,23 +1142,23 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                         <thead>
-                          <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '11px', letterSpacing: '0.05em' }}>
+                          <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '12px', letterSpacing: '0.05em' }}>
                             <th style={{ padding: '10px 12px', cursor: 'pointer' }} onClick={() => toggleSort('name')}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <span>Namespace</span>
-                                <ArrowUpDown size={12} aria-hidden="true" />
+                                <ArrowsDownUp size={12} aria-hidden="true" />
                               </div>
                             </th>
                             <th style={{ padding: '10px 12px', cursor: 'pointer', minWidth: '180px' }} onClick={() => toggleSort('quota')}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <span>Storage &amp; Quota</span>
-                                <ArrowUpDown size={12} aria-hidden="true" />
+                                <ArrowsDownUp size={12} aria-hidden="true" />
                               </div>
                             </th>
                             <th style={{ padding: '10px 12px', cursor: 'pointer' }} onClick={() => toggleSort('objects')}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <span>Objects</span>
-                                <ArrowUpDown size={12} aria-hidden="true" />
+                                <ArrowsDownUp size={12} aria-hidden="true" />
                               </div>
                             </th>
                             <th style={{ padding: '10px 12px' }}>Service Plan</th>
@@ -1256,7 +1247,6 @@ export const HcpStorageDashboard: React.FC<HcpStorageDashboardProps> = ({
                 </>
               )}
             </div>
-          </div>
             </>
           )}
         </>

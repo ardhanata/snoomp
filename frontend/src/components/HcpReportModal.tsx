@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, X, Download, Server, Database, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { FileText, X, DownloadSimple, HardDrives, Database, CircleNotch, WarningCircle, CheckCircle } from '@phosphor-icons/react';
 import Dialog from './Dialog';
 import { downloadPdf } from '../lib/downloadPdf';
 
@@ -160,7 +160,7 @@ export const HcpReportModal: React.FC<HcpReportModalProps> = ({
                   textAlign: 'left'
                 }}
               >
-                <Server size={18} style={{ color: reportType === 'cluster' ? 'var(--accent)' : 'var(--text-muted)', marginTop: '2px', flexShrink: 0 }} aria-hidden="true" />
+                <HardDrives size={18} style={{ color: reportType === 'cluster' ? 'var(--accent)' : 'var(--text-muted)', marginTop: '2px', flexShrink: 0 }} aria-hidden="true" />
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 600, color: reportType === 'cluster' ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
                     Cluster Fleet Report
@@ -292,14 +292,14 @@ export const HcpReportModal: React.FC<HcpReportModalProps> = ({
         {/* Status Feedback */}
         {errorMsg && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '6px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--color-down)', color: 'var(--color-down)', fontSize: '12px' }}>
-            <AlertCircle size={15} style={{ flexShrink: 0 }} aria-hidden="true" />
+            <WarningCircle size={15} style={{ flexShrink: 0 }} aria-hidden="true" />
             <span>{errorMsg}</span>
           </div>
         )}
 
         {successMsg && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--color-up)', color: 'var(--color-up)', fontSize: '12px' }}>
-            <CheckCircle2 size={15} style={{ flexShrink: 0 }} aria-hidden="true" />
+            <CheckCircle size={15} style={{ flexShrink: 0 }} aria-hidden="true" />
             <span>{successMsg}</span>
           </div>
         )}
@@ -331,12 +331,12 @@ export const HcpReportModal: React.FC<HcpReportModalProps> = ({
         >
           {downloading ? (
             <>
-              <Loader2 size={14} className="spin" aria-hidden="true" />
+              <CircleNotch size={14} className="spin" aria-hidden="true" />
               <span>Building PDF...</span>
             </>
           ) : (
             <>
-              <Download size={14} aria-hidden="true" />
+              <DownloadSimple size={14} aria-hidden="true" />
               <span>Download A4 PDF</span>
             </>
           )}

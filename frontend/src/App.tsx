@@ -1,13 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback, startTransition, useMemo } from 'react';
-import {
-  Power, Trash2, Edit3, Plus,
-  Search, Cpu, HardDrive,
-  Globe, Copy, ExternalLink, X,
-  Pencil, Check, ChevronDown, FileText,
-  Database, RefreshCw, Server, Activity, Sun, Moon, Sliders,
-  Printer, Menu,
-  Download, ArrowUpCircle, Eye, EyeOff
-} from 'lucide-react';
 
 import './styles/dashboard.css';
 import './styles/toast.css';
@@ -22,15 +13,35 @@ import { TagChip } from './components/TagChip';
 import { Icon } from './components/Icon';
 import {
   ArrowsClockwise,
-  Pause as PhPause,
-  Play as PhPlay,
+  Pause,
+  Play,
   DotsThreeVertical,
-  Check as PhCheck,
-  Copy as PhCopy,
-  FileText as PhFileText,
-  Pulse as PhPulse,
-  PencilSimple as PhPencilSimple,
-  Trash as PhTrash,
+  Check,
+  Copy,
+  FileText,
+  Pulse,
+  PencilSimple,
+  Trash,
+  Eye,
+  EyeSlash,
+  Sun,
+  Moon,
+  List,
+  Sliders,
+  ArrowCircleUp,
+  Plus,
+  MagnifyingGlass,
+  CaretDown,
+  Power,
+  Printer,
+  Globe,
+  ArrowSquareOut,
+  Database,
+  HardDrives,
+  HardDrive,
+  DownloadSimple,
+  Cpu,
+  X
 } from '@phosphor-icons/react';
 import { InstanceSettings, readCache, fetchSettings, applyAppearance } from './lib/settings';
 import { downloadPdf } from './lib/downloadPdf';
@@ -1710,7 +1721,7 @@ function App() {
                         onClick={() => setShowPassword(p => !p)}
                         tabIndex={-1}
                       >
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        {showPassword ? <EyeSlash size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
                     {capsLockOn && <div className="signin-caps-warn">Caps Lock is on</div>}
@@ -1879,7 +1890,7 @@ function App() {
                             onClick={() => setShowNewPassword(p => !p)}
                             tabIndex={-1}
                           >
-                            {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                            {showNewPassword ? <EyeSlash size={16} /> : <Eye size={16} />}
                           </button>
                         </div>
                       </div>
@@ -1906,7 +1917,7 @@ function App() {
                             onClick={() => setShowConfirmPassword(p => !p)}
                             tabIndex={-1}
                           >
-                            {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                            {showConfirmPassword ? <EyeSlash size={16} /> : <Eye size={16} />}
                           </button>
                         </div>
                       </div>
@@ -1989,7 +2000,7 @@ function App() {
             aria-controls="sidebar-nav"
             onClick={() => setSidebarOpen(o => !o)}
           >
-            {sidebarOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
+            {sidebarOpen ? <X size={18} aria-hidden="true" /> : <List size={18} aria-hidden="true" />}
           </button>
         )}
 
@@ -2105,7 +2116,7 @@ function App() {
                   onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
-                  <ArrowUpCircle size={14} style={{ color: hasUpdate ? 'var(--accent)' : 'inherit' }} />
+                  <ArrowCircleUp size={14} style={{ color: hasUpdate ? 'var(--accent)' : 'inherit' }} />
                   <span>Check for Updates</span>
                   {hasUpdate && (
                     <span style={{ marginLeft: 'auto', background: 'var(--accent)', color: 'var(--panel)', fontSize: '12px', fontWeight: 700, padding: '1px 6px', borderRadius: '8px' }}>
@@ -2178,7 +2189,7 @@ function App() {
               {/* Search */}
               <div style={{ padding: '0 var(--sidebar-gutter)', marginBottom: '8px' }}>
                 <div style={{ position: 'relative', width: '100%' }}>
-                  <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', pointerEvents: 'none' }} />
+                  <MagnifyingGlass size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', pointerEvents: 'none' }} />
                   <input
                     type="search"
                     aria-label="Search monitors"
@@ -2249,7 +2260,7 @@ function App() {
                       padding: '4px 0'
                     }}
                   >
-                    <ChevronDown
+                    <CaretDown
                       size={12}
                       style={{
                         transform: filtersOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
@@ -2409,7 +2420,7 @@ function App() {
                         onClick={() => setIsBatchEditModalOpen(true)}
                         style={{ fontSize: '12px', padding: '6px 8px', background: 'var(--accent-dim)', color: 'var(--accent)', border: '1px solid var(--accent-glow)', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
                       >
-                        <Edit3 size={12} /> Batch Edit
+                        <PencilSimple size={12} /> Batch Edit
                       </button>
                       <button
                         type="button"
@@ -2423,7 +2434,7 @@ function App() {
                         onClick={handleBatchDelete}
                         style={{ fontSize: '12px', padding: '6px 8px', background: 'var(--color-down-glow)', color: 'var(--color-down)', border: '1px solid var(--border)', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', gridColumn: 'span 2', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
                       >
-                        <Trash2 size={12} /> Delete Selected ({selectedMonitorIds.length})
+                        <Trash size={12} /> Delete Selected ({selectedMonitorIds.length})
                       </button>
                     </div>
                   )}
@@ -2524,7 +2535,7 @@ function App() {
                           aria-label={`Toggle ${groupName} group`}
                         >
                           <div className={`group-header-title ${isCollapsed ? 'collapsed' : ''}`}>
-                            <ChevronDown size={11} />
+                            <CaretDown size={11} />
                             <span>{groupName}</span>
                           </div>
                           <span className="group-count-badge">
@@ -2678,7 +2689,7 @@ function App() {
                             aria-label="Copy public URL"
                           />
                           <IconButton
-                            icon={<ExternalLink size={13} />}
+                            icon={<ArrowSquareOut size={13} />}
                             variant="cyan"
                             size="sm"
                             onClick={() => window.open(`/status/${page.slug}`, '_blank')}
@@ -2696,7 +2707,7 @@ function App() {
                             {role !== 'viewer' && (
                               <>
                                 <IconButton
-                                  icon={<Pencil size={13} />}
+                                  icon={<PencilSimple size={13} />}
                                   variant="accent"
                                   size="sm"
                                   onClick={() => openSpModal(page)}
@@ -2704,7 +2715,7 @@ function App() {
                                   aria-label="Edit Status Page"
                                 />
                                 <IconButton
-                                  icon={<Trash2 size={13} />}
+                                  icon={<Trash size={13} />}
                                   variant="danger"
                                   size="sm"
                                   onClick={() => handleDeleteStatusPage(page.id)}
@@ -2843,7 +2854,7 @@ function App() {
                           onClick={() => handleToggleMonitor(sm)}
                           title={sm.enabled ? 'Pause monitor' : 'Resume monitor'}
                         >
-                          <Icon icon={sm.enabled ? PhPause : PhPlay} size={14} />
+                          <Icon icon={sm.enabled ? Pause : Play} size={14} />
                           <span>{sm.enabled ? 'Pause' : 'Resume'}</span>
                         </button>
                       </>
@@ -2880,7 +2891,7 @@ function App() {
                               setTimeout(() => setShareState('idle'), 2500);
                             }}
                           >
-                            <Icon icon={shareState === 'copied' ? PhCheck : PhCopy} size={14} />
+                            <Icon icon={shareState === 'copied' ? Check : Copy} size={14} />
                             <span>{shareState === 'copied' ? 'Link copied' : 'Copy link'}</span>
                           </button>
 
@@ -2893,7 +2904,7 @@ function App() {
                               handleGenerateReport(sm, 168);
                             }}
                           >
-                            <Icon icon={PhFileText} size={14} />
+                            <Icon icon={FileText} size={14} />
                             <span>Availability report (7 days)</span>
                           </button>
 
@@ -2906,7 +2917,7 @@ function App() {
                               handleGenerateUtilizationReport(sm, 168);
                             }}
                           >
-                            <Icon icon={PhPulse} size={14} />
+                            <Icon icon={Pulse} size={14} />
                             <span>Utilization report (7 days)</span>
                           </button>
 
@@ -2922,7 +2933,7 @@ function App() {
                                   setIsModalOpen(true);
                                 }}
                               >
-                                <Icon icon={PhPencilSimple} size={14} />
+                                <Icon icon={PencilSimple} size={14} />
                                 <span>Edit monitor</span>
                               </button>
 
@@ -2938,7 +2949,7 @@ function App() {
                                   handleDeleteMonitor(sm.id);
                                 }}
                               >
-                                <Icon icon={PhTrash} size={14} />
+                                <Icon icon={Trash} size={14} />
                                 <span>Delete monitor</span>
                               </button>
                             </>
@@ -3208,7 +3219,7 @@ function App() {
                       <details style={{ marginTop: '16px', background: 'var(--panel)', border: '1px solid var(--warn)', borderRadius: '12px', padding: '14px 18px' }}>
                         <summary style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}>
                           <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--warn)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                            <Activity size={14} aria-hidden="true" />
+                            <Pulse size={14} aria-hidden="true" />
                             Latency Phase Diagnostics (Slow Check)
                           </span>
                           <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--warn)', fontFamily: 'var(--font-mono)' }}>
@@ -3307,7 +3318,7 @@ function App() {
                           onClick={() => fetchDbEngineStatus(sm.id)}
                           disabled={dbEngineLoading}
                         >
-                          <RefreshCw size={12} style={{ animation: dbEngineLoading ? 'spin 1s linear infinite' : 'none' }} />
+                          <ArrowsClockwise size={12} style={{ animation: dbEngineLoading ? 'spin 1s linear infinite' : 'none' }} />
                           {dbEngineLoading ? 'Querying…' : 'Refresh'}
                         </button>
                       </div>
@@ -3351,7 +3362,7 @@ function App() {
 
                           {/* Version banner */}
                           <div style={{ background: 'var(--surface-raised)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 14px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
-                            <Server size={13} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                            <HardDrives size={13} style={{ color: 'var(--accent)', flexShrink: 0 }} />
                             <span style={{ color: 'var(--text-muted)' }}>Engine:</span>
                             <span style={{ color: 'var(--text-primary)', fontWeight: '500', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
                               {dbEngineStatus.info?.version || 'Unknown'}
@@ -3392,7 +3403,7 @@ function App() {
                             <div role="tabpanel" id="tabpanel-slow_queries" aria-labelledby="tab-slow_queries" style={{ maxHeight: '280px', overflow: 'auto', borderRadius: '8px', border: '1px solid var(--border)' }}>
                               {dbEngineStatus.slow_queries?.length === 0 ? (
                                 <div style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
-                                  <Activity size={20} style={{ opacity: 0.3, marginBottom: '8px' }} />
+                                  <Pulse size={20} style={{ opacity: 0.3, marginBottom: '8px' }} />
                                   <div>No slow queries or idle connection leaks found</div>
                                   <div style={{ fontSize: '11px', marginTop: '4px', opacity: 0.6 }}>All active queries completing within normal response time</div>
                                 </div>
@@ -4170,7 +4181,7 @@ curl -X POST -H "Content-Type: application/json" \\
                 if (!utilizationData) handleGenerateUtilizationReport(reportTarget, reportRange);
               }}
             >
-              <Activity size={14} style={{ marginRight: '6px' }} />
+              <Pulse size={14} style={{ marginRight: '6px' }} />
               Metric Utilization
             </button>
           </div>
@@ -4248,7 +4259,7 @@ curl -X POST -H "Content-Type: application/json" \\
                       'monitor',
                     )}
                   >
-                    <Download size={14} aria-hidden="true" />
+                    <DownloadSimple size={14} aria-hidden="true" />
                     {downloadingPdf === 'monitor' ? 'Building PDF…' : 'Download Availability PDF'}
                   </button>
                 </div>
@@ -4372,7 +4383,7 @@ curl -X POST -H "Content-Type: application/json" \\
                       'utilization',
                     )}
                   >
-                    <Download size={14} aria-hidden="true" />
+                    <DownloadSimple size={14} aria-hidden="true" />
                     {downloadingPdf === 'utilization' ? 'Building PDF…' : 'Download Utilization PDF'}
                   </button>
                 </div>

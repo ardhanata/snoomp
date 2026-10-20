@@ -1,20 +1,20 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  Activity,
+  Pulse,
   Cpu,
-  Server,
-  Layers,
-  RefreshCw,
-  AlertTriangle,
-  Search,
-  ArrowUpDown,
-  Zap,
+  HardDrives,
+  Stack,
+  ArrowsClockwise,
+  Warning,
+  MagnifyingGlass,
+  ArrowsDownUp,
+  Lightning,
   Clock,
-  ShieldAlert,
-  DownloadCloud,
-  CheckCircle2,
-  BarChart3
-} from 'lucide-react';
+  ShieldWarning,
+  CloudArrowDown,
+  CheckCircle,
+  ChartBar
+} from '@phosphor-icons/react';
 
 interface HcpDataStreamDashboardProps {
   token: string | null;
@@ -277,7 +277,7 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
               color: 'var(--accent)'
             }}
           >
-            <Activity size={20} aria-hidden="true" />
+            <Pulse size={20} aria-hidden="true" />
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -335,7 +335,7 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
             style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}
             title="Refresh stream metrics"
           >
-            <RefreshCw size={13} className={refreshing ? 'spin' : ''} aria-hidden="true" />
+            <ArrowsClockwise size={13} className={refreshing ? 'spin' : ''} aria-hidden="true" />
             <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
           </button>
         </div>
@@ -356,7 +356,7 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
             gap: '8px'
           }}
         >
-          <Activity size={14} className="spin" color="var(--accent)" />
+          <Pulse size={14} className="spin" color="var(--accent)" />
           <span>{statusMessage}</span>
         </div>
       )}
@@ -369,7 +369,7 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
           className={`filter-chip ${activeTab === 'overview' ? 'active' : ''}`}
           style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: activeTab === 'overview' ? 600 : 500 }}
         >
-          <BarChart3 size={15} />
+          <ChartBar size={15} />
           <span>1. Platform Overview</span>
         </button>
         <button
@@ -378,7 +378,7 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
           className={`filter-chip ${activeTab === 'streams' ? 'active' : ''}`}
           style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: activeTab === 'streams' ? 600 : 500 }}
         >
-          <Layers size={15} />
+          <Stack size={15} />
           <span>2. Tenant &amp; Namespace Streams ({tenantStreams.length})</span>
         </button>
         <button
@@ -387,7 +387,7 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
           className={`filter-chip ${activeTab === 'nodes' ? 'active' : ''}`}
           style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: activeTab === 'nodes' ? 600 : 500 }}
         >
-          <Server size={15} />
+          <HardDrives size={15} />
           <span>3. Node Health (Nodes 101-104)</span>
         </button>
         <button
@@ -396,7 +396,7 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
           className={`filter-chip ${activeTab === 'investigation' ? 'active' : ''}`}
           style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: activeTab === 'investigation' ? 600 : 500 }}
         >
-          <Zap size={15} />
+          <Lightning size={15} />
           <span>4. Probes &amp; Investigation</span>
         </button>
       </div>
@@ -409,9 +409,9 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
           {/* Top KPI Metric Cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '14px' }}>
             {/* KPI 1: Requests Rate */}
-            <div className="double-bezel-outer" style={{ padding: '16px' }}>
+            <div style={{ padding: '16px', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Activity size={14} color="var(--accent)" />
+                <Pulse size={14} color="var(--accent)" />
                 <span>Request Rate</span>
               </div>
               <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
@@ -427,9 +427,9 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
             </div>
 
             {/* KPI 2: Status Mix Breakdown */}
-            <div className="double-bezel-outer" style={{ padding: '16px' }}>
+            <div style={{ padding: '16px', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Zap size={14} color="var(--color-up)" />
+                <Lightning size={14} color="var(--color-up)" />
                 <span>Status Mix (2xx / 4xx / 5xx)</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', fontVariantNumeric: 'tabular-nums' }}>
@@ -454,7 +454,7 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
             </div>
 
             {/* KPI 3: Latency & Bandwidth */}
-            <div className="double-bezel-outer" style={{ padding: '16px' }}>
+            <div style={{ padding: '16px', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Clock size={14} color="var(--color-warning)" />
                 <span>p95 Latency &amp; Bandwidth</span>
@@ -472,9 +472,9 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
             </div>
 
             {/* KPI 4: Synthetic Probes Pass Rate */}
-            <div className="double-bezel-outer" style={{ padding: '16px' }}>
+            <div style={{ padding: '16px', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <ShieldAlert size={14} color="var(--accent)" />
+                <ShieldWarning size={14} color="var(--accent)" />
                 <span>Synthetic Reachability</span>
               </div>
               <div style={{ fontSize: '24px', fontWeight: 700, color: (overviewData?.probe?.pass_rate_percent ?? overviewData?.probe_pass_rate_percent ?? 100) >= 95 ? 'var(--color-up)' : 'var(--color-warning)', fontVariantNumeric: 'tabular-nums' }}>
@@ -505,9 +505,9 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {flaggedTenants.length > 0 ? (
-                  <AlertTriangle size={18} color="var(--color-down)" />
+                  <Warning size={18} color="var(--color-down)" />
                 ) : (
-                  <CheckCircle2 size={18} color="var(--color-up)" />
+                  <CheckCircle size={18} color="var(--color-up)" />
                 )}
                 <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
                   {flaggedTenants.length > 0
@@ -615,7 +615,7 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
                 disabled={runningProbes}
                 style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
               >
-                <Zap size={14} className={runningProbes ? 'spin' : ''} />
+                <Lightning size={14} className={runningProbes ? 'spin' : ''} />
                 <span>{runningProbes ? 'Checking...' : 'Check Reachability (HEAD)'}</span>
               </button>
             </div>
@@ -640,7 +640,7 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
           >
             {/* Search Input */}
             <div style={{ position: 'relative', width: '280px' }}>
-              <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
+              <MagnifyingGlass size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
               <input
                 type="text"
                 placeholder="Search tenant or namespace..."
@@ -714,14 +714,14 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
                   style={{ padding: '6px 8px' }}
                   title="Toggle Ascending/Descending"
                 >
-                  <ArrowUpDown size={14} />
+                  <ArrowsDownUp size={14} />
                 </button>
               </div>
             </div>
           </div>
 
           {/* Streams Table */}
-          <div className="double-bezel-outer" style={{ overflowX: 'auto' }}>
+          <div style={{ overflowX: 'auto', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
@@ -821,12 +821,12 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
                     <td colSpan={6} style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
                       {loading ? (
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                          <Activity size={16} className="spin" />
+                          <Pulse size={16} className="spin" />
                           <span>Loading namespace data streams...</span>
                         </div>
                       ) : (
                         <div>
-                          <Layers size={24} style={{ opacity: 0.4, marginBottom: '8px' }} />
+                          <Stack size={24} style={{ opacity: 0.4, marginBottom: '8px' }} />
                           <div>No access log stream aggregates available for the selected period.</div>
                           <div style={{ fontSize: '11px', marginTop: '4px' }}>
                             Prepare an access log package via tab 4 or wait for scheduled log ingestion.
@@ -877,7 +877,7 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
               disabled={pollingNodes}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
             >
-              <RefreshCw size={14} className={pollingNodes ? 'spin' : ''} />
+              <ArrowsClockwise size={14} className={pollingNodes ? 'spin' : ''} />
               <span>{pollingNodes ? 'Polling MAPI...' : 'Poll Nodes (Read-Only)'}</span>
             </button>
           </div>
@@ -892,16 +892,17 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
               return (
                 <div
                   key={idx}
-                  className="double-bezel-outer"
                   style={{
                     padding: '18px',
-                    border: (isHighCpu || isHighIo) ? '1px solid rgba(239, 68, 68, 0.4)' : undefined
+                    background: 'var(--panel)',
+                    borderRadius: 'var(--radius-md)',
+                    border: (isHighCpu || isHighIo) ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid var(--border)'
                   }}
                 >
                   {/* Card Header */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Server size={18} color="var(--accent)" />
+                      <HardDrives size={18} color="var(--accent)" />
                       <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
                         Node {node.node_number}
                       </span>
@@ -985,7 +986,7 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
 
           {(!nodesData?.nodes || nodesData.nodes.length === 0) && (
             <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-              <Server size={32} style={{ opacity: 0.4, marginBottom: '8px' }} />
+              <HardDrives size={32} style={{ opacity: 0.4, marginBottom: '8px' }} />
               <div>No live node statistics recorded yet.</div>
               <button
                 type="button"
@@ -1020,7 +1021,7 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
               <div>
                 <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <ShieldAlert size={18} color="var(--accent)" />
+                  <ShieldWarning size={18} color="var(--accent)" />
                   <span>Read-Only Synthetic Probes (HTTP HEAD Only)</span>
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -1035,7 +1036,7 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
                 disabled={runningProbes}
                 style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
               >
-                <Zap size={14} className={runningProbes ? 'spin' : ''} />
+                <Lightning size={14} className={runningProbes ? 'spin' : ''} />
                 <span>{runningProbes ? 'Checking...' : 'Check Reachability (HEAD)'}</span>
               </button>
             </div>
@@ -1126,7 +1127,7 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
           >
             <div>
               <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <DownloadCloud size={16} color="var(--accent)" />
+                <CloudArrowDown size={16} color="var(--accent)" />
                 <span>Asynchronous Access Log Ingest Pipeline</span>
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -1141,7 +1142,7 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
               disabled={preparingLogs}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
             >
-              <DownloadCloud size={14} className={preparingLogs ? 'spin' : ''} />
+              <CloudArrowDown size={14} className={preparingLogs ? 'spin' : ''} />
               <span>{preparingLogs ? 'Processing...' : 'Prepare Access Logs'}</span>
             </button>
           </div>
@@ -1149,9 +1150,9 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
           {/* Investigation Grid: Top Clients & 4xx Errors */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
             {/* Top Clients by Volume & Errors */}
-            <div className="double-bezel-outer" style={{ padding: '16px' }}>
+            <div style={{ padding: '16px', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
               <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Activity size={16} color="var(--accent)" />
+                <Pulse size={16} color="var(--accent)" />
                 <span>Top Clients by Requests &amp; Errors</span>
               </div>
 
@@ -1196,9 +1197,9 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
             </div>
 
             {/* 4xx & 413 Error Breakdown by Path (FR-7) */}
-            <div className="double-bezel-outer" style={{ padding: '16px' }}>
+            <div style={{ padding: '16px', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
               <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <AlertTriangle size={16} color="var(--color-warning)" />
+                <Warning size={16} color="var(--color-warning)" />
                 <span>4xx &amp; 413 Error Breakdown by Path</span>
               </div>
 
@@ -1237,7 +1238,7 @@ export const HcpDataStreamDashboard: React.FC<HcpDataStreamDashboardProps> = ({
           </div>
 
           {/* Slowest Transfers with Throughput MB/s (FR-8) */}
-          <div className="double-bezel-outer" style={{ padding: '16px', overflowX: 'auto' }}>
+          <div style={{ padding: '16px', overflowX: 'auto', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
             <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Clock size={16} color="var(--accent)" />
               <span>Slowest Transfers with Throughput (FR-8: Computed MB/s)</span>

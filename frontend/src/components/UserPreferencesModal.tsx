@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  X, Sliders, Shield, Palette, Bell, Settings, Tag,
-  CheckCircle2, AlertTriangle, AlertCircle, Save, Info, Send, Loader2,
-  Plus, Edit3, Database, Download, Upload, ArrowUpCircle, ExternalLink,
-  Terminal, Copy, Check, RefreshCw, User as UserIcon
-} from 'lucide-react';
+  X, Sliders, Shield, Palette, Bell, Gear, Tag,
+  CheckCircle, Warning, WarningCircle, FloppyDisk, Info, PaperPlaneTilt, CircleNotch,
+  Plus, PencilSimple, Database, DownloadSimple, UploadSimple, ArrowCircleUp, ArrowSquareOut,
+  TerminalWindow, Copy, Check, ArrowsClockwise, User
+} from '@phosphor-icons/react';
 import Dialog from './Dialog';
 import IconButton from './IconButton';
 import PreferencesTagsTab from './PreferencesTagsTab';
@@ -43,14 +43,14 @@ interface UserPreferencesModalProps {
 type TabId = 'account' | 'sla' | 'appearance' | 'notifications' | 'defaults' | 'tags' | 'backup' | 'updates';
 
 const TABS: { id: TabId; label: string; icon: typeof Shield }[] = [
-  { id: 'account', label: 'Account', icon: UserIcon },
+  { id: 'account', label: 'Account', icon: User },
   { id: 'sla', label: 'SLA', icon: Shield },
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'notifications', label: 'Notifications', icon: Bell },
-  { id: 'defaults', label: 'Defaults', icon: Settings },
+  { id: 'defaults', label: 'Defaults', icon: Gear },
   { id: 'tags', label: 'Tags', icon: Tag },
   { id: 'backup', label: 'Backup & Restore', icon: Database },
-  { id: 'updates', label: 'Updates', icon: ArrowUpCircle },
+  { id: 'updates', label: 'Updates', icon: ArrowCircleUp },
 ];
 
 /** Percentages are entered as text so a half-typed "99." isn't clobbered. */
@@ -128,11 +128,11 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
     setAccountError('');
     setAccountNotice('');
     if (accountPassword && accountPassword.length < 6) {
-      setAccountError('Password baru minimal 6 karakter.');
+      setAccountError('New password must be at least 6 characters.');
       return;
     }
     if (accountPassword && accountPassword !== accountConfirmPassword) {
-      setAccountError('Konfirmasi password baru tidak cocok.');
+      setAccountError('New password confirmation does not match.');
       return;
     }
     setSavingAccount(true);
@@ -156,13 +156,13 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
         setUserProfile(updated);
         setAccountPassword('');
         setAccountConfirmPassword('');
-        setAccountNotice('Pengaturan akun dan email pemulihan berhasil disimpan.');
+        setAccountNotice('Account settings and recovery email saved successfully.');
       } else {
         const err = await res.json().catch(() => ({}));
-        setAccountError(err.detail || 'Gagal menyimpan profil akun.');
+        setAccountError(err.detail || 'Failed to save account profile.');
       }
     } catch {
-      setAccountError('Gagal terhubung ke server.');
+      setAccountError('Failed to connect to the server.');
     } finally {
       setSavingAccount(false);
     }
@@ -452,8 +452,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
       className="pref-modal-dialog"
       style={{ padding: 0, margin: 'auto', background: 'transparent', border: 'none', maxWidth: '660px', width: '100%' }}
     >
-      <div className="double-bezel-outer" style={{ width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
-        <div className="double-bezel-inner" style={{ padding: 'var(--space-5)' }}>
+      <div style={{ width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: 'var(--space-5)', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
 
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-4)', gap: 'var(--space-3)' }}>
@@ -504,14 +503,14 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                   onClick={() => setActiveTab(tab.id)}
                   style={{
                     flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                    padding: '7px 8px', borderRadius: 'var(--radius-sm)', fontSize: '11.5px', fontWeight: 600,
+                    padding: '7px 8px', borderRadius: 'var(--radius-sm)', fontSize: '12px', fontWeight: 600,
                     whiteSpace: 'nowrap', cursor: 'pointer', border: 'none',
                     background: isActive ? 'var(--bg-secondary)' : 'transparent',
                     color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
                     transition: 'background-color var(--t-fast), color var(--t-fast)',
                   }}
                 >
-                  <Icon size={13} aria-hidden="true" />
+                  <Icon size={14} aria-hidden="true" />
                   <span>{tab.label}</span>
                 </button>
               );
@@ -519,7 +518,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
           </div>
 
           {/* Async feedback. aria-live so a save result is announced, not just
-              shown — the button that triggered it may be off-screen. */}
+              shown: the button that triggered it may be off-screen. */}
           {(error || notice) && (
             <div
               role="status"
@@ -532,8 +531,8 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                 fontSize: '12px', display: 'flex', gap: '8px', alignItems: 'flex-start',
               }}
             >
-              {error ? <AlertCircle size={14} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }} />
-                : <CheckCircle2 size={14} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }} />}
+              {error ? <WarningCircle size={14} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }} />
+                : <CheckCircle size={14} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }} />}
               <span>{error || notice}</span>
             </div>
           )}
@@ -558,7 +557,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                       alignItems: 'center',
                     }}
                   >
-                    <CheckCircle2 size={14} aria-hidden="true" />
+                    <CheckCircle size={14} aria-hidden="true" />
                     <span>{accountNotice}</span>
                   </div>
                 )}
@@ -575,7 +574,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                       alignItems: 'center',
                     }}
                   >
-                    <AlertCircle size={14} aria-hidden="true" />
+                    <WarningCircle size={14} aria-hidden="true" />
                     <span>{accountError}</span>
                   </div>
                 )}
@@ -583,18 +582,18 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                 <div style={card}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)' }}>
-                        Informasi Pengguna
+                      <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>
+                        User Information
                       </div>
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                        Username dan peran hak akses aktif.
+                        Username and active role permissions.
                       </div>
                     </div>
                     <span
                       style={{
                         padding: '3px 8px',
                         borderRadius: 'var(--radius-sm)',
-                        fontSize: '11px',
+                        fontSize: '12px',
                         fontWeight: 700,
                         textTransform: 'uppercase',
                         background: 'var(--surface-raised)',
@@ -605,28 +604,28 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                       {userProfile?.role || role || 'Viewer'}
                     </span>
                   </div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
                     Username: <strong style={{ color: 'var(--text-primary)' }}>{userProfile?.username || '-'}</strong>
                   </div>
                 </div>
 
                 <div style={card}>
-                  <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                    Email Pemulihan Kata Sandi
+                  <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                    Password Recovery Email
                   </div>
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 var(--space-3) 0', lineHeight: 1.5 }}>
-                    Alamat email ini digunakan untuk menerima tautan reset kata sandi jika Anda lupa password akun.
+                    Used to receive password reset links if you forget your credentials.
                   </p>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                     <div>
                       <label htmlFor="account-email" style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px', color: 'var(--text-secondary)' }}>
-                        Alamat Email
+                        Email Address
                       </label>
                       <input
                         id="account-email"
                         type="email"
-                        placeholder="contoh: admin@perusahaan.com"
+                        placeholder="e.g. admin@example.com"
                         value={accountEmail}
                         onChange={e => setAccountEmail(e.target.value)}
                         style={{
@@ -636,29 +635,29 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                           border: '1px solid var(--border)',
                           background: 'var(--bg-secondary)',
                           color: 'var(--text-primary)',
-                          fontSize: '13px',
+                          fontSize: '14px',
                         }}
                       />
                     </div>
 
                     <div style={{ borderTop: '1px solid var(--border)', paddingTop: 'var(--space-3)', marginTop: 'var(--space-1)' }}>
-                      <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                        Ganti Password (Opsional)
+                      <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                        Change Password (Optional)
                       </div>
                       <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 var(--space-3) 0', lineHeight: 1.5 }}>
-                        Kosongkan bagian ini jika Anda hanya ingin memperbarui alamat email pemulihan.
+                        Leave blank if you only wish to update your recovery email address.
                       </p>
 
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-3)' }}>
                         <div>
                           <label htmlFor="account-password" style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px', color: 'var(--text-secondary)' }}>
-                            Password Baru
+                            New Password
                           </label>
                           <input
                             id="account-password"
                             type="password"
                             minLength={6}
-                            placeholder="Minimal 6 karakter"
+                            placeholder="Minimum 6 characters"
                             value={accountPassword}
                             onChange={e => setAccountPassword(e.target.value)}
                             style={{
@@ -668,19 +667,19 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                               border: '1px solid var(--border)',
                               background: 'var(--bg-secondary)',
                               color: 'var(--text-primary)',
-                              fontSize: '13px',
+                              fontSize: '14px',
                             }}
                           />
                         </div>
                         <div>
                           <label htmlFor="account-confirm-password" style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px', color: 'var(--text-secondary)' }}>
-                            Konfirmasi Password Baru
+                            Confirm New Password
                           </label>
                           <input
                             id="account-confirm-password"
                             type="password"
                             minLength={6}
-                            placeholder="Ulangi password"
+                            placeholder="Repeat password"
                             value={accountConfirmPassword}
                             onChange={e => setAccountConfirmPassword(e.target.value)}
                             style={{
@@ -690,7 +689,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                               border: '1px solid var(--border)',
                               background: 'var(--bg-secondary)',
                               color: 'var(--text-primary)',
-                              fontSize: '13px',
+                              fontSize: '14px',
                             }}
                           />
                         </div>
@@ -709,7 +708,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                           border: 'none',
                           color: '#fff',
                           fontWeight: 600,
-                          fontSize: '13px',
+                          fontSize: '14px',
                           cursor: savingAccount ? 'wait' : 'pointer',
                           display: 'flex',
                           alignItems: 'center',
@@ -719,13 +718,13 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                       >
                         {savingAccount ? (
                           <>
-                            <Loader2 size={14} className="spin" />
-                            <span>Menyimpan...</span>
+                            <CircleNotch size={14} className="spin" />
+                            <span>Saving...</span>
                           </>
                         ) : (
                           <>
-                            <Save size={14} />
-                            <span>Simpan Akun</span>
+                            <FloppyDisk size={14} />
+                            <span>Save Account</span>
                           </>
                         )}
                       </button>
@@ -765,20 +764,20 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
 
                   {slaError ? (
                     <div style={{ marginTop: 'var(--space-3)', fontSize: '12px', color: 'var(--color-down)', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <AlertCircle size={13} aria-hidden="true" /> {slaError}
+                      <WarningCircle size={14} aria-hidden="true" /> {slaError}
                     </div>
                   ) : (
                     /* Derived from the same parsed numbers as the validator, so
                        it can never contradict the fields above it. */
-                    <div style={{ marginTop: 'var(--space-3)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--border)', fontSize: '11.5px', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', fontFamily: 'var(--font-mono)' }}>
+                    <div style={{ marginTop: 'var(--space-3)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--border)', fontSize: '12px', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', fontFamily: 'var(--font-mono)' }}>
                       <span style={{ color: 'var(--color-up)' }}>
-                        <CheckCircle2 size={11} aria-hidden="true" style={{ verticalAlign: -1 }} /> Normal ≥ {pct.format(slaNums.normal!)}%
+                        <CheckCircle size={12} aria-hidden="true" style={{ verticalAlign: -1 }} /> Normal ≥ {pct.format(slaNums.normal!)}%
                       </span>
                       <span style={{ color: 'var(--color-warning)' }}>
-                        <AlertTriangle size={11} aria-hidden="true" style={{ verticalAlign: -1 }} /> Warning {pct.format(slaNums.critical!)}–{pct.format(slaNums.normal!)}%
+                        <Warning size={12} aria-hidden="true" style={{ verticalAlign: -1 }} /> Warning {pct.format(slaNums.critical!)}-{pct.format(slaNums.normal!)}%
                       </span>
                       <span style={{ color: 'var(--color-down)' }}>
-                        <AlertCircle size={11} aria-hidden="true" style={{ verticalAlign: -1 }} /> Critical &lt; {pct.format(slaNums.critical!)}%
+                        <WarningCircle size={12} aria-hidden="true" style={{ verticalAlign: -1 }} /> Critical &lt; {pct.format(slaNums.critical!)}%
                       </span>
                     </div>
                   )}
@@ -982,7 +981,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                                 cursor: canEdit ? 'pointer' : 'not-allowed',
                               }}
                             >
-                              <Edit3 size={12} />
+                              <PencilSimple size={12} />
                               Edit
                             </button>
                           </div>
@@ -1099,16 +1098,16 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                       }}
                     >
                       {testing
-                        ? <><Loader2 size={13} className="spin" aria-hidden="true" /> Sending…</>
-                        : <><Send size={13} aria-hidden="true" /> Send test alert</>}
+                        ? <><CircleNotch size={14} className="spin" aria-hidden="true" /> Sending...</>
+                        : <><PaperPlaneTilt size={14} aria-hidden="true" /> Send test alert</>}
                     </button>
-                    <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                       Save first: the test uses the stored webhook.
                     </span>
                   </div>
                 </fieldset>
 
-                <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', margin: 0 }}>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
                   Snoomp posts alerts to any endpoint that accepts a Discord-compatible
                   webhook payload. Per-monitor destinations are configured on the monitor
                   itself and are unaffected by this section. Environment variables still act
@@ -1170,7 +1169,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
 
                 <fieldset style={{ ...card, border: `1px solid ${thresholdError ? 'var(--color-down)' : 'var(--border)'}` }}>
                   <legend style={{ ...legend, color: 'var(--text-primary)', padding: '0 6px' }}>
-                    <AlertTriangle size={14} aria-hidden="true" /> Fleet alarm thresholds
+                    <Warning size={14} aria-hidden="true" /> Fleet alarm thresholds
                   </legend>
                   <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: 0, marginBottom: 'var(--space-3)' }}>
                     Applied to every monitor that has not set its own. Leave a field blank to disable
@@ -1189,7 +1188,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                   </div>
                   {thresholdError && (
                     <div style={{ marginTop: 'var(--space-3)', fontSize: '12px', color: 'var(--color-down)', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <AlertCircle size={13} aria-hidden="true" /> {thresholdError}
+                      <WarningCircle size={14} aria-hidden="true" /> {thresholdError}
                     </div>
                   )}
                 </fieldset>
@@ -1233,7 +1232,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                     color: backupMsg.type === 'success' ? 'var(--color-up, #22c55e)' : 'var(--color-down, #ef4444)',
                     border: `1px solid ${backupMsg.type === 'success' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
                   }}>
-                    {backupMsg.type === 'success' ? <CheckCircle2 size={18} style={{ flexShrink: 0, marginTop: '1px' }} /> : <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '1px' }} />}
+                    {backupMsg.type === 'success' ? <CheckCircle size={18} style={{ flexShrink: 0, marginTop: '1px' }} /> : <WarningCircle size={18} style={{ flexShrink: 0, marginTop: '1px' }} />}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                       <span>{backupMsg.text}</span>
                       {backupMsg.type === 'success' && (
@@ -1290,11 +1289,11 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                         border: '1px solid var(--border)',
                         color: 'var(--text-primary)',
                         cursor: exporting ? 'wait' : 'pointer',
-                        fontSize: '13px',
+                        fontSize: '14px',
                         fontWeight: 600,
                       }}
                     >
-                      {exporting ? <Loader2 size={15} className="spin" /> : <Download size={15} />}
+                      {exporting ? <CircleNotch size={16} className="spin" /> : <DownloadSimple size={16} />}
                       {exporting ? 'Generating JSON...' : 'Export Backup JSON'}
                     </button>
                   </fieldset>
@@ -1309,7 +1308,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                     <legend style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', padding: '0 8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       Import / Restore Data
                     </legend>
-                    <p style={{ margin: '0 0 var(--space-3)', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    <p style={{ margin: '0 0 var(--space-3)', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                       Restore instance configuration from an exported JSON file. Choose between merging with existing data or completely replacing all configurations.
                     </p>
 
@@ -1344,7 +1343,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                           Restore Mode
                         </label>
                         <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
                             <input
                               type="radio"
                               name="restoreMode"
@@ -1354,7 +1353,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                             />
                             <span><strong>Merge</strong> (Upsert without deleting other items)</span>
                           </label>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
                             <input
                               type="radio"
                               name="restoreMode"
@@ -1383,11 +1382,11 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                             color: '#fff',
                             cursor: (importing || !importFile) ? 'not-allowed' : 'pointer',
                             opacity: (importing || !importFile) ? 0.6 : 1,
-                            fontSize: '13px',
+                            fontSize: '14px',
                             fontWeight: 600,
                           }}
                         >
-                          {importing ? <Loader2 size={15} className="spin" /> : <Upload size={15} />}
+                          {importing ? <CircleNotch size={16} className="spin" /> : <UploadSimple size={16} />}
                           {importing ? 'Importing & Restoring...' : `Restore from Backup (${importMode === 'replace' ? 'Wipe & Replace' : 'Merge'})`}
                         </button>
                       </div>
@@ -1402,7 +1401,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
               <div id="pref-panel-updates" role="tabpanel" aria-labelledby="pref-tab-updates" style={{ marginBottom: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
-                    <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                    <h3 style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
                       Software & Release Status
                     </h3>
                     <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '4px 0 0' }}>
@@ -1427,7 +1426,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                       fontWeight: 600
                     }}
                   >
-                    <RefreshCw size={13} className={checkingUpdates ? 'spin' : ''} />
+                    <ArrowsClockwise size={14} className={checkingUpdates ? 'spin' : ''} />
                     {checkingUpdates ? 'Checking...' : 'Check for Updates'}
                   </button>
                 </div>
@@ -1444,8 +1443,8 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                     border: '1px dashed var(--border)',
                     borderRadius: 'var(--radius-md)'
                   }}>
-                    <Loader2 size={24} className="spin" style={{ color: 'var(--accent)' }} />
-                    <div style={{ fontSize: '13px' }}>Checking GitHub releases repository...</div>
+                    <CircleNotch size={24} className="spin" style={{ color: 'var(--accent)' }} />
+                    <div style={{ fontSize: '14px' }}>Checking GitHub releases repository...</div>
                   </div>
                 ) : updateError && !updateData ? (
                   <div style={{
@@ -1457,7 +1456,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                     alignItems: 'flex-start',
                     gap: '12px'
                   }}>
-                    <AlertTriangle size={20} style={{ color: '#ef4444', flexShrink: 0, marginTop: '2px' }} />
+                    <Warning size={20} style={{ color: '#ef4444', flexShrink: 0, marginTop: '2px' }} />
                     <div>
                       <div style={{ fontWeight: 600, fontSize: '14px', color: '#ef4444' }}>Unable to verify updates</div>
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{updateError}</div>
@@ -1475,14 +1474,14 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                         alignItems: 'flex-start',
                         gap: '14px'
                       }}>
-                        <ArrowUpCircle size={24} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: '2px' }} />
+                        <ArrowCircleUp size={24} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: '2px' }} />
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                            <span style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)' }}>
+                            <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)' }}>
                               Update Available: v{updateData.latest_version}
                             </span>
                             <span style={{
-                              fontSize: '11px',
+                              fontSize: '12px',
                               background: 'rgba(56, 189, 248, 0.2)',
                               color: 'var(--accent)',
                               padding: '2px 8px',
@@ -1493,7 +1492,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                             </span>
                           </div>
                           {updateData.release_name && (
-                            <div style={{ fontSize: '13px', color: 'var(--text-primary)', marginTop: '6px', fontWeight: 500 }}>
+                            <div style={{ fontSize: '14px', color: 'var(--text-primary)', marginTop: '6px', fontWeight: 500 }}>
                               {updateData.release_name}
                             </div>
                           )}
@@ -1529,7 +1528,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                                   textDecoration: 'none'
                                 }}
                               >
-                                View full release notes on GitHub <ExternalLink size={12} />
+                                View full release notes on GitHub <ArrowSquareOut size={12} />
                               </a>
                             </div>
                           )}
@@ -1545,9 +1544,9 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                         alignItems: 'center',
                         gap: '14px'
                       }}>
-                        <CheckCircle2 size={24} style={{ color: '#22c55e', flexShrink: 0 }} />
+                        <CheckCircle size={24} style={{ color: '#22c55e', flexShrink: 0 }} />
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: '15px', color: '#22c55e' }}>
+                          <div style={{ fontWeight: 600, fontSize: '14px', color: '#22c55e' }}>
                             Snoomp is up to date
                           </div>
                           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
@@ -1574,8 +1573,8 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                       {/* Docker Command */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <Terminal size={12} /> Standard Docker Stack:
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <TerminalWindow size={12} /> Standard Docker Stack:
                           </span>
                           <button
                             type="button"
@@ -1589,7 +1588,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                               display: 'flex',
                               alignItems: 'center',
                               gap: '4px',
-                              fontSize: '11px',
+                              fontSize: '12px',
                               background: copiedDockerCmd ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255, 255, 255, 0.06)',
                               color: copiedDockerCmd ? '#22c55e' : 'var(--text-primary)',
                               border: '1px solid',
@@ -1599,13 +1598,13 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                               cursor: 'pointer'
                             }}
                           >
-                            {copiedDockerCmd ? <Check size={11} /> : <Copy size={11} />}
+                            {copiedDockerCmd ? <Check size={12} /> : <Copy size={12} />}
                             {copiedDockerCmd ? 'Copied' : 'Copy'}
                           </button>
                         </div>
                         <code style={{
                           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                          fontSize: '11px',
+                          fontSize: '12px',
                           color: 'var(--accent)',
                           background: 'rgba(0, 0, 0, 0.3)',
                           padding: '6px 8px',
@@ -1621,8 +1620,8 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                       {/* Turnkey Installer Command */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <Terminal size={12} /> Turnkey Linux Bootstrap:
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <TerminalWindow size={12} /> Turnkey Linux Bootstrap:
                           </span>
                           <button
                             type="button"
@@ -1636,7 +1635,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                               display: 'flex',
                               alignItems: 'center',
                               gap: '4px',
-                              fontSize: '11px',
+                              fontSize: '12px',
                               background: copiedInstallerCmd ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255, 255, 255, 0.06)',
                               color: copiedInstallerCmd ? '#22c55e' : 'var(--text-primary)',
                               border: '1px solid',
@@ -1646,13 +1645,13 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                               cursor: 'pointer'
                             }}
                           >
-                            {copiedInstallerCmd ? <Check size={11} /> : <Copy size={11} />}
+                            {copiedInstallerCmd ? <Check size={12} /> : <Copy size={12} />}
                             {copiedInstallerCmd ? 'Copied' : 'Copy'}
                           </button>
                         </div>
                         <code style={{
                           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                          fontSize: '11px',
+                          fontSize: '12px',
                           color: 'var(--accent)',
                           background: 'rgba(0, 0, 0, 0.3)',
                           padding: '6px 8px',
@@ -1674,7 +1673,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                   background: 'var(--bg-elevated)',
                   border: '1px solid var(--border)',
                   borderRadius: 'var(--radius-md)',
-                  fontSize: '11px',
+                  fontSize: '12px',
                   color: 'var(--text-muted)',
                   display: 'flex',
                   alignItems: 'center',
@@ -1692,9 +1691,9 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
 
             {/* Footer */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)', alignItems: 'center' }}>
-              {loading && <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginRight: 'auto' }}>Loading…</span>}
+              {loading && <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginRight: 'auto' }}>Loading...</span>}
               <button type="button" onClick={onClose}
-                style={{ padding: '11px 18px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                style={{ padding: '11px 18px', borderRadius: 'var(--radius-sm)', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}>
                 {canEdit ? 'Cancel' : 'Close'}
               </button>
               {canEdit && activeTab !== 'account' && activeTab !== 'tags' && activeTab !== 'backup' && activeTab !== 'updates' && (
@@ -1709,19 +1708,18 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                     border: blockingError ? '1px solid var(--border)' : 'none',
                     color: blockingError ? 'var(--text-muted)' : '#fff',
                     cursor: saving ? 'wait' : 'pointer',
-                    fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px',
+                    fontSize: '14px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px',
                   }}
                 >
                   {saving
-                    ? <><Loader2 size={16} className="spin" aria-hidden="true" /> Saving…</>
-                    : <><Save size={16} aria-hidden="true" /> Save Preferences</>}
+                    ? <><CircleNotch size={16} className="spin" aria-hidden="true" /> Saving...</>
+                    : <><FloppyDisk size={16} aria-hidden="true" /> Save Preferences</>}
                 </button>
               )}
             </div>
 
           </form>
         </div>
-      </div>
     </Dialog>
 
     <NotificationDialog
